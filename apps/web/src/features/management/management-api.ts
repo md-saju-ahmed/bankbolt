@@ -133,6 +133,14 @@ export const managementApi = baseApi.injectEndpoints({
       providesTags: ["OwnedAccounts"],
       keepUnusedDataFor: 0,
     }),
+    ownedAccount: b.query<{ account: OwnedAccount }, string>({
+      query: (id) => ({
+        url: `/accounts/${encodeURIComponent(id)}`,
+        cache: "no-store",
+      }),
+      providesTags: ["OwnedAccounts"],
+      keepUnusedDataFor: 0,
+    }),
   }),
 });
 
@@ -144,4 +152,5 @@ export const {
   useChangeCustomerAccessMutation,
   useChangeAccountMutation,
   useOwnedAccountsQuery,
+  useOwnedAccountQuery,
 } = managementApi;

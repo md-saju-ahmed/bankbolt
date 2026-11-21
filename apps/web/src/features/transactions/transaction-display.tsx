@@ -35,7 +35,7 @@ export function TransactionStatus({
 export function TransactionAmount({
   transaction,
 }: {
-  transaction: Transaction;
+  transaction: Pick<Transaction, "amountPoisha" | "direction" | "status">;
 }) {
   const { amountPoisha, direction, status } = transaction;
   const signed = status === "COMPLETED";
