@@ -10,6 +10,7 @@ export const baseApi = createApi({
     "OwnedAccounts",
     "Transactions",
     "TransactionPin",
+    "CashRequests",
   ],
   endpoints: () => ({}),
 });

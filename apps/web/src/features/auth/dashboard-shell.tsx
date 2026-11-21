@@ -13,6 +13,7 @@ import {
   ReceiptText,
   UserRoundPlus,
   UsersRound,
+  Wallet,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -92,6 +93,14 @@ function WorkspaceLinks({
       label: "Transfer funds",
       icon: ArrowLeftRight,
       active: pathname === `${root}/transfer`,
+    });
+    links.push({
+      href: `${root}/cash-requests`,
+      label: "Cash requests",
+      icon: Wallet,
+      active:
+        pathname === `${root}/cash-requests` ||
+        pathname.startsWith(`${root}/cash-requests/`),
     });
   } else {
     links.push(
