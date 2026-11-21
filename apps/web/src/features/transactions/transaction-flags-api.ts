@@ -19,12 +19,15 @@ type FlagPage = { flags: Flag[]; hasNextPage: boolean };
 
 const flagsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    adminFlagQueue: build.query<
+    flagQueue: build.query<
       FlagPage,
-      { page: number; status?: FlagStatus }
+      { workspace: "admin" | "staff"; page: number; status?: FlagStatus }
     >({
-      query: (params) => ({
-        url: "/transaction-flags",
+      query: ({ workspace, ...params }) => ({
+        url:
+          workspace === "staff"
+            ? "/transaction-flags/mine"
+            : "/transaction-flags",
         params,
         cache: "no-store",
       }),
@@ -68,7 +71,7 @@ const flagsApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useAdminFlagQueueQuery,
+  useFlagQueueQuery,
   useRelatedFlagsQuery,
   useFlagTransactionMutation,
   useResolveTransactionFlagMutation,

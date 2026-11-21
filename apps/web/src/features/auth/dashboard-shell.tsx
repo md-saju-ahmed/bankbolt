@@ -143,10 +143,10 @@ function WorkspaceLinks({
       pathname === `${root}/transactions` ||
       pathname.startsWith(`${root}/transactions/`),
   });
-  if (role === "ADMIN") {
+  if (role !== "CUSTOMER") {
     links.push({
       href: `${root}/transaction-flags`,
-      label: "Transaction flags",
+      label: role === "ADMIN" ? "Transaction flags" : "My transaction flags",
       icon: Flag,
       active: pathname === `${root}/transaction-flags`,
     });

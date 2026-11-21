@@ -3,6 +3,7 @@ import { DashboardShell } from "@/features/auth/dashboard-shell";
 import { workspaceRole } from "@/features/auth/identity";
 import { AdminOverview } from "@/features/reports/admin-overview";
 import { CustomerOverview } from "@/features/reports/customer-overview";
+import { StaffOverview } from "@/features/reports/staff-overview";
 
 export default async function WorkspacePage({
   params,
@@ -18,7 +19,9 @@ export default async function WorkspacePage({
         <AdminOverview />
       ) : role === "CUSTOMER" ? (
         <CustomerOverview />
-      ) : undefined}
+      ) : (
+        <StaffOverview />
+      )}
     </DashboardShell>
   );
 }

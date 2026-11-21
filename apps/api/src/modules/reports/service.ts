@@ -354,7 +354,7 @@ export function customerReport(
   });
 }
 
-export function staffReport() {
+export function staffReport(staffId: string) {
   return reportSnapshot(async (db) => {
     const [cash] = await db
       .select({
@@ -372,7 +372,10 @@ export function staffReport() {
     const queue = await loanQueue(db);
     const openTransactionFlags = await db.$count(
       transactionFlags,
-      isNull(transactionFlags.resolvedAt),
+      and(
+        eq(transactionFlags.flaggedBy, staffId),
+        isNull(transactionFlags.resolvedAt),
+      ),
     );
     return {
       pendingCashRequests: { ...cash, total: cash.deposits + cash.withdrawals },

@@ -38,10 +38,12 @@ const roles = {
   empty: "CUSTOMER",
   admin: "ADMIN",
   staff: "STAFF",
+  otherStaff: "STAFF",
 } as const;
 type Person = keyof typeof roles;
 const people = Object.keys(roles) as Person[];
-const email = (person: Person) => `reports-${person}-${run}@bankbolt.example`;
+const email = (person: Person) =>
+  `reports-${person.toLowerCase()}-${run}@bankbolt.example`;
 const userIds = new Map<Person, string>();
 const profileIds = new Map<Person, string>();
 const cookies = new Map<Person, string>();
@@ -355,6 +357,11 @@ beforeAll(async () => {
       resolvedBy: userIds.get("admin")!,
       resolutionNote: "Fictional resolution",
     },
+    {
+      transactionId: activity[2].id,
+      flaggedBy: userIds.get("otherStaff")!,
+      reason: "Fictional flag from another staff member",
+    },
   ]);
 }, 20_000);
 
@@ -451,7 +458,7 @@ it("reports Admin snapshots, monthly completed volume, and decision-date statist
       1000n
     ).toString(),
     pendingLoanApplications: baselineAdmin.summary.pendingLoanApplications + 3,
-    openTransactionFlags: baselineAdmin.summary.openTransactionFlags + 1,
+    openTransactionFlags: baselineAdmin.summary.openTransactionFlags + 2,
     completedTransactions: 8,
     depositsPoisha: (largeDeposit + 10_000n).toString(),
     withdrawalsPoisha: "2000",
@@ -595,4 +602,59 @@ it("reports pending cash, review work, Admin handoffs and unresolved flags for S
     },
     openTransactionFlags: baselineStaff.openTransactionFlags + 1,
   });
+});
+
+it("links the Staff flag count to an own-only queue and keeps resolution reserved for Admin", async () => {
+  const flags = (person: Person, path = "/mine") =>
+    request(app)
+      .get(`/api/v1/transaction-flags${path}`)
+      .set("Cookie", cookies.get(person)!);
+  await flags("owner").expect(403);
+  await flags("admin").expect(403);
+  await flags("staff", "").expect(403);
+  await flags("staff")
+    .query({ flaggedBy: userIds.get("otherStaff") })
+    .expect(400);
+
+  const open = await flags("staff").query({ status: "OPEN" }).expect(200);
+  expect(open.headers["cache-control"]).toBe("no-store");
+  expect(open.body.flags).toEqual([
+    expect.objectContaining({ status: "OPEN", reason: "Fictional open flag" }),
+  ]);
+  expect(
+    (await report("staff", "staff").expect(200)).body.openTransactionFlags,
+  ).toBe(open.body.flags.length);
+  const resolved = await flags("staff")
+    .query({ status: "RESOLVED" })
+    .expect(200);
+  expect(resolved.body.flags).toEqual([
+    expect.objectContaining({
+      status: "RESOLVED",
+      resolutionNote: "Fictional resolution",
+    }),
+  ]);
+  const other = await flags("otherStaff").query({ status: "OPEN" }).expect(200);
+  expect(other.body.flags).toEqual([
+    expect.objectContaining({
+      status: "OPEN",
+      reason: "Fictional flag from another staff member",
+    }),
+  ]);
+
+  const id = open.body.flags[0].id as string;
+  await request(app)
+    .post(`/api/v1/transaction-flags/${id}/resolve`)
+    .set("Cookie", cookies.get("staff")!)
+    .set("Origin", origin)
+    .send({})
+    .expect(403);
+  const admin = await flags("admin", "").query({ status: "OPEN" }).expect(200);
+  expect(admin.body.flags).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id }),
+      expect.objectContaining({
+        reason: "Fictional flag from another staff member",
+      }),
+    ]),
+  );
 });

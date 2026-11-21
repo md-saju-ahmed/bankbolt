@@ -27,12 +27,16 @@ const verificationLabels = {
   REJECTED: "Rejected",
 };
 
+type EntryMode = "find" | "register";
+
 function CustomerEntry({
   onSelect,
+  entryMode,
 }: {
   onSelect: (customer: Customer) => void;
+  entryMode: EntryMode;
 }) {
-  const [mode, setMode] = useState<"find" | "register">("find");
+  const [mode, setMode] = useState(entryMode);
   const [feedback, setFeedback] = useState("");
   const [find, lookup] = useLookupCustomerMutation();
   const [register, creation] = useRegisterCustomerMutation();
@@ -260,7 +264,7 @@ function CustomerReview({
   );
 }
 
-export function Onboarding() {
+export function Onboarding({ entryMode }: { entryMode: EntryMode }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   return (
     <section className="space-y-6">
@@ -284,7 +288,7 @@ export function Onboarding() {
           <AccountsPanel key={customer.id} customer={customer} />
         </>
       ) : (
-        <CustomerEntry onSelect={setCustomer} />
+        <CustomerEntry onSelect={setCustomer} entryMode={entryMode} />
       )}
     </section>
   );

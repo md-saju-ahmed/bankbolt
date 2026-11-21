@@ -20,7 +20,7 @@ import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { historyLink } from "./transaction-display";
 import { transactionTypes } from "./transactions-api";
 import {
-  useAdminFlagQueueQuery,
+  useFlagQueueQuery,
   useFlagTransactionMutation,
   useRelatedFlagsQuery,
   useResolveTransactionFlagMutation,
@@ -335,11 +335,15 @@ export function TransactionFlagsPanel({
   );
 }
 
-export function TransactionFlagsQueue() {
+export function TransactionFlagsQueue({
+  workspace,
+}: {
+  workspace: "admin" | "staff";
+}) {
   const [status, setStatus] = useState<FlagStatus | "">("OPEN");
   const [page, setPage] = useState(1);
-  const query = useAdminFlagQueueQuery(
-    { page, status: status || undefined },
+  const query = useFlagQueueQuery(
+    { workspace, page, status: status || undefined },
     { refetchOnMountOrArgChange: true, refetchOnFocus: true },
   );
   const rows = query.currentData?.flags ?? [];
@@ -347,15 +351,19 @@ export function TransactionFlagsQueue() {
     <section className="max-w-4xl space-y-5">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">
-          Transaction flags
+          {workspace === "admin" ? "Transaction flags" : "My transaction flags"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Review transactions that Staff flagged for Admin.
+          {workspace === "admin"
+            ? "Review transactions that Staff flagged for Admin."
+            : "Track the flags you sent for Admin review."}
         </p>
       </header>
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b p-4">
-          <h2 className="text-lg font-semibold">Flag review queue</h2>
+          <h2 className="text-lg font-semibold">
+            {workspace === "admin" ? "Flag review queue" : "Submitted flags"}
+          </h2>
           <label className="flex min-w-36 flex-col gap-1 text-sm font-medium">
             Status
             <select
@@ -399,10 +407,10 @@ export function TransactionFlagsQueue() {
                       showTransaction
                       action={
                         <Link
-                          href={`/admin/transactions/${flag.reference}#transaction-flags`}
+                          href={`/${workspace}/transactions/${flag.reference}#transaction-flags`}
                           className={`${historyLink} ${secondaryStyle}`}
                         >
-                          {flag.status === "OPEN"
+                          {workspace === "admin" && flag.status === "OPEN"
                             ? "Review transaction"
                             : "View transaction"}
                         </Link>

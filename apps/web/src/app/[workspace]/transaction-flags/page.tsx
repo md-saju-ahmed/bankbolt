@@ -8,10 +8,10 @@ export default async function TransactionFlagsPage({
   params: Promise<{ workspace: string }>;
 }) {
   const { workspace } = await params;
-  if (workspace !== "admin") notFound();
+  if (workspace !== "admin" && workspace !== "staff") notFound();
   return (
-    <DashboardShell role="ADMIN">
-      <TransactionFlagsQueue />
+    <DashboardShell role={workspace === "admin" ? "ADMIN" : "STAFF"}>
+      <TransactionFlagsQueue workspace={workspace} />
     </DashboardShell>
   );
 }

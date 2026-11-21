@@ -61,7 +61,21 @@ transactionFlagsRouter.use((_request, response, next) => {
   response.set("Cache-Control", "no-store");
   next();
 });
-transactionFlagsRouter.use(requireAuth, requireRole("ADMIN"));
+transactionFlagsRouter.use(requireAuth);
+transactionFlagsRouter.get(
+  "/mine",
+  requireRole("STAFF"),
+  async (request, response) => {
+    const filters = queueFilters.parse(request.query);
+    response.json(
+      await listTransactionFlags({
+        ...filters,
+        flaggedBy: currentIdentity(request).id,
+      }),
+    );
+  },
+);
+transactionFlagsRouter.use(requireRole("ADMIN"));
 transactionFlagsRouter.get("/", async (request, response) => {
   response.json(await listTransactionFlags(queueFilters.parse(request.query)));
 });

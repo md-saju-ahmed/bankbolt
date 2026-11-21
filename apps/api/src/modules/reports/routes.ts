@@ -37,5 +37,5 @@ reportsRouter.get(
 
 reportsRouter.get("/staff", requireRole("STAFF"), async (request, response) => {
   staffReportQuery.parse(request.query);
-  response.json(await staffReport());
+  response.json(await staffReport(currentIdentity(request).id));
 });

@@ -54,6 +54,17 @@ export type CustomerReport = {
   transactionDistribution: { type: Transaction["type"]; count: number }[];
 };
 
+export type StaffReport = {
+  pendingCashRequests: { total: number; deposits: number; withdrawals: number };
+  loanReview: {
+    pending: number;
+    underReview: number;
+    forwarded: number;
+    actionable: number;
+  };
+  openTransactionFlags: number;
+};
+
 const reportsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     adminReport: build.query<AdminReport, ReportDates | void>({
@@ -83,7 +94,20 @@ const reportsApi = baseApi.injectEndpoints({
       providesTags: ["OwnedAccounts", "Transactions", "Loans"],
       keepUnusedDataFor: 0,
     }),
+    staffReport: build.query<StaffReport, void>({
+      query: () => ({
+        url: "/reports/staff",
+        cache: "no-store",
+        timeout: 15_000,
+      }),
+      providesTags: ["CashRequests", "Loans", "TransactionFlags"],
+      keepUnusedDataFor: 0,
+    }),
   }),
 });
 
-export const { useAdminReportQuery, useCustomerReportQuery } = reportsApi;
+export const {
+  useAdminReportQuery,
+  useCustomerReportQuery,
+  useStaffReportQuery,
+} = reportsApi;
