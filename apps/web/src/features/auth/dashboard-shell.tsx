@@ -8,11 +8,12 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  UserRoundPlus,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,21 +43,68 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function OverviewLink({ role, compact }: { role: Role; compact?: boolean }) {
+function WorkspaceLinks({
+  role,
+  compact,
+  inSheet,
+  onboarding,
+}: {
+  role: Role;
+  compact?: boolean;
+  inSheet?: boolean;
+  onboarding: boolean;
+}) {
+  const root = workspaces[role].path;
+  const links: {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    active: boolean;
+  }[] = [
+    {
+      href: root,
+      label: "Overview",
+      icon: LayoutDashboard,
+      active: !onboarding,
+    },
+  ];
+  if (role !== "CUSTOMER") {
+    links.push({
+      href: `${root}/onboarding`,
+      label: "Customer onboarding",
+      icon: UserRoundPlus,
+      active: onboarding,
+    });
+  }
   return (
-    <Link
-      href={workspaces[role].path}
-      aria-current="page"
-      aria-label={compact ? "Overview" : undefined}
-      title={compact ? "Overview" : undefined}
-      className={cn(
-        "flex min-h-11 items-center gap-3 rounded-md bg-white/12 px-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent",
-        compact && "justify-center px-0",
-      )}
-    >
-      <LayoutDashboard aria-hidden size={18} />
-      {!compact && "Overview"}
-    </Link>
+    <div className="space-y-2">
+      {links.map(({ href, label, icon: Icon, active }) => {
+        const link = (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            aria-label={compact ? label : undefined}
+            title={compact ? label : undefined}
+            className={cn(
+              "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent",
+              active && "bg-white/12",
+              compact && "justify-center px-0",
+            )}
+          >
+            <Icon aria-hidden size={18} />
+            {!compact && label}
+          </Link>
+        );
+        return inSheet ? (
+          <SheetClose key={href} asChild>
+            {link}
+          </SheetClose>
+        ) : (
+          link
+        );
+      })}
+    </div>
   );
 }
 
@@ -132,7 +180,13 @@ function AccountMenu({ user }: { user: SessionUser }) {
   );
 }
 
-function Workspace({ user }: { user: SessionUser }) {
+function Workspace({
+  user,
+  children,
+}: {
+  user: SessionUser;
+  children?: ReactNode;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { role } = user;
@@ -165,11 +219,11 @@ function Workspace({ user }: { user: SessionUser }) {
           className="p-3"
         >
           <div className={cn(!collapsed && "lg:hidden")}>
-            <OverviewLink role={role} compact />
+            <WorkspaceLinks role={role} compact onboarding={!!children} />
           </div>
           {!collapsed && (
             <div className="hidden lg:block">
-              <OverviewLink role={role} />
+              <WorkspaceLinks role={role} onboarding={!!children} />
             </div>
           )}
         </nav>
@@ -189,15 +243,11 @@ function Workspace({ user }: { user: SessionUser }) {
                 </SheetTrigger>
                 <SheetContent title={`${workspaces[role].label} navigation`}>
                   <nav className="p-3" aria-label="Workspace">
-                    <SheetClose asChild>
-                      <Link
-                        href={workspaces[role].path}
-                        aria-current="page"
-                        className="flex min-h-11 items-center gap-3 rounded-md bg-white/12 px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-brand-accent"
-                      >
-                        <LayoutDashboard aria-hidden size={18} /> Overview
-                      </Link>
-                    </SheetClose>
+                    <WorkspaceLinks
+                      role={role}
+                      inSheet
+                      onboarding={!!children}
+                    />
                   </nav>
                 </SheetContent>
               </Sheet>
@@ -228,36 +278,52 @@ function Workspace({ user }: { user: SessionUser }) {
           tabIndex={-1}
           className="mx-auto max-w-6xl px-4 py-8 outline-none sm:px-6 lg:px-8"
         >
-          <div className="mb-6">
-            <h1 className="text-3xl font-semibold tracking-tight">Overview</h1>
-            <p className="mt-2 text-muted-foreground">
-              Welcome, {user.fullName}.
-            </p>
-          </div>
-          <Card className="max-w-xl space-y-4 p-5 sm:p-6">
-            <h2 className="text-base font-semibold">Your account</h2>
-            <dl className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm text-muted-foreground">Email address</dt>
-                <dd className="mt-1 break-all text-sm font-medium">
-                  {user.email}
-                </dd>
+          {children ?? (
+            <>
+              <div className="mb-6">
+                <h1 className="text-3xl font-semibold tracking-tight">
+                  Overview
+                </h1>
+                <p className="mt-2 text-muted-foreground">
+                  Welcome, {user.fullName}.
+                </p>
               </div>
-              <div>
-                <dt className="text-sm text-muted-foreground">Access role</dt>
-                <dd className="mt-1 text-sm font-medium">
-                  {workspaces[role].label}
-                </dd>
-              </div>
-            </dl>
-          </Card>
+              <Card className="max-w-xl space-y-4 p-5 sm:p-6">
+                <h2 className="text-base font-semibold">Your account</h2>
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm text-muted-foreground">
+                      Email address
+                    </dt>
+                    <dd className="mt-1 break-all text-sm font-medium">
+                      {user.email}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted-foreground">
+                      Access role
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">
+                      {workspaces[role].label}
+                    </dd>
+                  </div>
+                </dl>
+              </Card>
+            </>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-export function DashboardShell({ role }: { role: Role }) {
+export function DashboardShell({
+  role,
+  children,
+}: {
+  role: Role;
+  children?: ReactNode;
+}) {
   const router = useRouter();
   const session = useWorkspaceQuery(role, {
     refetchOnMountOrArgChange: true,
@@ -326,5 +392,5 @@ export function DashboardShell({ role }: { role: Role }) {
       </main>
     );
   }
-  return <Workspace user={session.currentData.user} />;
+  return <Workspace user={session.currentData.user}>{children}</Workspace>;
 }

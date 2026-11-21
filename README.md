@@ -39,6 +39,10 @@ After running the database migrations, set `DEMO_PASSWORD` in `apps/api/.env.loc
 
 Visit `/login` and use the configured demo password. The web app restores the session and opens the signed-in account's workspace. Redux Toolkit holds client UI state, and RTK Query manages requests and the session cache.
 
+### Customer onboarding
+
+In the Staff or Admin workspace, open **Customer onboarding**. Register a fictional customer with a temporary password, or reopen an existing record by email. Review the submitted details and save a verification decision. Verified, unblocked customers can receive Savings, Current, or Business accounts. Express assigns each account an immutable number and opens it at ৳0.00. Staff or Admin can activate the pending account after confirmation.
+
 Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessions. Session cookies are HttpOnly and SameSite=Lax with an eight-hour lifetime. Deployed cookies also require HTTPS. Express checks the request origin on sign-in and sign-out, reloads the user's role and block status on protected calls, and limits repeated login and PIN attempts in PostgreSQL.
 
 ## PostgreSQL development setup

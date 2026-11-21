@@ -1,15 +1,18 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
   index,
   integer,
   pgEnum,
+  pgSequence,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -88,4 +91,80 @@ export const authAttempts = pgTable(
     resetsAt: timestamp("resets_at", { withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.purpose, table.subject] })],
+);
+
+export const accountType = pgEnum("account_type", [
+  "SAVINGS",
+  "CURRENT",
+  "BUSINESS",
+]);
+export const accountStatus = pgEnum("account_status", [
+  "PENDING",
+  "ACTIVE",
+  "FROZEN",
+  "DEACTIVATED",
+]);
+export const bankAccountNumberSequence = pgSequence("bank_account_number_seq", {
+  startWith: 100_000_000_000,
+  minValue: 100_000_000_000,
+  maxValue: 999_999_999_999,
+});
+
+export const bankAccounts = pgTable(
+  "bank_accounts",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    accountNumber: text("account_number")
+      .notNull()
+      .unique()
+      .default(sql`nextval('public.bank_account_number_seq')::text`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customerProfiles.id),
+    creationKey: uuid("creation_key").notNull(),
+    type: accountType().notNull(),
+    status: accountStatus().notNull().default("PENDING"),
+    balancePoisha: bigint("balance_poisha", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    transferLimitPoisha: bigint("transfer_limit_poisha", { mode: "bigint" })
+      .notNull()
+      .default(sql`5000000`),
+    dailyTransferLimitPoisha: bigint("daily_transfer_limit_poisha", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`20000000`),
+    businessName: text("business_name"),
+    businessRegistrationReference: text("business_registration_reference"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("bank_accounts_customer_creation_key").on(
+      table.customerId,
+      table.creationKey,
+    ),
+    check(
+      "bank_accounts_number_format",
+      sql`${table.accountNumber} ~ '^[0-9]{12}$'`,
+    ),
+    check(
+      "bank_accounts_nonnegative_balance",
+      sql`${table.balancePoisha} >= 0`,
+    ),
+    check(
+      "bank_accounts_nonnegative_limits",
+      sql`${table.transferLimitPoisha} >= 0 AND ${table.dailyTransferLimitPoisha} >= 0`,
+    ),
+    check(
+      "bank_accounts_business_metadata",
+      sql`${table.type} = 'BUSINESS' OR (${table.businessName} IS NULL AND ${table.businessRegistrationReference} IS NULL)`,
+    ),
+  ],
 );
