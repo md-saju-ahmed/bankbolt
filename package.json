@@ -10,6 +10,10 @@
     "build": "turbo run build",
     "lint": "eslint eslint.config.mjs --max-warnings=0 && turbo run lint",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "pnpm --filter @bankbolt/api test:unit",
+    "test:api": "pnpm --filter @bankbolt/api test:api",
+    "test:integration": "pnpm --filter @bankbolt/api test:integration",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

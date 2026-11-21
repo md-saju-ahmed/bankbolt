@@ -17,8 +17,33 @@ Use `pnpm format` to apply formatting.
 ## Local development
 
 Run `pnpm dev` from the repository root. Open the web app at <http://localhost:3000>
-and check the API directly at <http://localhost:4000/api/v1/health>.
+and check the API through the web origin at <http://localhost:3000/api/v1/health>.
 Use `pnpm build` for a production build and `pnpm typecheck` to check types.
 
 - `apps/web` contains the Next.js App Router frontend with Tailwind CSS and local shadcn/ui components.
 - `apps/api` contains the Express API. Run `pnpm --filter @bankbolt/api dev` to start it independently. Set `PORT` in the shell to override its default port of `4000` when running it independently.
+
+The web app forwards `/api/v1/*` to Express. Set the server-side `API_ORIGIN` in `apps/web/.env.local` to override `http://localhost:4000`. For Vercel, use separate projects rooted at `apps/web` and `apps/api`, and set `API_ORIGIN` to the matching HTTPS API origin in each web deployment environment.
+
+## PostgreSQL development setup
+
+Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.
+
+```sh
+pnpm --filter @bankbolt/api db:ping
+pnpm --filter @bankbolt/api db:generate --name=describe_schema_change
+pnpm --filter @bankbolt/api db:check
+pnpm --filter @bankbolt/api db:migrate
+```
+
+Generate a migration after changing the Drizzle schema. Review its SQL and metadata under `apps/api/drizzle` before applying it to the intended database. The baseline records the migration workflow. Feature migrations add the application tables. The health route reports API liveness, and `db:ping` checks PostgreSQL separately.
+
+## Docker development
+
+Copy the root `.env.example` to `.env` and set `DATABASE_URL` to the pooled Neon development URL. Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
+
+## Tests
+
+Run `pnpm test` for the unit and API suites, or use `pnpm test:unit` and `pnpm test:api` individually.
+
+For the PostgreSQL integration suite, start the disposable test service with `docker compose --profile test-db up -d --wait test-db`. Copy `apps/api/.env.test.example` to `apps/api/.env.test` and set `TEST_DATABASE_URL` to `postgresql://bankbolt_test:bankbolt_test@127.0.0.1:55433/bankbolt_test`. Those credentials are only for the local Compose test database. To change the host port, set `TEST_DB_PORT` in both the root `.env` and `apps/api/.env.test`, and update the URL to match. Run `pnpm test:integration` to verify migrations and transaction rollback against PostgreSQL.

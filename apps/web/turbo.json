@@ -1,0 +1,12 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "env": ["API_ORIGIN", "VERCEL"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "dev": {
+      "passThroughEnv": ["API_ORIGIN", "VERCEL"]
+    }
+  }
+}

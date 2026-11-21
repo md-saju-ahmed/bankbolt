@@ -1,0 +1,16 @@
+.git
+docs
+AGENTS.md
+**/node_modules
+**/.next
+**/.turbo
+**/.vercel
+**/dist
+**/build
+**/coverage
+**/*.log
+**/*.tsbuildinfo
+**/next-env.d.ts
+**/.env*
+!**/.env.example
+!**/.env.*.example
