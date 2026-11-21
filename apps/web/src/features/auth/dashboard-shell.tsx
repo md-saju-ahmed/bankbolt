@@ -20,7 +20,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -163,7 +163,8 @@ function WorkspaceLinks({
             title={compact ? label : undefined}
             className={cn(
               "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent",
-              active && "bg-white/12",
+              active &&
+                "bg-white/12 shadow-[inset_3px_0_0_var(--brand-accent)]",
               compact && "justify-center px-0",
             )}
           >
@@ -244,7 +245,7 @@ function AccountMenu({ user }: { user: SessionUser }) {
           <Dropdown.Item
             disabled={isLoading}
             onSelect={() => void signOut()}
-            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium outline-none data-highlighted:bg-muted data-disabled:opacity-60"
+            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium outline-none data-highlighted:bg-muted data-highlighted:outline-2 data-highlighted:-outline-offset-2 data-highlighted:outline-primary data-disabled:opacity-60"
           >
             <LogOut aria-hidden size={16} />{" "}
             {isLoading ? "Signing out…" : "Sign out"}
@@ -266,8 +267,20 @@ function Workspace({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerTrigger = useRef<HTMLButtonElement>(null);
+  const main = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const { role } = user;
+
+  useEffect(() => {
+    const tablet = window.matchMedia("(min-width: 48rem)");
+    function closeDrawer(event: MediaQueryListEvent) {
+      if (event.matches) setDrawerOpen(false);
+    }
+    tablet.addEventListener("change", closeDrawer);
+    return () => tablet.removeEventListener("change", closeDrawer);
+  }, []);
+
   return (
     <div
       className={cn("flex min-h-svh", printable && "print:block print:min-h-0")}
@@ -321,13 +334,22 @@ function Workspace({
               <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
                 <SheetTrigger asChild>
                   <Button
+                    ref={drawerTrigger}
                     aria-label="Open navigation"
                     className="min-w-11 px-0 hover:bg-muted"
                   >
                     <Menu aria-hidden size={22} />
                   </Button>
                 </SheetTrigger>
-                <SheetContent title={`${workspaces[role].label} navigation`}>
+                <SheetContent
+                  title={`${workspaces[role].label} navigation`}
+                  onCloseAutoFocus={(event) => {
+                    if (!drawerTrigger.current?.getClientRects().length) {
+                      event.preventDefault();
+                      main.current?.focus({ preventScroll: true });
+                    }
+                  }}
+                >
                   <nav className="p-3" aria-label="Workspace">
                     <WorkspaceLinks role={role} inSheet pathname={pathname} />
                   </nav>
@@ -350,12 +372,14 @@ function Workspace({
               <Brand compact />
             </div>
             <span className="truncate text-sm font-semibold">
-              {workspaces[role].label} workspace
+              {workspaces[role].label}
+              <span className="hidden sm:inline"> workspace</span>
             </span>
           </div>
           <AccountMenu user={user} />
         </header>
         <main
+          ref={main}
           id="workspace-content"
           tabIndex={-1}
           className={cn(

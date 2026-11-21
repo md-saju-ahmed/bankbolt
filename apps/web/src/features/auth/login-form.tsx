@@ -58,7 +58,7 @@ export function LoginForm() {
   }
 
   const fieldClass =
-    "min-h-12 w-full rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20";
+    "min-h-12 w-full rounded-md border border-input bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-primary";
   const blocked = errorCode(session.error) === "ACCOUNT_BLOCKED";
   return (
     <form method="post" onSubmit={submit} className="space-y-5">

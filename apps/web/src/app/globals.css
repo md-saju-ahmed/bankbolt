@@ -20,7 +20,7 @@
   --accent-foreground: var(--foreground);
   --destructive: #b42318;
   --border: #e2e8f0;
-  --input: var(--border);
+  --input: #7a8ca3;
   --ring: var(--primary);
   --radius: 0.75rem;
 }

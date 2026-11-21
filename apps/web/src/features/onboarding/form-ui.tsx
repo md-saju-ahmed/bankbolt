@@ -5,7 +5,7 @@ export const fieldStyle =
   "min-h-11 w-full rounded-md border border-input bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-primary";
 export const primaryStyle =
   "bg-primary text-primary-foreground hover:bg-primary/90";
-export const secondaryStyle = "border border-input bg-card hover:bg-muted";
+export const secondaryStyle = "border border-border bg-card hover:bg-muted";
 
 export function Field({
   label,
