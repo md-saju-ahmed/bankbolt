@@ -67,6 +67,12 @@ Staff can flag a transaction for Admin from its detail page with a reason. The A
 - `GET /api/v1/cash-requests` lists requests with optional `status`, `type`, and `page` filters, and `GET /api/v1/cash-requests/{id}` returns one request. Customers can view only their own requests. Staff and Admin can view the review queue.
 - Staff and Admin can POST to `/api/v1/cash-requests/{id}/approve` or `/api/v1/cash-requests/{id}/reject`. Reject requires a `reason`. Approval returns the reference for one posted transaction. Rejection leaves the balance intact. Repeated decisions return HTTP 409. Read the request detail to recover the recorded decision if a response is lost.
 
+### Loan catalog and schedules API
+
+The authenticated loan catalog at `GET /api/v1/loans/catalog` lists Personal, Education, and Business loan limits and terms. Each product uses 12% annual interest on the remaining principal. Monthly installments use the 1% monthly rate, rounded to poisha, with a final principal adjustment. Due dates follow the disbursement day in Asia/Dhaka and use the month's last day when that day is unavailable.
+
+`GET /api/v1/loans` lists loan records, and `GET /api/v1/loans/{id}` includes the stored schedule. Customers can read their own loans. Staff and Admin can also read internal review notes.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

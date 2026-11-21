@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -16,6 +17,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { annualLoanRateBps, loanTypes } from "../modules/loans/catalog.ts";
 
 export const userRole = pgEnum("user_role", ["ADMIN", "STAFF", "CUSTOMER"]);
 export const verificationStatus = pgEnum("verification_status", [
@@ -152,6 +154,7 @@ export const bankAccounts = pgTable(
       table.customerId,
       table.creationKey,
     ),
+    unique("bank_accounts_id_customer_unique").on(table.id, table.customerId),
     check(
       "bank_accounts_number_format",
       sql`${table.accountNumber} ~ '^[0-9]{12}$'`,
@@ -264,6 +267,128 @@ export const cashRequests = pgTable(
   ],
 );
 
+export const loanType = pgEnum("loan_type", loanTypes);
+export const loanStatus = pgEnum("loan_status", [
+  "PENDING",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+  "ACTIVE",
+  "COMPLETED",
+]);
+
+export const loans = pgTable(
+  "loans",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customerProfiles.id),
+    disbursementAccountId: uuid("disbursement_account_id").notNull(),
+    type: loanType().notNull(),
+    status: loanStatus().notNull().default("PENDING"),
+    requestedPrincipalPoisha: bigint("requested_principal_minor", {
+      mode: "bigint",
+    }).notNull(),
+    approvedPrincipalPoisha: bigint("approved_principal_minor", {
+      mode: "bigint",
+    }),
+    remainingPrincipalPoisha: bigint("remaining_principal_minor", {
+      mode: "bigint",
+    }),
+    annualRateBps: integer("annual_rate_bps")
+      .notNull()
+      .default(annualLoanRateBps),
+    termMonths: integer("term_months").notNull(),
+    monthlyIncomePoisha: bigint("monthly_income_minor", {
+      mode: "bigint",
+    }).notNull(),
+    employmentStatus: text("employment_status").notNull(),
+    description: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewStartedAt: timestamp("review_started_at", { withTimezone: true }),
+    forwardedAt: timestamp("forwarded_at", { withTimezone: true }),
+    forwardedBy: uuid("forwarded_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    rejectionReason: text("rejection_reason"),
+    disbursedAt: timestamp("disbursed_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.disbursementAccountId, table.customerId],
+      foreignColumns: [bankAccounts.id, bankAccounts.customerId],
+      name: "loans_owned_disbursement_account_fk",
+    }),
+    index("loans_customer_time_idx").on(table.customerId, table.createdAt),
+    index("loans_status_time_idx").on(table.status, table.createdAt),
+    check(
+      "loans_baseline_terms",
+      sql`${table.requestedPrincipalPoisha} > 0
+    and ${table.monthlyIncomePoisha} >= 0 and ${table.termMonths} between 6 and 60
+    and ${table.annualRateBps} = ${sql.raw(String(annualLoanRateBps))}`,
+    ),
+    check(
+      "loans_review_fields",
+      sql`(${table.forwardedAt} is null) = (${table.forwardedBy} is null)
+    and (${table.status} <> 'PENDING' or (${table.reviewStartedAt} is null and ${table.forwardedAt} is null))`,
+    ),
+    check(
+      "loans_decision_fields",
+      sql`case
+    when ${table.status} in ('PENDING', 'UNDER_REVIEW') then
+      ${table.decidedAt} is null and ${table.decidedBy} is null and ${table.approvedPrincipalPoisha} is null and ${table.rejectionReason} is null
+    when ${table.status} = 'REJECTED' then
+      ${table.decidedAt} is not null and ${table.decidedBy} is not null and ${table.approvedPrincipalPoisha} is null
+      and ${table.rejectionReason} is not null and length(trim(${table.rejectionReason})) > 0
+    else ${table.decidedAt} is not null and ${table.decidedBy} is not null and ${table.rejectionReason} is null
+      and ${table.approvedPrincipalPoisha} is not null and ${table.approvedPrincipalPoisha} > 0
+  end`,
+    ),
+    check(
+      "loans_disbursement_fields",
+      sql`case
+    when ${table.status} = 'ACTIVE' then ${table.disbursedAt} is not null and ${table.completedAt} is null
+      and ${table.remainingPrincipalPoisha} is not null and ${table.remainingPrincipalPoisha} > 0
+      and ${table.remainingPrincipalPoisha} <= ${table.approvedPrincipalPoisha}
+    when ${table.status} = 'COMPLETED' then ${table.disbursedAt} is not null and ${table.completedAt} is not null
+      and ${table.remainingPrincipalPoisha} is not null and ${table.remainingPrincipalPoisha} = 0
+    else ${table.disbursedAt} is null and ${table.completedAt} is null and ${table.remainingPrincipalPoisha} is null
+  end`,
+    ),
+  ],
+);
+
+export const loanReviewNotes = pgTable(
+  "loan_review_notes",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    loanId: uuid("loan_id")
+      .notNull()
+      .references(() => loans.id),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id),
+    note: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("loan_review_notes_loan_time_idx").on(table.loanId, table.createdAt),
+    check(
+      "loan_review_notes_note_required",
+      sql`length(trim(${table.note})) > 0`,
+    ),
+  ],
+);
+
 export const transactionType = pgEnum("transaction_type", [
   "DEPOSIT",
   "WITHDRAWAL",
@@ -302,11 +427,14 @@ export const transactions = pgTable(
     initiatedBy: uuid("initiated_by").references(() => users.id),
     idempotencyKey: uuid("idempotency_key"),
     cashRequestId: uuid("cash_request_id").references(() => cashRequests.id),
-    // The loan migration will add the foreign key.
-    loanId: uuid("loan_id"),
+    loanId: uuid("loan_id").references(() => loans.id),
   },
   (table) => [
     unique("transactions_cash_request_unique").on(table.cashRequestId),
+    unique("transactions_id_loan_unique").on(table.id, table.loanId),
+    uniqueIndex("transactions_loan_disbursement_unique")
+      .on(table.loanId)
+      .where(sql`${table.type} = 'LOAN_DISBURSEMENT'`),
     unique("transactions_initiator_idempotency_key").on(
       table.initiatedBy,
       table.idempotencyKey,
@@ -321,6 +449,10 @@ export const transactions = pgTable(
     ),
     check("transactions_positive_amount", sql`${table.amountPoisha} > 0`),
     check("transactions_nonnegative_fee", sql`${table.feePoisha} >= 0`),
+    check(
+      "transactions_loan_type",
+      sql`${table.loanId} is null or ${table.type} in ('LOAN_DISBURSEMENT', 'LOAN_REPAYMENT')`,
+    ),
     check(
       "transactions_cash_request_type",
       sql`${table.cashRequestId} is null or ${table.type} in ('DEPOSIT', 'WITHDRAWAL')`,
@@ -340,6 +472,47 @@ export const transactions = pgTable(
       "transactions_transfer_identity",
       sql`(${table.idempotencyKey} is null or ${table.initiatedBy} is not null)
         and (${table.type} <> 'FUND_TRANSFER' or ${table.idempotencyKey} is not null)`,
+    ),
+  ],
+);
+
+export const loanInstallments = pgTable(
+  "loan_installments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    loanId: uuid("loan_id")
+      .notNull()
+      .references(() => loans.id),
+    number: integer("installment_number").notNull(),
+    dueDate: date("due_date").notNull(),
+    principalPoisha: bigint("principal_minor", { mode: "bigint" }).notNull(),
+    interestPoisha: bigint("interest_minor", { mode: "bigint" }).notNull(),
+    paidAmountPoisha: bigint("paid_amount_minor", { mode: "bigint" }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    repaymentTransactionId: uuid("repayment_transaction_id").unique(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.repaymentTransactionId, table.loanId],
+      foreignColumns: [transactions.id, transactions.loanId],
+      name: "loan_installments_repayment_loan_fk",
+    }),
+    unique("loan_installments_loan_number_unique").on(
+      table.loanId,
+      table.number,
+    ),
+    check(
+      "loan_installments_schedule_fields",
+      sql`${table.number} > 0 and ${table.principalPoisha} > 0 and ${table.interestPoisha} >= 0`,
+    ),
+    check(
+      "loan_installments_payment_fields",
+      sql`(
+    ${table.paidAt} is null and ${table.paidAmountPoisha} is null and ${table.repaymentTransactionId} is null
+  ) or (
+    ${table.paidAt} is not null and ${table.paidAmountPoisha} is not null and ${table.repaymentTransactionId} is not null
+    and ${table.paidAmountPoisha} = ${table.principalPoisha} + ${table.interestPoisha}
+  )`,
     ),
   ],
 );

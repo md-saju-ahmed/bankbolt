@@ -57,6 +57,13 @@
       "when": 1795271431936,
       "tag": "0007_transaction_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795272965142,
+      "tag": "0008_loan_foundation",
+      "breakpoints": true
     }
   ]
 }
