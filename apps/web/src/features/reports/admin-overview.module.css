@@ -20,7 +20,8 @@
 }
 
 .metricsGrid,
-.queueGrid {
+.queueGrid,
+.chartGrid {
   display: grid;
   gap: 1rem;
 }
@@ -30,7 +31,13 @@
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
 
-  .queueGrid {
+  .queueGrid,
+  .chartGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.plot :global(.recharts-surface):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }

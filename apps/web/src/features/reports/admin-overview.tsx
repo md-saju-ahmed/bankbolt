@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
@@ -24,6 +25,18 @@ import {
 } from "./reports-api";
 
 const countFormat = new Intl.NumberFormat("en-BD");
+const AdminReportCharts = dynamic(
+  () =>
+    import("./admin-report-charts").then((module) => module.AdminReportCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <p role="status" className="text-sm text-muted-foreground">
+        Loading charts…
+      </p>
+    ),
+  },
+);
 const emptyDates = { from: "", to: "" };
 const textLink =
   "inline-flex min-h-11 w-fit items-center rounded-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -331,6 +344,7 @@ export function AdminOverview() {
               <CompletedActivity report={report} />
             </div>
             <ReviewQueues report={report} />
+            <AdminReportCharts report={report} />
           </>
         ) : (
           busy && (

@@ -1,6 +1,18 @@
 import { baseApi } from "@/lib/api/base-api";
+import type { AccountType } from "@/features/onboarding/onboarding-api";
 
 export type ReportDates = { from: string; to: string };
+
+export type AdminReportMonth = {
+  month: string;
+  completedTransactions: number;
+  transactionVolumePoisha: string;
+  depositsPoisha: string;
+  withdrawalsPoisha: string;
+  transfersPoisha: string;
+  loanDisbursementsPoisha: string;
+  loanRepaymentsPoisha: string;
+};
 
 export type AdminReport = {
   period: ReportDates & { timeZone: "Asia/Dhaka" };
@@ -15,6 +27,9 @@ export type AdminReport = {
     openTransactionFlags: number;
   };
   loanQueue: { pending: number; underReview: number; forwarded: number };
+  monthly: AdminReportMonth[];
+  accountDistribution: { type: AccountType; count: number }[];
+  loanDecisions: { approved: number; rejected: number };
 };
 
 const reportsApi = baseApi.injectEndpoints({
