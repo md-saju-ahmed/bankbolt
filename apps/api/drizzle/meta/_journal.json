@@ -50,6 +50,13 @@
       "when": 1795268596102,
       "tag": "0006_cash_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795271431936,
+      "tag": "0007_transaction_flags",
+      "breakpoints": true
     }
   ]
 }

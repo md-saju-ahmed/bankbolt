@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Printer } from "lucide-react";
 import Link from "next/link";
+import { TransactionFlagsPanel } from "./transaction-flags";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatTaka } from "@/features/accounts/account-display";
@@ -81,6 +82,12 @@ export function TransactionDetail({
   const back = receipt ? `${root}/${reference}` : root;
   const transaction = query.currentData?.transaction;
   const title = receipt ? "Transaction receipt" : "Transaction details";
+  const flagRole =
+    root === "/staff/transactions"
+      ? "STAFF"
+      : root === "/admin/transactions"
+        ? "ADMIN"
+        : null;
   return (
     <section className="max-w-3xl space-y-5 print:max-w-none print:space-y-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
@@ -151,6 +158,15 @@ export function TransactionDetail({
             <RecordFields transaction={transaction} />
           </Card>
         )
+      )}
+      {!receipt && !query.isError && transaction && flagRole && (
+        <div id="transaction-flags">
+          <TransactionFlagsPanel
+            key={reference}
+            reference={reference}
+            role={flagRole}
+          />
+        </div>
       )}
     </section>
   );

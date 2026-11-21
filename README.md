@@ -61,6 +61,8 @@ Customers can use **Cash requests** to submit a simulated deposit or withdrawal 
 
 Staff and Admin use **Cash request review** to filter the queue, inspect requests, and confirm decisions. Finalized requests show the reviewer, decision time, and any rejection reason.
 
+Staff can flag a transaction for Admin from its detail page with a reason. The Admin **Transaction flags** queue shows open and resolved flags. Resolving a flag records the reviewer, time, and optional note.
+
 - Customers submit a deposit or withdrawal through `POST /api/v1/cash-requests` with `accountId`, `type` (`DEPOSIT` or `WITHDRAWAL`), `amountPoisha` as a positive decimal string, and `description`. The server records the request date. Pending withdrawals leave the posted balance available.
 - `GET /api/v1/cash-requests` lists requests with optional `status`, `type`, and `page` filters, and `GET /api/v1/cash-requests/{id}` returns one request. Customers can view only their own requests. Staff and Admin can view the review queue.
 - Staff and Admin can POST to `/api/v1/cash-requests/{id}/approve` or `/api/v1/cash-requests/{id}/reject`. Reject requires a `reason`. Approval returns the reference for one posted transaction. Rejection leaves the balance intact. Repeated decisions return HTTP 409. Read the request detail to recover the recorded decision if a response is lost.

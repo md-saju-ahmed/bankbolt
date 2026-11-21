@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ArrowLeftRight,
   CreditCard,
+  Flag,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -134,6 +135,14 @@ function WorkspaceLinks({
       pathname === `${root}/transactions` ||
       pathname.startsWith(`${root}/transactions/`),
   });
+  if (role === "ADMIN") {
+    links.push({
+      href: `${root}/transaction-flags`,
+      label: "Transaction flags",
+      icon: Flag,
+      active: pathname === `${root}/transaction-flags`,
+    });
+  }
   return (
     <div className="space-y-2">
       {links.map(({ href, label, icon: Icon, active }) => {

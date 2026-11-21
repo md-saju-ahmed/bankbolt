@@ -15,6 +15,7 @@ import { dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import type { Identity } from "../auth/sessions.ts";
 import { pages } from "../onboarding/validation.ts";
+import { relatedFlagsRouter } from "../transaction-flags/routes.ts";
 
 const search = pages
   .extend({
@@ -99,6 +100,7 @@ transactionsRouter.use((_request, response, next) => {
   next();
 });
 transactionsRouter.use(requireAuth, requireRole("CUSTOMER", "STAFF", "ADMIN"));
+transactionsRouter.use("/:reference", relatedFlagsRouter);
 
 transactionsRouter.get("/", async (request, response) => {
   const filters = search.parse(request.query);

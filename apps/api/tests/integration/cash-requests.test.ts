@@ -12,6 +12,7 @@ import {
   bankAccounts,
   cashRequests,
   customerProfiles,
+  transactionFlags,
   transactions,
   users,
 } from "../../src/db/schema.ts";
@@ -27,12 +28,14 @@ const roles = {
   owner: "CUSTOMER",
   neighbor: "CUSTOMER",
   staff: "STAFF",
+  otherStaff: "STAFF",
   admin: "ADMIN",
 } as const;
 type Person = keyof typeof roles;
 const people = Object.keys(roles) as Person[];
 const run = randomUUID();
-const address = (person: Person) => `cash-${person}-${run}@bankbolt.example`;
+const address = (person: Person) =>
+  `cash-${person.toLowerCase()}-${run}@bankbolt.example`;
 const ids = new Map<Person, string>();
 const cookies = new Map<Person, string>();
 const profiles = new Map<Person, string>();
@@ -166,6 +169,13 @@ async function clearRequests() {
     .select({ id: cashRequests.id })
     .from(cashRequests)
     .where(inArray(cashRequests.customerId, ownerIds));
+  const transactionIds = db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(inArray(transactions.cashRequestId, requestIds));
+  await db
+    .delete(transactionFlags)
+    .where(inArray(transactionFlags.transactionId, transactionIds));
   await db
     .delete(transactions)
     .where(inArray(transactions.cashRequestId, requestIds));
@@ -178,7 +188,7 @@ beforeEach(async () => {
   await clearRequests();
   await db
     .update(users)
-    .set({ role: "CUSTOMER", accessActive: true })
+    .set({ role: "CUSTOMER", accessActive: true, blocked: false })
     .where(eq(users.id, ids.get("owner")!));
   await db
     .update(bankAccounts)
@@ -513,4 +523,169 @@ it("rolls back the balance and leaves the request pending if posting fails", asy
   await post("admin", `/${id}/approve`).expect(200);
   await expectBalance(20_000n);
   expect(await postings(id)).toHaveLength(1);
+});
+
+it.each(["PENDING", "FROZEN", "DEACTIVATED"] as const)(
+  "rechecks an account that becomes %s after submission",
+  async (status) => {
+    const id = await submit();
+    await db
+      .update(bankAccounts)
+      .set({ status })
+      .where(eq(bankAccounts.id, ownerAccount.id));
+    const response = await post("staff", `/${id}/approve`).expect(409);
+    expect(response.body.error.code).toBe("ACCOUNT_RESTRICTED");
+    await pending(id);
+    expect(await postings(id)).toHaveLength(0);
+    await expectBalance(30_000n);
+  },
+);
+
+it("blocks cash review by customers and after the account holder loses access", async () => {
+  const id = await submit({ type: "DEPOSIT" });
+  await post("neighbor", `/${id}/approve`).expect(403);
+  await post("neighbor", `/${id}/reject`, {
+    reason: "Fictional rejection",
+  }).expect(403);
+  await db
+    .update(users)
+    .set({ blocked: true })
+    .where(eq(users.id, ids.get("owner")!));
+  const response = await post("admin", `/${id}/approve`).expect(409);
+  expect(response.body.error.code).toBe("ACCOUNT_RESTRICTED");
+  await pending(id);
+  expect(await postings(id)).toHaveLength(0);
+  await expectBalance(30_000n);
+});
+
+const flagsPath = "/api/v1/transaction-flags";
+const transactionPath = (reference: string) =>
+  `/api/v1/transactions/${reference}`;
+const flagReason = "Fictional review of unusual counter activity";
+
+function flagPost(person: Person, path: string, body: object) {
+  return request(app)
+    .post(path)
+    .set("Origin", origin)
+    .set("Cookie", cookies.get(person)!)
+    .send(body);
+}
+
+function flagGet(person: Person, path: string) {
+  return request(app).get(path).set("Cookie", cookies.get(person)!);
+}
+
+async function approvedDeposit() {
+  const id = await submit({ type: "DEPOSIT" });
+  await post("staff", `/${id}/approve`).expect(200);
+  const [transaction] = await postings(id);
+  return { id, transaction };
+}
+
+it("enforces flag roles, origin, reason and transaction existence", async () => {
+  const { id, transaction } = await approvedDeposit();
+  const path = transactionPath(transaction.reference);
+  await request(app)
+    .post(`${path}/flag`)
+    .set("Origin", origin)
+    .send({ reason: flagReason })
+    .expect(401);
+  await flagPost("owner", `${path}/flag`, { reason: flagReason }).expect(403);
+  await flagPost("admin", `${path}/flag`, { reason: flagReason }).expect(403);
+  await flagPost("staff", `${path}/flag`, { reason: flagReason })
+    .set("Origin", "https://example.invalid")
+    .expect(403);
+  await flagPost("staff", `${path}/flag`, { reason: "  " }).expect(400);
+  await flagPost("staff", `${path}/flag`, {
+    reason: flagReason,
+    flaggedBy: ids.get("admin"),
+  }).expect(400);
+  await flagPost("staff", `${transactionPath(randomUUID())}/flag`, {
+    reason: flagReason,
+  }).expect(404);
+  await flagGet("owner", `${path}/flags`).expect(403);
+  await flagGet("staff", flagsPath).expect(403);
+  const related = await flagGet("admin", `${path}/flags`).expect(200, {
+    flags: [],
+    hasNextPage: false,
+  });
+  expect(related.headers["cache-control"]).toBe("no-store");
+  expect(await postings(id)).toEqual([transaction]);
+  await expectBalance(40_000n);
+});
+
+it("records one open flag, isolates Staff histories, and resolves once with an audit trail", async () => {
+  const { id, transaction } = await approvedDeposit();
+  const path = transactionPath(transaction.reference);
+  const attempts = await Promise.all([
+    flagPost("staff", `${path}/flag`, { reason: flagReason }),
+    flagPost("otherStaff", `${path}/flag`, { reason: flagReason }),
+  ]);
+  expect(attempts.map((result) => result.status).sort()).toEqual([201, 409]);
+  const creator = attempts[0].status === 201 ? "staff" : "otherStaff";
+  const other = creator === "staff" ? "otherStaff" : "staff";
+  const flagId = attempts.find((result) => result.status === 201)?.body.flag
+    .id as string;
+  const related = await flagGet(creator, `${path}/flags`).expect(200);
+  expect(related.body.flags).toEqual([
+    expect.objectContaining({
+      id: flagId,
+      reason: flagReason,
+      status: "OPEN",
+      reporterName: `Fictional cash ${creator}`,
+    }),
+  ]);
+  await flagGet(other, `${path}/flags`).expect(200, {
+    flags: [],
+    hasNextPage: false,
+  });
+  const queue = await flagGet("admin", flagsPath)
+    .query({ status: "OPEN" })
+    .expect(200);
+  expect(queue.body.flags).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: flagId })]),
+  );
+  const resolvePath = `${flagsPath}/${flagId}/resolve`;
+  await flagPost("owner", resolvePath, {}).expect(403);
+  await flagPost("staff", resolvePath, {}).expect(403);
+  await flagPost("admin", resolvePath, { resolvedBy: ids.get("staff") }).expect(
+    400,
+  );
+  const resolutions = await Promise.all([
+    flagPost("admin", resolvePath, { note: "Fictional review complete" }),
+    flagPost("admin", resolvePath, { note: "Competing review" }),
+  ]);
+  expect(resolutions.map((result) => result.status).sort()).toEqual([200, 409]);
+  const resolved = await flagGet("admin", `${path}/flags`).expect(200);
+  expect(resolved.body.flags).toEqual([
+    expect.objectContaining({
+      id: flagId,
+      status: "RESOLVED",
+      resolverName: "Fictional cash admin",
+      resolvedAt: expect.any(String),
+      resolutionNote:
+        resolutions[0].status === 200
+          ? "Fictional review complete"
+          : "Competing review",
+    }),
+  ]);
+  const stored = await db
+    .select()
+    .from(transactionFlags)
+    .where(eq(transactionFlags.transactionId, transaction.id));
+  expect(stored).toEqual([
+    expect.objectContaining({
+      flaggedBy: ids.get(creator),
+      resolvedBy: ids.get("admin"),
+    }),
+  ]);
+  await flagPost("staff", `${path}/flag`, {
+    reason: "Fictional follow-up",
+  }).expect(201);
+  const history = await flagGet("admin", `${path}/flags`).expect(200);
+  expect(
+    history.body.flags.map((flag: { status: string }) => flag.status),
+  ).toEqual(["OPEN", "RESOLVED"]);
+  expect(await postings(id)).toEqual([transaction]);
+  await expectBalance(40_000n);
 });

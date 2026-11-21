@@ -13,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -339,6 +340,46 @@ export const transactions = pgTable(
       "transactions_transfer_identity",
       sql`(${table.idempotencyKey} is null or ${table.initiatedBy} is not null)
         and (${table.type} <> 'FUND_TRANSFER' or ${table.idempotencyKey} is not null)`,
+    ),
+  ],
+);
+
+export const transactionFlags = pgTable(
+  "transaction_flags",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => transactions.id),
+    flaggedBy: uuid("flagged_by")
+      .notNull()
+      .references(() => users.id),
+    reason: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionNote: text("resolution_note"),
+  },
+  (table) => [
+    uniqueIndex("transaction_flags_open_transaction_unique")
+      .on(table.transactionId)
+      .where(sql`${table.resolvedAt} is null`),
+    index("transaction_flags_transaction_time_idx").on(
+      table.transactionId,
+      table.createdAt,
+    ),
+    index("transaction_flags_created_idx").on(table.createdAt, table.id),
+    check(
+      "transaction_flags_reason_required",
+      sql`length(trim(${table.reason})) > 0`,
+    ),
+    check(
+      "transaction_flags_resolution_fields",
+      sql`(
+      ${table.resolvedAt} is null and ${table.resolvedBy} is null and ${table.resolutionNote} is null
+    ) or (${table.resolvedAt} is not null and ${table.resolvedBy} is not null)`,
     ),
   ],
 );

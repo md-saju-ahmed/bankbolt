@@ -8,6 +8,7 @@ import { managementRouter } from "./modules/management/routes.ts";
 import { onboardingRouter } from "./modules/onboarding/routes.ts";
 import { transfersRouter } from "./modules/transfers/routes.ts";
 import { transactionsRouter } from "./modules/transactions/routes.ts";
+import { transactionFlagsRouter } from "./modules/transaction-flags/routes.ts";
 
 const app = express();
 const api = express.Router();
@@ -22,6 +23,7 @@ api.use("/management", managementRouter);
 api.use("/accounts", ownedAccountsRouter);
 api.use("/transfers", transfersRouter);
 api.use("/transactions", transactionsRouter);
+api.use("/transaction-flags", transactionFlagsRouter);
 api.use("/cash-requests", cashRequestsRouter);
 api.get("/health", (request, response) => {
   healthQuery.parse(request.query);
