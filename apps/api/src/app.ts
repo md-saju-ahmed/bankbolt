@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { handleError, notFound } from "./errors.ts";
+import { authRouter } from "./modules/auth/routes.ts";
 
 const app = express();
 const api = express.Router();
@@ -9,6 +10,7 @@ const healthQuery = z.strictObject({});
 app.disable("x-powered-by");
 
 api.use(express.json());
+api.use("/auth", authRouter);
 api.get("/health", (request, response) => {
   healthQuery.parse(request.query);
   response.set("Cache-Control", "no-store").json({ status: "ok" });

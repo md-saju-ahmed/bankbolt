@@ -1,6 +1,17 @@
 import type { ErrorRequestHandler, Request, Response } from "express";
 import { ZodError } from "zod";
 
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 function sendError(
   response: Response,
   status: number,
@@ -22,6 +33,11 @@ export const handleError: ErrorRequestHandler = (
 ) => {
   if (response.headersSent) {
     next(error);
+    return;
+  }
+
+  if (error instanceof ApiError) {
+    sendError(response, error.status, error.code, error.message);
     return;
   }
 

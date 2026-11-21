@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="115 500 242 262" role="img" aria-labelledby="title desc">
+  <title id="title">BankBolt symbol</title>
+  <desc id="desc">Two intersecting blue and turquoise bolt-shaped ribbons.</desc>
+
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#5C94FF"/>
+      <stop offset="0.58" stop-color="#4778FA"/>
+      <stop offset="1" stop-color="#4B5CEB"/>
+    </linearGradient>
+    <linearGradient id="mint" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#52DDC9"/>
+      <stop offset="1" stop-color="#2ED1BD"/>
+    </linearGradient>
+    <linearGradient id="intersect" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#2C64C7"/>
+      <stop offset="1" stop-color="#1F77D3"/>
+    </linearGradient>
+  </defs>
+  <g id="symbol">
+    <!-- Lower turquoise ribbon -->
+    <path fill="url(#mint)" d="M 164.3,742.0 L 231.4,644.2 L 254.4,611.5 C 259.7,603.4 268.7,599.5 279.6,599.5 L 329.0,599.5 C 346.1,599.5 355.6,610.6 351.0,626.4 C 349.1,633.4 345.2,637.7 339.7,643.0 L 228.5,746.1 C 221.0,753.1 213.8,756.1 203.6,756.1 L 172.0,756.1 C 164.2,756.1 160.4,752.2 164.3,742.0 Z"/>
+    <!-- Upper cobalt ribbon -->
+    <path fill="url(#blue)" d="M 123.9,644.9 L 226.7,519.5 C 235.2,508.9 245.3,503.6 258.2,503.6 L 322.9,503.6 C 331.1,503.6 334.2,509.1 329.0,516.7 L 226.3,660.5 L 132.0,660.5 C 122.5,660.5 119.5,653.8 123.9,644.9 Z"/>
+    <!-- Darkened fold at the crossing of the two ribbons -->
+    <path fill="url(#intersect)" opacity="0.95" d="M 175.2,660.5 C 196.0,657.0 207.0,645.8 223.8,627.7 L 237.9,611.6 C 246.0,603.0 255.2,599.5 269.2,599.5 L 285.9,599.5 L 226.3,660.5 Z"/>
+  </g>
+</svg>

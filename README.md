@@ -25,6 +25,22 @@ Use `pnpm build` for a production build and `pnpm typecheck` to check types.
 
 The web app forwards `/api/v1/*` to Express. Set the server-side `API_ORIGIN` in `apps/web/.env.local` to override `http://localhost:4000`. For Vercel, use separate projects rooted at `apps/web` and `apps/api`, and set `API_ORIGIN` to the matching HTTPS API origin in each web deployment environment.
 
+## Authentication and demo access
+
+Set a randomly generated `SESSION_SECRET` of at least 32 bytes in the API environment. Set `WEB_ORIGIN` to the exact frontend origin, such as `http://localhost:3000` for local development or the HTTPS web URL for Vercel. Use separate secrets and origins for each environment.
+
+After running the database migrations, set `DEMO_PASSWORD` in `apps/api/.env.local` to a private password of at least 12 characters and run `pnpm --filter @bankbolt/api db:seed:demo` against the intended development database. The command creates these fictional accounts and preserves existing passwords and account state when repeated.
+
+| Role       | Demo email                  |
+| ---------- | --------------------------- |
+| Admin      | `admin@bankbolt.example`    |
+| Bank Staff | `staff@bankbolt.example`    |
+| Customer   | `customer@bankbolt.example` |
+
+Visit `/login` and use the configured demo password. The web app restores the session and opens the signed-in account's workspace. Redux Toolkit holds client UI state, and RTK Query manages requests and the session cache.
+
+Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessions. Session cookies are HttpOnly and SameSite=Lax with an eight-hour lifetime. Deployed cookies also require HTTPS. Express checks the request origin on sign-in and sign-out, reloads the user's role and block status on protected calls, and limits repeated login and PIN attempts in PostgreSQL.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.
@@ -36,11 +52,11 @@ pnpm --filter @bankbolt/api db:check
 pnpm --filter @bankbolt/api db:migrate
 ```
 
-Generate a migration after changing the Drizzle schema. Review its SQL and metadata under `apps/api/drizzle` before applying it to the intended database. The baseline records the migration workflow. Feature migrations add the application tables. The health route reports API liveness, and `db:ping` checks PostgreSQL separately.
+Generate a migration after changing the Drizzle schema. Review its SQL and metadata under `apps/api/drizzle` before applying it to the intended database. The identity migration creates users, customer profiles, sessions, and authentication attempt records. The health route reports API liveness, and `db:ping` checks PostgreSQL separately.
 
 ## Docker development
 
-Copy the root `.env.example` to `.env` and set `DATABASE_URL` to the pooled Neon development URL. Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
+Copy the root `.env.example` to `.env` and set `DATABASE_URL` to the pooled Neon development URL. Set `SESSION_SECRET` to the generated secret before using sign-in. Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
 
 ## Tests
 
