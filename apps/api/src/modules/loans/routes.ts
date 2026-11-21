@@ -7,6 +7,7 @@ import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { pages } from "../onboarding/validation.ts";
 import { annualLoanRateBps, loanCatalog, loanTypes } from "./catalog.ts";
 import { calculateLoanEmi } from "./calculations.ts";
+import { decideLoan, disburseLoan, repayInstallment } from "./servicing.ts";
 import {
   addLoanReviewNote,
   createLoanApplication,
@@ -19,6 +20,9 @@ import {
   applicationInput,
   assertApplicationTerms,
   estimateInput,
+  loanDecisionInput,
+  loanRepaymentInput,
+  loanRepaymentParams,
   loanReviewActionInput,
   loanReviewNoteInput,
 } from "./validation.ts";
@@ -91,6 +95,7 @@ loansRouter.post(
 );
 
 const requireReviewer = requireRole("STAFF", "ADMIN");
+const requireAdmin = requireRole("ADMIN");
 
 loansRouter.post(
   "/:id/review",
@@ -129,5 +134,61 @@ loansRouter.post(
     loanReviewActionInput.parse(request.body);
     const loan = await forwardLoan(currentIdentity(request), id);
     response.json({ loan });
+  },
+);
+
+loansRouter.post(
+  "/:id/approve",
+  requireWebOrigin,
+  requireAdmin,
+  async (request, response) => {
+    const id = z.uuid().parse(request.params.id);
+    const { reason } = loanDecisionInput.parse(request.body);
+    response.json({
+      loan: await decideLoan(currentIdentity(request), id, "APPROVED", reason),
+    });
+  },
+);
+
+loansRouter.post(
+  "/:id/reject",
+  requireWebOrigin,
+  requireAdmin,
+  async (request, response) => {
+    const id = z.uuid().parse(request.params.id);
+    const { reason } = loanDecisionInput.parse(request.body);
+    response.json({
+      loan: await decideLoan(currentIdentity(request), id, "REJECTED", reason),
+    });
+  },
+);
+
+loansRouter.post(
+  "/:id/disburse",
+  requireWebOrigin,
+  requireAdmin,
+  async (request, response) => {
+    const id = z.uuid().parse(request.params.id);
+    loanReviewActionInput.parse(request.body);
+    response.json(await disburseLoan(currentIdentity(request), id));
+  },
+);
+
+loansRouter.post(
+  "/:id/installments/:number/repay",
+  requireWebOrigin,
+  requireRole("CUSTOMER"),
+  async (request, response) => {
+    const { id, number } = loanRepaymentParams.parse(request.params);
+    const { accountId, pin } = loanRepaymentInput.parse(request.body);
+    response.json(
+      await repayInstallment(
+        currentIdentity(request),
+        id,
+        number,
+        accountId,
+        pin,
+      ),
+    );
   },
 );

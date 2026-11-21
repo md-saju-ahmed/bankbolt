@@ -17,7 +17,7 @@ import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
 import { calculateLoanSchedule } from "./calculations.ts";
 import { assertApplicationTerms, type applicationInput } from "./validation.ts";
 
-type Loan = typeof loans.$inferSelect;
+export type Loan = typeof loans.$inferSelect;
 
 function scopedLoans(identity: Identity, condition?: SQL) {
   const scope =
@@ -31,8 +31,14 @@ function scopedLoans(identity: Identity, condition?: SQL) {
     .where(and(scope, condition));
 }
 
-function loanView(loan: Loan, identity: Identity) {
-  const { decidedBy, forwardedBy, reviewStartedBy, ...details } = loan;
+export function loanView(loan: Loan, identity: Identity) {
+  const {
+    approvalReason,
+    decidedBy,
+    forwardedBy,
+    reviewStartedBy,
+    ...details
+  } = loan;
   return {
     ...details,
     requestedPrincipalPoisha: loan.requestedPrincipalPoisha.toString(),
@@ -41,7 +47,7 @@ function loanView(loan: Loan, identity: Identity) {
     monthlyIncomePoisha: loan.monthlyIncomePoisha.toString(),
     ...(identity.role === "CUSTOMER"
       ? {}
-      : { decidedBy, forwardedBy, reviewStartedBy }),
+      : { approvalReason, decidedBy, forwardedBy, reviewStartedBy }),
   };
 }
 
@@ -78,7 +84,8 @@ export async function listLoans(
   };
 }
 
-const missingLoan = () => new ApiError(404, "NOT_FOUND", "Loan not found.");
+export const missingLoan = () =>
+  new ApiError(404, "NOT_FOUND", "Loan not found.");
 
 export function createLoanApplication(
   identity: Identity,
@@ -135,6 +142,7 @@ export async function getLoan(identity: Identity, id: string) {
     )
     .where(eq(loanInstallments.loanId, id))
     .orderBy(asc(loanInstallments.number));
+  const today = dhakaDate(new Date());
   const detail = {
     loan: loanView(row.loan, identity),
     installments: installments.map(({ installment, repaymentReference }) => ({
@@ -148,6 +156,10 @@ export async function getLoan(identity: Identity, id: string) {
       paidAmountPoisha: installment.paidAmountPoisha?.toString() ?? null,
       paidAt: installment.paidAt,
       repaymentReference,
+      payable:
+        row.loan.status === "ACTIVE" &&
+        !installment.paidAt &&
+        installment.dueDate <= today,
     })),
   };
   if (identity.role === "CUSTOMER") return detail;
@@ -187,9 +199,9 @@ export async function getLoan(identity: Identity, id: string) {
 type TransactionWork = Parameters<
   ReturnType<typeof getDatabase>["transaction"]
 >[0];
-type LoanTransaction = Parameters<TransactionWork>[0];
+export type LoanTransaction = Parameters<TransactionWork>[0];
 
-async function lockLoanForReview(tx: LoanTransaction, id: string) {
+export async function lockLoan(tx: LoanTransaction, id: string) {
   const [loan] = await tx
     .select()
     .from(loans)
@@ -201,7 +213,7 @@ async function lockLoanForReview(tx: LoanTransaction, id: string) {
 
 export function startLoanReview(identity: Identity, id: string) {
   return getDatabase().transaction(async (tx) => {
-    const loan = await lockLoanForReview(tx, id);
+    const loan = await lockLoan(tx, id);
     if (loan.status === "UNDER_REVIEW") return loanView(loan, identity);
     if (loan.status !== "PENDING") {
       throw new ApiError(
@@ -242,7 +254,7 @@ export function addLoanReviewNote(
   note: string,
 ) {
   return getDatabase().transaction(async (tx) => {
-    const loan = await lockLoanForReview(tx, id);
+    const loan = await lockLoan(tx, id);
     assertLoanUnderReview(loan);
     if (loan.forwardedAt) {
       throw new ApiError(
@@ -262,7 +274,7 @@ export function addLoanReviewNote(
 
 export function forwardLoan(identity: Identity, id: string) {
   return getDatabase().transaction(async (tx) => {
-    const loan = await lockLoanForReview(tx, id);
+    const loan = await lockLoan(tx, id);
     assertLoanUnderReview(loan);
     if (loan.forwardedAt) return loanView(loan, identity);
 

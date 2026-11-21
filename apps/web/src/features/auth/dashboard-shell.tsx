@@ -128,15 +128,13 @@ function WorkspaceLinks({
       },
     );
   }
-  if (role !== "ADMIN") {
-    links.push({
-      href: `${root}/loans`,
-      label: "Loans",
-      icon: Landmark,
-      active:
-        pathname === `${root}/loans` || pathname.startsWith(`${root}/loans/`),
-    });
-  }
+  links.push({
+    href: `${root}/loans`,
+    label: "Loans",
+    icon: Landmark,
+    active:
+      pathname === `${root}/loans` || pathname.startsWith(`${root}/loans/`),
+  });
   links.push({
     href: `${root}/transactions`,
     label: "Transactions",

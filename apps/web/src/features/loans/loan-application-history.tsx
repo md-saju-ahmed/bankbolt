@@ -111,6 +111,15 @@ export function LoanApplicationHistory() {
                         </time>{" "}
                         (Dhaka)
                       </p>
+                      <Link
+                        className={`${historyLink} ${secondaryStyle} mt-3`}
+                        href={`/customer/loans/${loan.id}`}
+                      >
+                        View loan{" "}
+                        <span className="sr-only">
+                          ending {loan.id.slice(-8)}
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

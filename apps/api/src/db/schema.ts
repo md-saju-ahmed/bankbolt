@@ -317,6 +317,7 @@ export const loans = pgTable(
     forwardedBy: uuid("forwarded_by").references(() => users.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedBy: uuid("decided_by").references(() => users.id),
+    approvalReason: text("approval_reason"),
     rejectionReason: text("rejection_reason"),
     disbursedAt: timestamp("disbursed_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -352,6 +353,10 @@ export const loans = pgTable(
     else ${table.decidedAt} is not null and ${table.decidedBy} is not null and ${table.rejectionReason} is null
       and ${table.approvedPrincipalPoisha} is not null and ${table.approvedPrincipalPoisha} > 0
   end`,
+    ),
+    check(
+      "loans_approval_reason",
+      sql`${table.approvalReason} is null or (${table.status} in ('APPROVED', 'ACTIVE', 'COMPLETED') and length(trim(${table.approvalReason})) > 0)`,
     ),
     check(
       "loans_disbursement_fields",

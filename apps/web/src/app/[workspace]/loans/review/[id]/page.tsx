@@ -8,10 +8,10 @@ export default async function ReviewLoanPage({
   params: Promise<{ workspace: string; id: string }>;
 }) {
   const { workspace, id } = await params;
-  if (workspace !== "staff") notFound();
+  if (workspace !== "staff" && workspace !== "admin") notFound();
   return (
-    <DashboardShell role="STAFF">
-      <LoanReviewDetail id={id} />
+    <DashboardShell role={workspace === "admin" ? "ADMIN" : "STAFF"}>
+      <LoanReviewDetail id={id} workspace={workspace} />
     </DashboardShell>
   );
 }

@@ -19,11 +19,21 @@ const queues = {
   pending: { status: "PENDING" },
   reviewing: { status: "UNDER_REVIEW", forwarded: false },
   forwarded: { status: "UNDER_REVIEW", forwarded: true },
+  approved: { status: "APPROVED" },
+  rejected: { status: "REJECTED" },
+  active: { status: "ACTIVE" },
+  completed: { status: "COMPLETED" },
 } as const;
 
-export function LoanReviewQueue() {
+export function LoanReviewQueue({
+  workspace,
+}: {
+  workspace: "staff" | "admin";
+}) {
   const [page, setPage] = useState(1);
-  const [queue, setQueue] = useState<keyof typeof queues>("pending");
+  const [queue, setQueue] = useState<keyof typeof queues>(
+    workspace === "admin" ? "forwarded" : "pending",
+  );
   const query = useLoanReviewQueueQuery(
     { page, ...queues[queue] },
     { refetchOnMountOrArgChange: true, refetchOnFocus: true },
@@ -48,6 +58,14 @@ export function LoanReviewQueue() {
               <option value="pending">Pending</option>
               <option value="reviewing">Under review</option>
               <option value="forwarded">Forwarded to Admin</option>
+              {workspace === "admin" && (
+                <>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                </>
+              )}
             </select>
           </label>
           <Button
@@ -97,13 +115,13 @@ export function LoanReviewQueue() {
                         </time>
                       </div>
                       <p className="text-sm font-medium">
-                        {loan.forwardedAt
+                        {loan.status === "UNDER_REVIEW" && loan.forwardedAt
                           ? "Forwarded to Admin"
                           : loanStatuses[loan.status]}
                       </p>
                       <Link
                         className={`${historyLink} ${secondaryStyle} w-fit lg:justify-self-end`}
-                        href={`/staff/loans/review/${loan.id}`}
+                        href={`/${workspace}/loans/review/${loan.id}`}
                       >
                         View application
                         <span className="sr-only">

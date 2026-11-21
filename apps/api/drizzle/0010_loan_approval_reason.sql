@@ -1,0 +1,2 @@
+ALTER TABLE "loans" ADD COLUMN "approval_reason" text;--> statement-breakpoint
+ALTER TABLE "loans" ADD CONSTRAINT "loans_approval_reason" CHECK ("loans"."approval_reason" is null or ("loans"."status" in ('APPROVED', 'ACTIVE', 'COMPLETED') and length(trim("loans"."approval_reason")) > 0));

@@ -25,6 +25,7 @@ import { isolatedDatabaseUrl } from "../support/test-database.ts";
 const origin = "http://localhost:3000";
 const prefix = "/api/v1/loans";
 const password = "Fictional loan test password";
+const pin = "514723";
 const roles = {
   owner: "CUSTOMER",
   neighbor: "CUSTOMER",
@@ -102,6 +103,7 @@ beforeAll(async () => {
   db = getDatabase();
   await migrate(db, { migrationsFolder: "./drizzle" });
   const passwordHash = await hashCredential(password);
+  const pinHash = await hashCredential(pin);
   for (const person of people) {
     const role = roles[person];
     const [user] = await db
@@ -124,6 +126,7 @@ beforeAll(async () => {
           address: "Fictional loan address",
           identityReference: randomUUID(),
           verificationStatus: "VERIFIED",
+          pinHash,
         })
         .returning({ id: customerProfiles.id });
       profiles.set(person, profile.id);
@@ -169,12 +172,14 @@ afterAll(async () => {
       await db
         .delete(bankAccounts)
         .where(inArray(bankAccounts.id, [...accounts.values()]));
-      await db.delete(authAttempts).where(
-        inArray(
-          authAttempts.subject,
-          people.map((person) => authDigest("login", address(person))),
-        ),
-      );
+      await db
+        .delete(authAttempts)
+        .where(
+          inArray(authAttempts.subject, [
+            ...people.map((person) => authDigest("login", address(person))),
+            ...usersByPerson.values(),
+          ]),
+        );
       await db
         .delete(users)
         .where(inArray(users.id, [...usersByPerson.values()]));
@@ -383,13 +388,317 @@ it("enforces review authorization, input validation and state boundaries", async
   await reviewAction("staff", loan.id, "forward").expect(200);
   await reviewAction("staff", loan.id, "notes", note).expect(409);
   for (const action of ["approve", "reject", "disburse"]) {
-    await reviewAction("staff", loan.id, action).expect(404);
+    await reviewAction("staff", loan.id, action).expect(403);
   }
 
   const decided = await approvedLoan();
   await reviewAction("staff", decided, "review").expect(409);
   await reviewAction("staff", decided, "notes", note).expect(409);
   await reviewAction("staff", decided, "forward").expect(409);
+});
+
+async function forwardedLoan() {
+  const [loan] = await db
+    .insert(loans)
+    .values(
+      loanInput("owner", {
+        status: "UNDER_REVIEW",
+        reviewStartedAt: new Date(),
+        forwardedAt: new Date(),
+        forwardedBy: usersByPerson.get("staff"),
+      }),
+    )
+    .returning();
+  return loan.id;
+}
+
+const decision = { reason: "  Reviewed fictional application.  " };
+
+it("restricts decisions to forwarded applications and records the winning decision", async () => {
+  const [pending] = await db.insert(loans).values(loanInput()).returning();
+  await reviewAction("admin", pending.id, "approve", decision).expect(409);
+  await reviewAction("staff", pending.id, "approve", decision).expect(403);
+  await reviewAction("owner", pending.id, "reject", decision).expect(403);
+  await reviewAction("admin", pending.id, "disburse").expect(409);
+
+  const id = await forwardedLoan();
+  await reviewAction("admin", id, "approve", { reason: " " }).expect(400);
+  await reviewAction("admin", id, "reject", { reason: "missing origin" })
+    .set("Origin", "https://example.invalid")
+    .expect(403);
+  await reviewAction("admin", id, "approve", {
+    ...decision,
+    approvedPrincipalPoisha: "1",
+  }).expect(400);
+  const outcomes = await Promise.all([
+    reviewAction("admin", id, "approve", decision),
+    reviewAction("admin", id, "reject", decision),
+  ]);
+  expect(outcomes.map((outcome) => outcome.status).sort()).toEqual([200, 409]);
+  const [stored] = await db.select().from(loans).where(eq(loans.id, id));
+  expect(stored).toMatchObject({
+    decidedBy: usersByPerson.get("admin"),
+    decidedAt: expect.any(Date),
+  });
+  expect(stored.approvalReason ?? stored.rejectionReason).toBe(
+    decision.reason.trim(),
+  );
+  await reviewAction("admin", id, "approve", decision).expect(409);
+  const customer = await get("owner", `/${id}`).expect(200);
+  expect(customer.body.loan).not.toHaveProperty("approvalReason");
+  expect(
+    await db.select().from(transactions).where(eq(transactions.loanId, id)),
+  ).toEqual([]);
+
+  const rejectedId = await forwardedLoan();
+  const rejected = await reviewAction(
+    "admin",
+    rejectedId,
+    "reject",
+    decision,
+  ).expect(200);
+  expect(rejected.body.loan).toMatchObject({
+    status: "REJECTED",
+    rejectionReason: decision.reason.trim(),
+    approvedPrincipalPoisha: null,
+  });
+  await reviewAction("admin", rejectedId, "disburse").expect(409);
+});
+
+it("denies a loan decision when an applicant has since become Admin", async () => {
+  const id = await forwardedLoan();
+  const owner = eq(users.id, usersByPerson.get("owner")!);
+  await db.update(users).set({ role: "ADMIN" }).where(owner);
+  try {
+    for (const action of ["approve", "reject"]) {
+      const response = await reviewAction("owner", id, action, decision).expect(
+        403,
+      );
+      expect(response.body.error.code).toBe("SELF_REVIEW");
+    }
+    const response = await reviewAction("owner", id, "disburse").expect(403);
+    expect(response.body.error.code).toBe("SELF_REVIEW");
+  } finally {
+    await db.update(users).set({ role: "CUSTOMER" }).where(owner);
+  }
+});
+
+it("disburses exactly once, rolls back a failed posting and recovers using the same reference", async () => {
+  const id = await forwardedLoan();
+  const accountId = accounts.get("owner")!;
+  const account = eq(bankAccounts.id, accountId);
+  await db.update(bankAccounts).set({ status: "FROZEN" }).where(account);
+  try {
+    await reviewAction("admin", id, "approve", decision).expect(409);
+    await db.update(bankAccounts).set({ status: "ACTIVE" }).where(account);
+    const approved = await reviewAction(
+      "admin",
+      id,
+      "approve",
+      decision,
+    ).expect(200);
+    expect(approved.body.loan).toMatchObject({
+      status: "APPROVED",
+      approvedPrincipalPoisha: "1000000",
+      approvalReason: decision.reason.trim(),
+    });
+    await db.update(bankAccounts).set({ status: "FROZEN" }).where(account);
+    await reviewAction("admin", id, "disburse").expect(409);
+    expect(
+      (await get("owner", `/${id}`).expect(200)).body.installments,
+    ).toEqual([]);
+    await db.update(bankAccounts).set({ status: "ACTIVE" }).where(account);
+
+    // A preexisting conflicting ledger entry fails after the schedule and balance writes.
+    const [conflicting] = await db
+      .insert(transactions)
+      .values({
+        type: "LOAN_DISBURSEMENT",
+        status: "COMPLETED",
+        loanId: id,
+        receiverAccountId: accountId,
+        amountPoisha: 1_000_000n,
+        description: "Fictional conflicting posting",
+      })
+      .returning();
+    await reviewAction("admin", id, "disburse").expect(500);
+    const unchanged = await get("owner", `/${id}`).expect(200);
+    expect(unchanged.body.installments).toEqual([]);
+    expect(unchanged.body.loan.status).toBe("APPROVED");
+    expect(
+      (await db.select().from(bankAccounts).where(account))[0].balancePoisha,
+    ).toBe(0n);
+    await db.delete(transactions).where(eq(transactions.id, conflicting.id));
+
+    const [first, retry] = await Promise.all([
+      reviewAction("admin", id, "disburse").expect(200),
+      reviewAction("admin", id, "disburse").expect(200),
+    ]);
+    expect(retry.body).toEqual(first.body);
+    expect(first.body.loan).toMatchObject({
+      status: "ACTIVE",
+      remainingPrincipalPoisha: "1000000",
+    });
+    const [posting] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.loanId, id));
+    expect(posting).toMatchObject({
+      reference: first.body.reference,
+      receiverAccountId: accountId,
+      amountPoisha: 1_000_000n,
+    });
+    expect(
+      (await db.select().from(bankAccounts).where(account))[0].balancePoisha,
+    ).toBe(1_000_000n);
+    expect(
+      (await get("owner", `/${id}`).expect(200)).body.installments,
+    ).toHaveLength(6);
+  } finally {
+    await db
+      .update(bankAccounts)
+      .set({ status: "ACTIVE", balancePoisha: 0n })
+      .where(account);
+  }
+});
+
+it("repays one due installment per request and completes the loan only after all principal is paid", async () => {
+  const id = await approvedLoan();
+  const accountId = accounts.get("owner")!;
+  const account = eq(bankAccounts.id, accountId);
+  const repay = (person: Person, number: number, changes?: object) =>
+    reviewAction(person, id, `installments/${number}/repay`, {
+      accountId,
+      pin,
+      ...changes,
+    });
+  await repay("owner", 1).expect(409);
+  const { body } = await reviewAction("admin", id, "disburse").expect(200);
+  try {
+    await repay("staff", 1).expect(403);
+    await repay("admin", 1).expect(403);
+    await repay("neighbor", 1).expect(404);
+    await repay("owner", 99).expect(400);
+    await repay("owner", 1, { amountPoisha: "1" }).expect(400);
+    await repay("owner", 1, { pin: "000000" }).expect(403);
+    await repay("owner", 1).expect(409);
+    await db
+      .update(loanInstallments)
+      .set({ dueDate: "2000-01-01" })
+      .where(eq(loanInstallments.loanId, id));
+    await repay("owner", 1, { accountId: accounts.get("neighbor") }).expect(
+      404,
+    );
+    await db.update(bankAccounts).set({ status: "FROZEN" }).where(account);
+    await repay("owner", 1).expect(409);
+    await db
+      .update(bankAccounts)
+      .set({ status: "ACTIVE", balancePoisha: 0n })
+      .where(account);
+    await repay("owner", 1).expect(422);
+    await db
+      .update(bankAccounts)
+      .set({ balancePoisha: 2_000_000n })
+      .where(account);
+
+    const [first, retry] = await Promise.all([
+      repay("owner", 1).expect(200),
+      repay("owner", 1).expect(200),
+    ]);
+    expect(retry.body).toEqual(first.body);
+    expect(first.body.amountPoisha).toBe("172548");
+    const partial = await get("owner", `/${id}`).expect(200);
+    expect(partial.body.loan).toMatchObject({
+      status: "ACTIVE",
+      remainingPrincipalPoisha: "837452",
+    });
+    expect(partial.body.installments[0]).toMatchObject({
+      payable: false,
+      repaymentReference: first.body.reference,
+      paidAmountPoisha: "172548",
+    });
+    expect(partial.body.installments[1].payable).toBe(true);
+    for (let number = 2; number <= 6; number++)
+      await repay("owner", number).expect(200);
+    const completed = await get("owner", `/${id}`).expect(200);
+    expect(completed.body.loan).toMatchObject({
+      status: "COMPLETED",
+      remainingPrincipalPoisha: "0",
+      completedAt: expect.any(String),
+    });
+    const postings = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.loanId, id),
+          eq(transactions.type, "LOAN_REPAYMENT"),
+        ),
+      );
+    expect(postings).toHaveLength(6);
+    expect(
+      postings.every(
+        (posting) =>
+          posting.senderAccountId === accountId && posting.feePoisha === 0n,
+      ),
+    ).toBe(true);
+    expect(
+      (await db.select().from(bankAccounts).where(account))[0].balancePoisha,
+    ).toBe(
+      2_000_000n -
+        postings.reduce((sum, posting) => sum + posting.amountPoisha, 0n),
+    );
+    await repay("owner", 1).expect(200, first.body);
+    await repay("owner", 1, { accountId: accounts.get("neighbor") }).expect(
+      409,
+    );
+    const recovered = await reviewAction("admin", id, "disburse").expect(200);
+    expect(recovered.body.reference).toBe(body.reference);
+  } finally {
+    await db
+      .update(bankAccounts)
+      .set({ status: "ACTIVE", balancePoisha: 0n })
+      .where(account);
+  }
+}, 20_000);
+
+it("serializes concurrent repayments from the same account across loans", async () => {
+  const ids = [await approvedLoan(), await approvedLoan()];
+  const accountId = accounts.get("owner")!;
+  const account = eq(bankAccounts.id, accountId);
+  try {
+    for (const id of ids)
+      await reviewAction("admin", id, "disburse").expect(200);
+    await db
+      .update(loanInstallments)
+      .set({ dueDate: "2000-01-01" })
+      .where(inArray(loanInstallments.loanId, ids));
+    await db
+      .update(bankAccounts)
+      .set({ balancePoisha: 172_548n })
+      .where(account);
+    const results = await Promise.all(
+      ids.map((id) =>
+        reviewAction("owner", id, "installments/1/repay", { accountId, pin }),
+      ),
+    );
+    expect(results.map((result) => result.status).sort()).toEqual([200, 422]);
+    expect(
+      (await db.select().from(bankAccounts).where(account))[0].balancePoisha,
+    ).toBe(0n);
+    const repayments = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          inArray(transactions.loanId, ids),
+          eq(transactions.type, "LOAN_REPAYMENT"),
+        ),
+      );
+    expect(repayments).toHaveLength(1);
+  } finally {
+    await db.update(bankAccounts).set({ balancePoisha: 0n }).where(account);
+  }
 });
 
 it("keeps the original reviewer and forwarding actor on concurrent retries", async () => {

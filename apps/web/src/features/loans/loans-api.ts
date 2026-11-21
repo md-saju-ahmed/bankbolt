@@ -33,7 +33,31 @@ export type LoanApplication = LoanApplicationInput & {
   createdAt: string;
   rejectionReason: string | null;
 };
-type ReviewLoan = LoanApplication & { forwardedAt: string | null };
+export type ReviewLoan = LoanApplication & {
+  approvedPrincipalPoisha: string | null;
+  forwardedAt: string | null;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  approvalReason: string | null;
+};
+export type LoanInstallment = {
+  number: number;
+  dueDate: string;
+  principalPoisha: string;
+  interestPoisha: string;
+  totalPoisha: string;
+  paidAmountPoisha: string | null;
+  paidAt: string | null;
+  repaymentReference: string | null;
+  payable: boolean;
+};
+type CustomerLoanDetail = {
+  loan: LoanApplication & {
+    approvedPrincipalPoisha: string | null;
+    remainingPrincipalPoisha: string | null;
+  };
+  installments: LoanInstallment[];
+};
 type LoanReview = {
   loan: ReviewLoan;
   customer: {
@@ -50,6 +74,10 @@ type LoanReview = {
 type ReviewAction = { id: string } & (
   { action: "review" | "forward" } | { action: "notes"; note: string }
 );
+type AdminAction = { id: string } & (
+  { action: "approve" | "reject"; reason: string } | { action: "disburse" }
+);
+type LoanReceipt = { reference: string; amountPoisha: string };
 export type LoanProduct = {
   type: LoanType;
   label: string;
@@ -86,7 +114,7 @@ const loansApi = baseApi.injectEndpoints({
     }),
     loanReviewQueue: build.query<
       { loans: ReviewLoan[]; hasNextPage: boolean },
-      { page: number; status: "PENDING" | "UNDER_REVIEW"; forwarded?: boolean }
+      { page: number; status: LoanStatus; forwarded?: boolean }
     >({
       query: (params) => ({ url: "/loans", params, cache: "no-store" }),
       providesTags: ["Loans"],
@@ -105,6 +133,38 @@ const loansApi = baseApi.injectEndpoints({
         timeout: 15_000,
       }),
       invalidatesTags: ["Loans"],
+    }),
+    adminLoanAction: build.mutation<
+      { loan: ReviewLoan; reference?: string },
+      AdminAction
+    >({
+      query: ({ id, action, ...body }) => ({
+        url: `/loans/${id}/${action}`,
+        method: "POST",
+        body,
+        timeout: 15_000,
+      }),
+      invalidatesTags: (_result, _error, { action }) =>
+        action === "disburse"
+          ? ["Loans", "OwnedAccounts", "Transactions"]
+          : ["Loans"],
+    }),
+    customerLoanDetail: build.query<CustomerLoanDetail, string>({
+      query: (id) => ({ url: `/loans/${id}`, cache: "no-store" }),
+      providesTags: ["Loans"],
+      keepUnusedDataFor: 0,
+    }),
+    repayLoan: build.mutation<
+      LoanReceipt,
+      { id: string; number: number; accountId: string; pin: string }
+    >({
+      query: ({ id, number, ...body }) => ({
+        url: `/loans/${id}/installments/${number}/repay`,
+        method: "POST",
+        body,
+        timeout: 15_000,
+      }),
+      invalidatesTags: ["Loans", "OwnedAccounts", "Transactions"],
     }),
     submitLoanApplication: build.mutation<
       { loan: LoanApplication },
@@ -128,5 +188,8 @@ export const {
   useLoanReviewQueueQuery,
   useLoanReviewQuery,
   useReviewLoanMutation,
+  useAdminLoanActionMutation,
+  useCustomerLoanDetailQuery,
+  useRepayLoanMutation,
   useSubmitLoanApplicationMutation,
 } = loansApi;

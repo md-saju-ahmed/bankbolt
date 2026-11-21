@@ -17,11 +17,14 @@ import {
 } from "@/features/onboarding/form-ui";
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
+import { LoanActionDialog } from "./loan-action-dialog";
 import {
   loanLabels,
   loanStatuses,
+  useAdminLoanActionMutation,
   useLoanReviewQuery,
   useReviewLoanMutation,
+  type ReviewLoan,
 } from "./loans-api";
 
 const feedbackByAction = {
@@ -40,7 +43,90 @@ function readableStatus(value: string) {
   return value.charAt(0) + value.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
-export function LoanReviewDetail({ id }: { id: string }) {
+function AdminLoanActions({
+  id,
+  loan,
+  accountNumber,
+  busy,
+  onSuccessFocus,
+}: {
+  id: string;
+  loan: ReviewLoan;
+  accountNumber: string;
+  busy: boolean;
+  onSuccessFocus: () => void;
+}) {
+  const [mutate] = useAdminLoanActionMutation();
+  if (loan.status === "APPROVED" && loan.approvedPrincipalPoisha !== null) {
+    return (
+      <LoanActionDialog
+        label="Disburse loan"
+        title="Disburse approved loan?"
+        confirmLabel="Confirm disbursement"
+        disabled={busy}
+        onSuccessFocus={onSuccessFocus}
+        description={`Credit ${formatTaka(loan.approvedPrincipalPoisha)} to account ${accountNumber} and start the repayment schedule.`}
+        onConfirm={async () => {
+          const result = await mutate({ id, action: "disburse" }).unwrap();
+          return `Loan disbursed. Reference ${result.reference}.`;
+        }}
+      />
+    );
+  }
+  if (loan.status !== "UNDER_REVIEW" || !loan.forwardedAt) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(["approve", "reject"] as const).map((action) => {
+        const approve = action === "approve";
+        const label = approve ? "Approve loan" : "Reject loan";
+        return (
+          <LoanActionDialog
+            key={action}
+            label={label}
+            title={`${label}?`}
+            confirmLabel={approve ? "Confirm approval" : "Confirm rejection"}
+            secondary={!approve}
+            disabled={busy}
+            onSuccessFocus={onSuccessFocus}
+            description={
+              approve
+                ? `Approve the requested ${formatTaka(loan.requestedPrincipalPoisha)}. Disbursement is a separate action.`
+                : "The rejection reason will be visible to the customer."
+            }
+            fields={
+              <label className="flex flex-col gap-2 text-sm font-medium">
+                Decision reason
+                <textarea
+                  className={`${fieldStyle} py-2`}
+                  name="reason"
+                  maxLength={300}
+                  required
+                  rows={3}
+                />
+              </label>
+            }
+            onConfirm={async (data) => {
+              await mutate({
+                id,
+                action,
+                reason: String(data.get("reason") ?? "").trim(),
+              }).unwrap();
+              return approve ? "Loan approved." : "Loan rejected.";
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export function LoanReviewDetail({
+  id,
+  workspace,
+}: {
+  id: string;
+  workspace: "staff" | "admin";
+}) {
   const query = useLoanReviewQuery(id, {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
@@ -85,7 +171,10 @@ export function LoanReviewDetail({ id }: { id: string }) {
 
   return (
     <section className="max-w-4xl space-y-5">
-      <Link className={`${historyLink} ${secondaryStyle}`} href="/staff/loans">
+      <Link
+        className={`${historyLink} ${secondaryStyle}`}
+        href={`/${workspace}/loans`}
+      >
         Back to loan queue
       </Link>
       <h1
@@ -152,6 +241,20 @@ export function LoanReviewDetail({ id }: { id: string }) {
                 {review.loan.description}
               </p>
             </div>
+            {review.loan.decidedAt && (
+              <DetailFields
+                fields={[
+                  [
+                    "Decision recorded",
+                    formatDhakaFullTimestamp(review.loan.decidedAt),
+                  ],
+                  [
+                    "Decision reason",
+                    review.loan.approvalReason ?? review.loan.rejectionReason,
+                  ],
+                ]}
+              />
+            )}
           </Card>
           <Card className="gap-4 p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Customer and account</h2>
@@ -207,7 +310,8 @@ export function LoanReviewDetail({ id }: { id: string }) {
                 No internal notes yet.
               </p>
             )}
-            {review.loan.status === "UNDER_REVIEW" &&
+            {workspace === "staff" &&
+              review.loan.status === "UNDER_REVIEW" &&
               !review.loan.forwardedAt && (
                 <form
                   className="space-y-3"
@@ -249,7 +353,7 @@ export function LoanReviewDetail({ id }: { id: string }) {
               Forwarded to Admin on{" "}
               {formatDhakaFullTimestamp(review.loan.forwardedAt)}
             </p>
-          ) : review.loan.status === "PENDING" ? (
+          ) : workspace === "staff" && review.loan.status === "PENDING" ? (
             <Button
               className={primaryStyle}
               disabled={busy}
@@ -258,6 +362,7 @@ export function LoanReviewDetail({ id }: { id: string }) {
               Start review
             </Button>
           ) : (
+            workspace === "staff" &&
             review.loan.status === "UNDER_REVIEW" && (
               <AlertDialog.Root
                 open={confirmForward}
@@ -307,6 +412,15 @@ export function LoanReviewDetail({ id }: { id: string }) {
                 </AlertDialog.Portal>
               </AlertDialog.Root>
             )
+          )}
+          {workspace === "admin" && (
+            <AdminLoanActions
+              id={id}
+              loan={review.loan}
+              accountNumber={review.customer.accountNumber}
+              busy={busy}
+              onSuccessFocus={() => heading.current?.focus()}
+            />
           )}
           {isLoading && !confirmForward && (
             <p className="text-sm text-muted-foreground" role="status">
