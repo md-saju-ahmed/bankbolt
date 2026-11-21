@@ -373,15 +373,30 @@ it("posts own-account transfers for free and records the cross-customer fee once
   await expectBalances([9_000n, 40_000n, 40_000n]);
 });
 
+it.each(["sender", "recipient"] as const)(
+  "rejects a frozen %s without posting or updating balances",
+  async (side) => {
+    const frozen = side === "sender" ? source : otherRecipient;
+    await db
+      .update(bankAccounts)
+      .set({ status: "FROZEN" })
+      .where(eq(bankAccounts.id, frozen.id));
+    const input = payload();
+    const rejected = await post(input).expect(409);
+    expect(rejected.body.error.code).toBe("ACCOUNT_RESTRICTED");
+    await recover(input.idempotencyKey).expect(404);
+    expect(await postings()).toHaveLength(0);
+    await expectBalances([30_000n, 30_000n, 30_000n]);
+  },
+);
+
 it("rejects restrictions, insufficient fee-inclusive balance and recipient overflow", async () => {
   const changeAccount = (
     account: Account,
     values: Partial<typeof bankAccounts.$inferInsert>,
   ) =>
     db.update(bankAccounts).set(values).where(eq(bankAccounts.id, account.id));
-  await changeAccount(source, { status: "FROZEN" });
-  await post(payload()).expect(409);
-  await changeAccount(source, { status: "ACTIVE", balancePoisha: 10_000n });
+  await changeAccount(source, { balancePoisha: 10_000n });
   await changeAccount(otherRecipient, { status: "DEACTIVATED" });
   await post(payload()).expect(409);
   await changeAccount(otherRecipient, { status: "ACTIVE" });
@@ -525,6 +540,12 @@ it("serializes competing debits and competing daily-limit usage", async () => {
     overdraft.find((result) => result.status === 422)?.body.error.code,
   ).toBe("INSUFFICIENT_FUNDS");
   expect(await postings()).toHaveLength(1);
+  const sameOwnerWon =
+    overdraft.find((result) => result.status === 201)?.body.transfer
+      .recipientAccountNumber === ownedRecipient.accountNumber;
+  await expectBalances(
+    sameOwnerWon ? [10_000n, 50_000n, 30_000n] : [9_000n, 30_000n, 50_000n],
+  );
   await db
     .update(bankAccounts)
     .set({ balancePoisha: 100_000n, dailyTransferLimitPoisha: 40_000n })
@@ -552,11 +573,11 @@ it("locks both accounts in a stable order for opposite-direction transfers", asy
   await expectBalances([29_000n, 30_000n, 29_000n]);
 });
 
-it("rolls both balances back if inserting the transfer fails", async () => {
+it("rolls back a failed insert and safely posts a retry with the same key", async () => {
+  const input = payload({ description: "test-only forced insert failure" });
   await db.execute(sql`alter table transactions add constraint transfer_test_reject_insert
     check (description <> 'test-only forced insert failure') not valid`);
   try {
-    const input = payload({ description: "test-only forced insert failure" });
     await post(input).expect(500);
     await recover(input.idempotencyKey).expect(404);
     expect(await postings()).toHaveLength(0);
@@ -566,6 +587,11 @@ it("rolls both balances back if inserting the transfer fails", async () => {
       sql`alter table transactions drop constraint transfer_test_reject_insert`,
     );
   }
+  const result = await post(input).expect(201);
+  const replay = await post(input).expect(200);
+  expect(replay.body).toEqual(result.body);
+  expect(await postings()).toHaveLength(1);
+  await expectBalances([19_000n, 30_000n, 40_000n]);
 });
 
 it("quotes current terms without posting or exposing owner information", async () => {
