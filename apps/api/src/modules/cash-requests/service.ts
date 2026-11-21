@@ -1,4 +1,5 @@
 import { and, desc, eq, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
 import {
@@ -17,6 +18,8 @@ import type { cashRequestFilters, cashRequestInput } from "./validation.ts";
 type Reader = Pick<ReturnType<typeof getDatabase>, "select">;
 type CashRequest = typeof cashRequests.$inferSelect;
 type Decision = { status: "APPROVED" } | { status: "REJECTED"; reason: string };
+const requester = alias(users, "cash_requester");
+const reviewActor = alias(users, "cash_reviewer");
 
 function requestView(
   request: CashRequest,
@@ -41,6 +44,8 @@ function scopedRequests(identity: Identity, condition?: SQL) {
       request: cashRequests,
       accountNumber: bankAccounts.accountNumber,
       reference: transactions.reference,
+      customerName: requester.fullName,
+      reviewerName: reviewActor.fullName,
     })
     .from(cashRequests)
     .innerJoin(
@@ -55,7 +60,22 @@ function scopedRequests(identity: Identity, condition?: SQL) {
       ),
     )
     .leftJoin(transactions, eq(transactions.cashRequestId, cashRequests.id))
+    .innerJoin(requester, eq(requester.id, customerProfiles.userId))
+    .leftJoin(reviewActor, eq(reviewActor.id, cashRequests.reviewedBy))
     .where(and(scope, condition));
+}
+
+type CashRequestRow = Awaited<ReturnType<typeof scopedRequests>>[number];
+
+function scopedView(identity: Identity, row: CashRequestRow) {
+  const view = requestView(row.request, row.accountNumber, row.reference);
+  return identity.role === "CUSTOMER"
+    ? view
+    : {
+        ...view,
+        customerName: row.customerName,
+        reviewerName: row.reviewerName,
+      };
 }
 
 export async function listCashRequests(
@@ -74,9 +94,7 @@ export async function listCashRequests(
     .limit(pageSize + 1)
     .offset((filters.page - 1) * pageSize);
   return {
-    requests: rows
-      .slice(0, pageSize)
-      .map((row) => requestView(row.request, row.accountNumber, row.reference)),
+    requests: rows.slice(0, pageSize).map((row) => scopedView(identity, row)),
     hasNextPage: rows.length > pageSize,
   };
 }
@@ -89,7 +107,7 @@ const missingAccount = () =>
 export async function getCashRequest(identity: Identity, id: string) {
   const [row] = await scopedRequests(identity, eq(cashRequests.id, id));
   if (!row) throw missingRequest();
-  return requestView(row.request, row.accountNumber, row.reference);
+  return scopedView(identity, row);
 }
 
 function lockOwner(tx: Reader, condition: SQL) {

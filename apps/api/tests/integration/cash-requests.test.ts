@@ -284,7 +284,13 @@ it("lists the Staff/Admin queue and filters a customer's requests with paginatio
       .query({ type: "WITHDRAWAL", status: "PENDING" })
       .expect(200);
     expect(queue.body.requests).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: withdrawal })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: withdrawal,
+          customerName: "Fictional cash owner",
+          reviewerName: null,
+        }),
+      ]),
     );
     await get(person, `/${withdrawal}`).expect(200);
   }
@@ -344,6 +350,12 @@ it("posts both approval types once with linked history and no fee", async () => 
     reason: "Fictional rejection",
   }).expect(409);
   await get("owner", `/${deposit}`).expect(200, credited.body);
+  const reviewDetail = await get("admin", `/${deposit}`).expect(200);
+  expect(reviewDetail.body.request).toMatchObject({
+    customerName: "Fictional cash owner",
+    reviewerName: "Fictional cash staff",
+    reviewedAt: credited.body.request.reviewedAt,
+  });
   const history = await request(app)
     .get(`/api/v1/transactions/${debited.body.request.transactionReference}`)
     .set("Cookie", cookies.get("owner")!)

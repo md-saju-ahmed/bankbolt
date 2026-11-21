@@ -116,6 +116,14 @@ function WorkspaceLinks({
         icon: CreditCard,
         active: pathname === `${root}/management/accounts`,
       },
+      {
+        href: `${root}/cash-requests`,
+        label: "Cash request review",
+        icon: Wallet,
+        active:
+          pathname === `${root}/cash-requests` ||
+          pathname.startsWith(`${root}/cash-requests/`),
+      },
     );
   }
   links.push({
