@@ -24,6 +24,7 @@ import {
   transactionStatuses,
   transactionTypes,
   useTransactionHistoryQuery,
+  type HistoryFilters,
   type Transaction,
 } from "./transactions-api";
 import { transactionsSlice } from "./transactions-slice";
@@ -84,10 +85,6 @@ export function TransactionHistory({ root }: { root: string }) {
   const { page, ...savedFilters } = filters;
   const [draft, setDraft] = useState(savedFilters);
   const [error, setError] = useState("");
-  const query = useTransactionHistoryQuery(filters, {
-    refetchOnMountOrArgChange: true,
-  });
-  const rows = query.currentData?.transactions ?? [];
 
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -203,6 +200,34 @@ export function TransactionHistory({ root }: { root: string }) {
           </div>
         </form>
       </Card>
+      <TransactionResults
+        root={root}
+        filters={{ page, ...savedFilters }}
+        onPage={(target) =>
+          dispatch(transactionsSlice.actions.setTransactionPage(target))
+        }
+      />
+    </section>
+  );
+}
+
+export function TransactionResults({
+  root,
+  filters,
+  onPage,
+}: {
+  root: string;
+  filters: HistoryFilters & { customerId?: string };
+  onPage: (page: number) => void;
+}) {
+  const { page } = filters;
+  const query = useTransactionHistoryQuery(filters, {
+    refetchOnMountOrArgChange: true,
+  });
+  const rows = query.currentData?.transactions ?? [];
+
+  return (
+    <>
       {query.isFetching && (
         <p role="status" className="text-sm text-muted-foreground">
           Loading transactions…
@@ -223,7 +248,9 @@ export function TransactionHistory({ root }: { root: string }) {
         <Card className="overflow-hidden p-0" aria-busy={query.isFetching}>
           {rows.length === 0 ? (
             <p className="p-5 text-sm text-muted-foreground">
-              No transactions match your filters.
+              {filters.customerId
+                ? "No transactions for this customer."
+                : "No transactions match your filters."}
             </p>
           ) : (
             <>
@@ -308,13 +335,11 @@ export function TransactionHistory({ root }: { root: string }) {
             <Pager
               page={page}
               next={query.currentData.hasNextPage}
-              onPage={(target) =>
-                dispatch(transactionsSlice.actions.setTransactionPage(target))
-              }
+              onPage={onPage}
             />
           </div>
         </Card>
       )}
-    </section>
+    </>
   );
 }

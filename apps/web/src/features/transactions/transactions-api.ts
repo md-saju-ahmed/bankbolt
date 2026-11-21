@@ -40,7 +40,7 @@ export const transactionsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     transactionHistory: build.query<
       { transactions: Transaction[]; hasNextPage: boolean },
-      HistoryFilters
+      HistoryFilters & { customerId?: string }
     >({
       query: (params) => ({ url: "/transactions", params, cache: "no-store" }),
       providesTags: ["Transactions"],

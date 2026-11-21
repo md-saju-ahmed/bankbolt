@@ -19,6 +19,7 @@ import { relatedFlagsRouter } from "../transaction-flags/routes.ts";
 
 const search = pages
   .extend({
+    customerId: z.uuid().optional(),
     reference: z
       .string()
       .trim()
@@ -105,10 +106,19 @@ transactionsRouter.use("/:reference", relatedFlagsRouter);
 transactionsRouter.get("/", async (request, response) => {
   const filters = search.parse(request.query);
   const identity = currentIdentity(request);
+  if (filters.customerId && identity.role !== "ADMIN") {
+    throw new ApiError(403, "FORBIDDEN", "Only Admin can filter by customer.");
+  }
   const pageSize = 20;
   const rows = await scopedTransactions(
     identity,
     and(
+      filters.customerId
+        ? or(
+            eq(senderOwner.id, filters.customerId),
+            eq(receiverOwner.id, filters.customerId),
+          )
+        : undefined,
       filters.reference
         ? sql`${transactions.reference}::text like ${filters.reference.toLowerCase() + "%"}`
         : undefined,

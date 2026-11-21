@@ -18,6 +18,7 @@ import {
   onboardingError,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
+import { TransactionResults } from "@/features/transactions/history";
 import { Activity, ConfirmAction, DetailFields, Status } from "./management-ui";
 import {
   useChangeAccountMutation,
@@ -79,6 +80,7 @@ const accessActions: Record<
 
 export function CustomerDetails({ id, admin }: { id: string; admin: boolean }) {
   const [page, setPage] = useState(1);
+  const [transactionPage, setTransactionPage] = useState(1);
   const query = useManagedCustomerQuery({ id, page });
   const [update] = useChangeCustomerAccessMutation();
   const data = query.currentData;
@@ -146,6 +148,21 @@ export function CustomerDetails({ id, admin }: { id: string; admin: boolean }) {
         </div>
       )}
       <Activity history={history} page={page} onPage={setPage} />
+      {admin && (
+        <section
+          className="space-y-3 border-t pt-5"
+          aria-labelledby="customer-transactions"
+        >
+          <h3 id="customer-transactions" className="text-base font-semibold">
+            Customer transaction history
+          </h3>
+          <TransactionResults
+            root="/admin/transactions"
+            filters={{ page: transactionPage, customerId: id }}
+            onPage={setTransactionPage}
+          />
+        </section>
+      )}
     </Card>
   );
 }

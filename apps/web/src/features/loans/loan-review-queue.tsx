@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatTaka } from "@/features/accounts/account-display";
@@ -13,7 +13,9 @@ import {
 } from "@/features/onboarding/form-ui";
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
+import { useAppSelector } from "@/lib/store/provider";
 import { loanLabels, loanStatuses, useLoanReviewQueueQuery } from "./loans-api";
+import { loansSlice, type LoanQueue } from "./loans-slice";
 
 const queues = {
   pending: { status: "PENDING" },
@@ -30,10 +32,17 @@ export function LoanReviewQueue({
 }: {
   workspace: "staff" | "admin";
 }) {
-  const [page, setPage] = useState(1);
-  const [queue, setQueue] = useState<keyof typeof queues>(
-    workspace === "admin" ? "forwarded" : "pending",
-  );
+  const dispatch = useDispatch();
+  const { queue, page } = useAppSelector((state) => state.loans[workspace]);
+  function select(nextQueue: LoanQueue, nextPage: number) {
+    dispatch(
+      loansSlice.actions.setReviewSelection({
+        workspace,
+        queue: nextQueue,
+        page: nextPage,
+      }),
+    );
+  }
   const query = useLoanReviewQueueQuery(
     { page, ...queues[queue] },
     { refetchOnMountOrArgChange: true, refetchOnFocus: true },
@@ -50,10 +59,7 @@ export function LoanReviewQueue({
             <select
               className={fieldStyle}
               value={queue}
-              onChange={(event) => {
-                setQueue(event.target.value as keyof typeof queues);
-                setPage(1);
-              }}
+              onChange={(event) => select(event.target.value as LoanQueue, 1)}
             >
               <option value="pending">Pending</option>
               <option value="reviewing">Under review</option>
@@ -142,7 +148,7 @@ export function LoanReviewQueue({
                   <Pager
                     page={page}
                     next={result.hasNextPage}
-                    onPage={setPage}
+                    onPage={(next) => select(queue, next)}
                   />
                 </div>
               )}

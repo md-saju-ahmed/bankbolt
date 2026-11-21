@@ -686,6 +686,38 @@ it("shows one committed row to both participants and scopes details and receipts
   expect(receipt.body.transaction).not.toHaveProperty("idempotencyKey");
 });
 
+it("lets Admin view one customer's transaction history across their accounts", async () => {
+  const cross = (await post(payload()).expect(201)).body.transfer.reference;
+  const internal = (
+    await post(
+      payload({ recipientAccountNumber: ownedRecipient.accountNumber }),
+    ).expect(201)
+  ).body.transfer.reference;
+  const ownerId = profiles.get("owner")!;
+  const neighborId = profiles.get("neighbor")!;
+
+  const owner = await historyRequest("admin")
+    .query({ customerId: ownerId })
+    .expect(200);
+  expect(
+    owner.body.transactions.map((row: { reference: string }) => row.reference),
+  ).toEqual([internal, cross]);
+  const neighbor = await historyRequest("admin")
+    .query({ customerId: neighborId })
+    .expect(200);
+  expect(neighbor.body.transactions).toEqual([
+    expect.objectContaining({ reference: cross }),
+  ]);
+  const empty = await historyRequest("admin")
+    .query({ customerId: neighborId, reference: internal })
+    .expect(200);
+  expect(empty.body).toEqual({ transactions: [], hasNextPage: false });
+  for (const person of ["staff", "owner"] as const) {
+    await historyRequest(person).query({ customerId: ownerId }).expect(403);
+  }
+  await historyRequest("admin").query({ customerId: "invalid" }).expect(400);
+});
+
 it("filters status, type, Dhaka dates and references with stable pagination", async () => {
   const reference = randomUUID();
   const base = {

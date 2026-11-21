@@ -17,7 +17,7 @@ export function makeStore() {
     effect: (_, { dispatch }) => {
       dispatch(baseApi.util.resetApiState());
       dispatch(accountsSlice.actions.selectAccount(null));
-      dispatch(loansSlice.actions.selectLoan(null));
+      dispatch(loansSlice.actions.resetLoanReview());
       dispatch(transactionsSlice.actions.resetTransactionFilters());
     },
   });
@@ -34,7 +34,7 @@ export function makeStore() {
         )
       ) {
         dispatch(accountsSlice.actions.selectAccount(null));
-        dispatch(loansSlice.actions.selectLoan(null));
+        dispatch(loansSlice.actions.resetLoanReview());
         dispatch(transactionsSlice.actions.resetTransactionFilters());
       }
     },
