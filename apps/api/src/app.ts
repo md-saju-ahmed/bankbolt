@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { handleError, notFound } from "./errors.ts";
 import { authRouter } from "./modules/auth/routes.ts";
+import { cashRequestsRouter } from "./modules/cash-requests/routes.ts";
 import { ownedAccountsRouter } from "./modules/accounts/owned-routes.ts";
 import { managementRouter } from "./modules/management/routes.ts";
 import { onboardingRouter } from "./modules/onboarding/routes.ts";
@@ -21,6 +22,7 @@ api.use("/management", managementRouter);
 api.use("/accounts", ownedAccountsRouter);
 api.use("/transfers", transfersRouter);
 api.use("/transactions", transactionsRouter);
+api.use("/cash-requests", cashRequestsRouter);
 api.get("/health", (request, response) => {
   healthQuery.parse(request.query);
   response.set("Cache-Control", "no-store").json({ status: "ok" });

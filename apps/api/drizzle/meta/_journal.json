@@ -43,6 +43,13 @@
       "when": 1795267613846,
       "tag": "0005_immutable_transaction_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795268596102,
+      "tag": "0006_cash_requests",
+      "breakpoints": true
     }
   ]
 }

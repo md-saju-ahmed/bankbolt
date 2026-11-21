@@ -55,6 +55,12 @@ Customers can set their transaction PIN and send money from **Transfer funds**. 
 - `POST /api/v1/transfers` accepts `sourceAccountId`, `recipientAccountNumber`, a positive `amountPoisha` decimal string, `description`, `pin`, and a client-generated UUID `idempotencyKey`. The server calculates the fee and returns a receipt with HTTP 201. The PIN and transfer mutations require the configured web origin.
 - Keep the same key and payment details until the result is known. `GET /api/v1/transfers/by-key/{idempotencyKey}` returns the submitting customer's committed receipt. A 404 means no receipt is visible yet. Resubmit the same request with the same key if needed. A committed replay returns the same receipt with HTTP 200, and changing the source, recipient, amount, or description under a committed key returns HTTP 409.
 
+### Simulated cash requests API
+
+- Customers submit a deposit or withdrawal through `POST /api/v1/cash-requests` with `accountId`, `type` (`DEPOSIT` or `WITHDRAWAL`), `amountPoisha` as a positive decimal string, and `description`. The server records the request date. Pending withdrawals leave the posted balance available.
+- `GET /api/v1/cash-requests` lists requests with optional `status`, `type`, and `page` filters, and `GET /api/v1/cash-requests/{id}` returns one request. Customers can view only their own requests. Staff and Admin can view the review queue.
+- Staff and Admin can POST to `/api/v1/cash-requests/{id}/approve` or `/api/v1/cash-requests/{id}/reject`. Reject requires a `reason`. Approval returns the reference for one posted transaction. Rejection leaves the balance intact. Repeated decisions return HTTP 409. Read the request detail to recover the recorded decision if a response is lost.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

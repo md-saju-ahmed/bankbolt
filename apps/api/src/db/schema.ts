@@ -211,6 +211,58 @@ export const managementEvents = pgTable(
   ],
 );
 
+export const cashRequestType = pgEnum("cash_request_type", [
+  "DEPOSIT",
+  "WITHDRAWAL",
+]);
+export const cashRequestStatus = pgEnum("cash_request_status", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+]);
+
+export const cashRequests = pgTable(
+  "cash_requests",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => bankAccounts.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customerProfiles.id),
+    type: cashRequestType().notNull(),
+    status: cashRequestStatus().notNull().default("PENDING"),
+    amountPoisha: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    description: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+  },
+  (table) => [
+    index("cash_requests_customer_time_idx").on(
+      table.customerId,
+      table.createdAt,
+    ),
+    index("cash_requests_status_time_idx").on(table.status, table.createdAt),
+    check("cash_requests_positive_amount", sql`${table.amountPoisha} > 0`),
+    check(
+      "cash_requests_review_fields",
+      sql`case
+      when ${table.status} = 'PENDING' then
+        ${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.rejectionReason} is null
+      when ${table.status} = 'APPROVED' then
+        ${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.rejectionReason} is null
+      else ${table.reviewedBy} is not null and ${table.reviewedAt} is not null
+        and ${table.rejectionReason} is not null and length(trim(${table.rejectionReason})) > 0
+      end`,
+    ),
+  ],
+);
+
 export const transactionType = pgEnum("transaction_type", [
   "DEPOSIT",
   "WITHDRAWAL",
@@ -248,11 +300,12 @@ export const transactions = pgTable(
       .defaultNow(),
     initiatedBy: uuid("initiated_by").references(() => users.id),
     idempotencyKey: uuid("idempotency_key"),
-    // The cash-request and loan migrations will add the foreign keys.
-    cashRequestId: uuid("cash_request_id"),
+    cashRequestId: uuid("cash_request_id").references(() => cashRequests.id),
+    // The loan migration will add the foreign key.
     loanId: uuid("loan_id"),
   },
   (table) => [
+    unique("transactions_cash_request_unique").on(table.cashRequestId),
     unique("transactions_initiator_idempotency_key").on(
       table.initiatedBy,
       table.idempotencyKey,
@@ -267,6 +320,10 @@ export const transactions = pgTable(
     ),
     check("transactions_positive_amount", sql`${table.amountPoisha} > 0`),
     check("transactions_nonnegative_fee", sql`${table.feePoisha} >= 0`),
+    check(
+      "transactions_cash_request_type",
+      sql`${table.cashRequestId} is null or ${table.type} in ('DEPOSIT', 'WITHDRAWAL')`,
+    ),
     check(
       "transactions_account_direction",
       sql`case
