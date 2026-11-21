@@ -1,0 +1,320 @@
+"use client";
+
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Pager } from "@/features/management/management-ui";
+import {
+  ErrorMessage,
+  Field,
+  fieldStyle,
+  primaryStyle,
+  secondaryStyle,
+} from "@/features/onboarding/form-ui";
+import { formatDhakaDay } from "@/lib/dhaka-date";
+import type { RootState } from "@/lib/store/store";
+import {
+  directions,
+  TransactionAmount,
+  TransactionStatus,
+} from "./transaction-display";
+import {
+  transactionStatuses,
+  transactionTypes,
+  useTransactionHistoryQuery,
+  type Transaction,
+} from "./transactions-api";
+import { transactionsSlice } from "./transactions-slice";
+
+function TransactionLink({
+  root,
+  transaction,
+}: {
+  root: string;
+  transaction: Transaction;
+}) {
+  return (
+    <Link
+      className="inline-flex min-h-11 items-center rounded break-all text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+      aria-label={`View transaction ${transaction.reference}`}
+      href={`${root}/${transaction.reference}`}
+    >
+      {transaction.reference}
+    </Link>
+  );
+}
+
+function AccountSummary({ transaction }: { transaction: Transaction }) {
+  return (
+    <div className="space-y-0.5 text-sm">
+      {transaction.senderNumber && (
+        <p>
+          <span className="text-muted-foreground">From</span>{" "}
+          {transaction.senderNumber}
+        </p>
+      )}
+      {transaction.receiverNumber && (
+        <p>
+          <span className="text-muted-foreground">To</span>{" "}
+          {transaction.receiverNumber}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TypeSummary({ transaction }: { transaction: Transaction }) {
+  return (
+    <div>
+      <p className="font-medium">{transactionTypes[transaction.type]}</p>
+      {transaction.direction && (
+        <p className="text-xs text-muted-foreground">
+          {directions[transaction.direction]}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function TransactionHistory({ root }: { root: string }) {
+  const dispatch = useDispatch();
+  const filters = useSelector((state: RootState) => state.transactions);
+  const { page, ...savedFilters } = filters;
+  const [draft, setDraft] = useState(savedFilters);
+  const [error, setError] = useState("");
+  const query = useTransactionHistoryQuery(filters, {
+    refetchOnMountOrArgChange: true,
+  });
+  const rows = query.currentData?.transactions ?? [];
+
+  function apply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (draft.from && draft.to && draft.from > draft.to) {
+      setError("The end date must be on or after the start date.");
+      return;
+    }
+    setError("");
+    const values = {
+      ...draft,
+      reference: draft.reference?.trim() || undefined,
+    };
+    dispatch(transactionsSlice.actions.setTransactionFilters(values));
+  }
+
+  return (
+    <section className="space-y-5">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight">Transactions</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Search by transaction reference or filter by date, type, and status.
+        </p>
+      </header>
+      <Card className="p-4 sm:p-5">
+        <form onSubmit={apply} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Field
+              label="Reference"
+              placeholder="Reference or prefix"
+              pattern="[0-9a-fA-F\-]*"
+              maxLength={36}
+              value={draft.reference ?? ""}
+              onChange={(event) =>
+                setDraft({ ...draft, reference: event.target.value })
+              }
+            />
+            <Field
+              label="From date"
+              type="date"
+              min="0001-01-01"
+              max="9999-12-31"
+              value={draft.from ?? ""}
+              onChange={(event) =>
+                setDraft({ ...draft, from: event.target.value || undefined })
+              }
+            />
+            <Field
+              label="To date"
+              type="date"
+              min="0001-01-01"
+              max="9999-12-31"
+              value={draft.to ?? ""}
+              onChange={(event) =>
+                setDraft({ ...draft, to: event.target.value || undefined })
+              }
+            />
+            <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
+              Type
+              <select
+                className={fieldStyle}
+                value={draft.type ?? ""}
+                onChange={(event) =>
+                  setDraft({ ...draft, type: event.target.value || undefined })
+                }
+              >
+                <option value="">All types</option>
+                {Object.entries(transactionTypes).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
+              Status
+              <select
+                className={fieldStyle}
+                value={draft.status ?? ""}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    status: event.target.value || undefined,
+                  })
+                }
+              >
+                <option value="">All statuses</option>
+                {Object.entries(transactionStatuses).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <ErrorMessage message={error} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" className={primaryStyle}>
+              Apply filters
+            </Button>
+            <Button
+              className={secondaryStyle}
+              onClick={() => {
+                setDraft({});
+                setError("");
+                dispatch(transactionsSlice.actions.resetTransactionFilters());
+              }}
+            >
+              Clear filters
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Dates use Asia/Dhaka.
+            </span>
+          </div>
+        </form>
+      </Card>
+      {query.isFetching && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Loading transactions…
+        </p>
+      )}
+      {query.isError && (
+        <Card className="space-y-3 p-5">
+          <ErrorMessage message="Could not load transactions. Check your filters or try again." />
+          <Button
+            className={secondaryStyle}
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </Button>
+        </Card>
+      )}
+      {!query.isError && query.currentData && (
+        <Card className="overflow-hidden p-0" aria-busy={query.isFetching}>
+          {rows.length === 0 ? (
+            <p className="p-5 text-sm text-muted-foreground">
+              No transactions match your filters.
+            </p>
+          ) : (
+            <>
+              <ul className="divide-y lg:hidden">
+                {rows.map((transaction) => (
+                  <li key={transaction.reference} className="space-y-2 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2 text-sm">
+                      <TypeSummary transaction={transaction} />
+                      <TransactionAmount transaction={transaction} />
+                    </div>
+                    <AccountSummary transaction={transaction} />
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <time
+                        className="text-sm text-muted-foreground"
+                        dateTime={transaction.createdAt}
+                      >
+                        {formatDhakaDay(transaction.createdAt)}
+                      </time>
+                      <TransactionStatus status={transaction.status} />
+                    </div>
+                    <TransactionLink root={root} transaction={transaction} />
+                  </li>
+                ))}
+              </ul>
+              <table className="hidden w-full table-fixed text-left text-sm lg:table">
+                <caption className="sr-only">Transaction history</caption>
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="w-[23%] px-4 py-3">
+                      Reference
+                    </th>
+                    <th scope="col" className="w-[15%] px-4 py-3">
+                      Date
+                    </th>
+                    <th scope="col" className="w-[18%] px-4 py-3">
+                      Type
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Accounts
+                    </th>
+                    <th scope="col" className="w-[15%] px-4 py-3 text-right">
+                      Amount
+                    </th>
+                    <th scope="col" className="w-[14%] px-4 py-3">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {rows.map((transaction) => (
+                    <tr key={transaction.reference}>
+                      <td className="px-4 py-2">
+                        <TransactionLink
+                          root={root}
+                          transaction={transaction}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <time dateTime={transaction.createdAt}>
+                          {formatDhakaDay(transaction.createdAt)}
+                        </time>
+                      </td>
+                      <td className="px-4 py-2">
+                        <TypeSummary transaction={transaction} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <AccountSummary transaction={transaction} />
+                      </td>
+                      <td className="break-all px-4 py-2 text-right">
+                        <TransactionAmount transaction={transaction} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <TransactionStatus status={transaction.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          <div className="px-4 [&:empty]:hidden [&:not(:empty)]:py-3">
+            <Pager
+              page={page}
+              next={query.currentData.hasNextPage}
+              onPage={(target) =>
+                dispatch(transactionsSlice.actions.setTransactionPage(target))
+              }
+            />
+          </div>
+        </Card>
+      )}
+    </section>
+  );
+}

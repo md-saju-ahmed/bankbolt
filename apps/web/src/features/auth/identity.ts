@@ -5,6 +5,11 @@ export const workspaces = {
 } as const;
 
 export type Role = keyof typeof workspaces;
+export function workspaceRole(workspace: string): Role | undefined {
+  return (Object.keys(workspaces) as Role[]).find(
+    (role) => workspaces[role].path === `/${workspace}`,
+  );
+}
 
 export type SessionUser = {
   id: string;

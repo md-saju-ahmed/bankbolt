@@ -245,6 +245,14 @@ it("enforces transaction shape and uniqueness in PostgreSQL", async () => {
     idempotencyKey: randomUUID(),
   } as const;
   const [saved] = await db.insert(transactions).values(record).returning();
+  await expect(
+    db
+      .update(transactions)
+      .set({ reference: randomUUID() })
+      .where(eq(transactions.id, saved.id)),
+  ).rejects.toMatchObject({
+    cause: { constraint: "transactions_immutable_reference" },
+  });
   await expect(db.insert(transactions).values(record)).rejects.toMatchObject({
     cause: { constraint: "transactions_initiator_idempotency_key" },
   });
@@ -558,4 +566,157 @@ it("rolls both balances back if inserting the transfer fails", async () => {
       sql`alter table transactions drop constraint transfer_test_reject_insert`,
     );
   }
+});
+
+it("quotes current terms without posting or exposing owner information", async () => {
+  const quote = (recipientAccountNumber: string, sourceAccountId = source.id) =>
+    request(app)
+      .post(`${prefix}/quote`)
+      .set("Origin", origin)
+      .set("Cookie", cookies.get("owner")!)
+      .send({ sourceAccountId, recipientAccountNumber, amountPoisha: "10000" });
+  const cross = await quote(otherRecipient.accountNumber).expect(200);
+  expect(cross.body.quote).toEqual({
+    sourceAccountNumber: source.accountNumber,
+    recipientAccountNumber: otherRecipient.accountNumber,
+    amountPoisha: "10000",
+    feePoisha: "1000",
+    totalDebitPoisha: "11000",
+  });
+  expect(
+    (await quote(ownedRecipient.accountNumber).expect(200)).body.quote
+      .totalDebitPoisha,
+  ).toBe("10000");
+  await quote(ownedRecipient.accountNumber, otherRecipient.id).expect(404);
+  await db
+    .update(bankAccounts)
+    .set({ status: "FROZEN" })
+    .where(eq(bankAccounts.id, otherRecipient.id));
+  await quote(otherRecipient.accountNumber).expect(409);
+  await expectBalances([30_000n, 30_000n, 30_000n]);
+  expect(await postings()).toHaveLength(0);
+
+  const pinStatus = () =>
+    request(app)
+      .get("/api/v1/auth/transaction-pin")
+      .set("Cookie", cookies.get("owner")!);
+  await pinStatus().expect(200, { configured: true });
+  await db
+    .update(customerProfiles)
+    .set({ pinHash: null })
+    .where(eq(customerProfiles.id, profiles.get("owner")!));
+  await pinStatus().expect(200, { configured: false });
+});
+
+const historyPath = "/api/v1/transactions";
+function historyRequest(person: Person, path = "") {
+  return request(app)
+    .get(historyPath + path)
+    .set("Cookie", cookies.get(person)!);
+}
+
+it("shows one committed row to both participants and scopes details and receipts", async () => {
+  await request(app).get(historyPath).expect(401);
+  const other = (await post(payload()).expect(201)).body.transfer
+    .reference as string;
+  const own = (
+    await post(
+      payload({ recipientAccountNumber: ownedRecipient.accountNumber }),
+    ).expect(201)
+  ).body.transfer.reference as string;
+  const outgoing = await historyRequest("owner")
+    .query({ reference: other })
+    .expect(200);
+  expect(outgoing.body.transactions).toEqual([
+    expect.objectContaining({ reference: other, direction: "OUTGOING" }),
+  ]);
+  const incoming = await historyRequest("neighbor").expect(200);
+  expect(incoming.body.transactions).toEqual([
+    expect.objectContaining({ reference: other, direction: "INCOMING" }),
+  ]);
+  await historyRequest("neighbor", `/${own}`).expect(404);
+  await historyRequest("neighbor", `/${own}/receipt`).expect(404);
+  const detail = (await historyRequest("owner", `/${own}`).expect(200)).body
+    .transaction;
+  expect(detail).toEqual(
+    expect.objectContaining({ reference: own, direction: "INTERNAL" }),
+  );
+  for (const person of ["admin", "staff"] as const) {
+    const scoped = await historyRequest(person)
+      .query({ reference: own })
+      .expect(200);
+    expect(scoped.body.transactions).toEqual([
+      expect.objectContaining({ reference: own, direction: null }),
+    ]);
+    const receipt = await historyRequest(person, `/${own}/receipt`).expect(200);
+    expect(receipt.body.transaction).toEqual({ ...detail, direction: null });
+    expect(receipt.headers["cache-control"]).toBe("no-store");
+  }
+  const receipt = await historyRequest("neighbor", `/${other}/receipt`).expect(
+    200,
+  );
+  expect(receipt.body.transaction).toEqual(incoming.body.transactions[0]);
+  expect(receipt.body.transaction).not.toHaveProperty("initiatedBy");
+  expect(receipt.body.transaction).not.toHaveProperty("idempotencyKey");
+});
+
+it("filters status, type, Dhaka dates and references with stable pagination", async () => {
+  const reference = randomUUID();
+  const base = {
+    receiverAccountId: source.id,
+    type: "DEPOSIT",
+    status: "COMPLETED",
+    amountPoisha: 100n,
+    description: "Fictional record",
+    initiatedBy: identities.get("owner"),
+    createdAt: new Date("2026-06-01T18:00:00Z"),
+  } as const;
+  await db.insert(transactions).values([
+    ...Array.from({ length: 21 }, () => base),
+    {
+      ...base,
+      status: "FAILED" as const,
+      reference,
+      createdAt: new Date("2026-06-01T17:59:59.999Z"),
+    },
+    {
+      ...base,
+      type: "LOAN_DISBURSEMENT" as const,
+      status: "REVERSED" as const,
+    },
+    { ...base, status: "PENDING" as const },
+  ]);
+  const filters = {
+    from: "2026-06-02",
+    to: "2026-06-02",
+    type: "DEPOSIT",
+    status: "COMPLETED",
+  };
+  const first = (await historyRequest("owner").query(filters).expect(200)).body;
+  const second = (
+    await historyRequest("owner")
+      .query({ ...filters, page: 2 })
+      .expect(200)
+  ).body;
+  expect(first.transactions).toHaveLength(20);
+  expect(first.hasNextPage).toBe(true);
+  expect(second.transactions).toHaveLength(1);
+  expect(second.hasNextPage).toBe(false);
+  expect(
+    first.transactions.map((row: { reference: string }) => row.reference),
+  ).not.toContain(second.transactions[0].reference);
+  const prefixMatch = await historyRequest("owner")
+    .query({
+      reference: reference.slice(0, 12).toUpperCase(),
+      to: "2026-06-01",
+    })
+    .expect(200);
+  expect(prefixMatch.body.transactions).toEqual([
+    expect.objectContaining({ reference, status: "FAILED" }),
+  ]);
+  await historyRequest("owner", `/${reference}`).expect(200);
+  await historyRequest("owner", `/${reference}/receipt`).expect(404);
+  await historyRequest("owner")
+    .query({ from: "2026-06-03", to: "2026-06-02" })
+    .expect(400);
 });

@@ -3,12 +3,14 @@
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
   ChevronDown,
+  ArrowLeftRight,
   CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  ReceiptText,
   UserRoundPlus,
   UsersRound,
 } from "lucide-react";
@@ -85,6 +87,12 @@ function WorkspaceLinks({
       icon: CreditCard,
       active: pathname === `${root}/accounts`,
     });
+    links.push({
+      href: `${root}/transfer`,
+      label: "Transfer funds",
+      icon: ArrowLeftRight,
+      active: pathname === `${root}/transfer`,
+    });
   } else {
     links.push(
       {
@@ -101,6 +109,14 @@ function WorkspaceLinks({
       },
     );
   }
+  links.push({
+    href: `${root}/transactions`,
+    label: "Transactions",
+    icon: ReceiptText,
+    active:
+      pathname === `${root}/transactions` ||
+      pathname.startsWith(`${root}/transactions/`),
+  });
   return (
     <div className="space-y-2">
       {links.map(({ href, label, icon: Icon, active }) => {
@@ -208,19 +224,23 @@ function AccountMenu({ user }: { user: SessionUser }) {
 function Workspace({
   user,
   children,
+  printable,
 }: {
   user: SessionUser;
   children?: ReactNode;
+  printable?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
   const { role } = user;
   return (
-    <div className="flex min-h-svh">
+    <div
+      className={cn("flex min-h-svh", printable && "print:block print:min-h-0")}
+    >
       <a
         href="#workspace-content"
-        className="sr-only z-50 rounded-md bg-card px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        className="sr-only z-50 rounded-md bg-card px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3 print:hidden"
       >
         Skip to content
       </a>
@@ -228,6 +248,7 @@ function Workspace({
         className={cn(
           "hidden shrink-0 flex-col bg-navy text-white md:flex",
           collapsed ? "w-[4.5rem]" : "w-[4.5rem] lg:w-60",
+          printable && "print:hidden",
         )}
       >
         <div className="flex min-h-20 items-center justify-center border-b border-white/10 lg:px-4">
@@ -255,7 +276,12 @@ function Workspace({
         </nav>
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="flex min-h-20 items-center justify-between gap-2 border-b bg-card px-4 sm:px-6 lg:px-8">
+        <header
+          className={cn(
+            "flex min-h-20 items-center justify-between gap-2 border-b bg-card px-4 sm:px-6 lg:px-8",
+            printable && "print:hidden",
+          )}
+        >
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="md:hidden">
               <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -298,7 +324,10 @@ function Workspace({
         <main
           id="workspace-content"
           tabIndex={-1}
-          className="mx-auto max-w-6xl px-4 py-8 outline-none sm:px-6 lg:px-8"
+          className={cn(
+            "mx-auto max-w-6xl px-4 py-8 outline-none sm:px-6 lg:px-8",
+            printable && "print:max-w-none print:p-0",
+          )}
         >
           {children ?? (
             <>
@@ -342,9 +371,11 @@ function Workspace({
 export function DashboardShell({
   role,
   children,
+  printable,
 }: {
   role: Role;
   children?: ReactNode;
+  printable?: boolean;
 }) {
   const router = useRouter();
   const session = useWorkspaceQuery(role, {
@@ -414,5 +445,9 @@ export function DashboardShell({
       </main>
     );
   }
-  return <Workspace user={session.currentData.user}>{children}</Workspace>;
+  return (
+    <Workspace user={session.currentData.user} printable={printable}>
+      {children}
+    </Workspace>
+  );
 }

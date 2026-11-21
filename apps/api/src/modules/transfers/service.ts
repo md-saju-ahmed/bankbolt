@@ -8,16 +8,147 @@ import {
   users,
 } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
-import { dhakaDate } from "../../lib/dhaka-date.ts";
+import { dhakaDate, dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
 import { maxPoisha } from "../../lib/money.ts";
 import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
 import { verifyTransactionPin } from "../auth/customer-scope.ts";
 import type { Identity } from "../auth/sessions.ts";
-import type { transferRequest } from "./validation.ts";
+import type { transferQuote, transferRequest } from "./validation.ts";
 
 type Reader = Pick<ReturnType<typeof getDatabase>, "select">;
 type TransferInput = z.infer<typeof transferRequest>;
 type TransferRecord = typeof transactions.$inferSelect;
+type Account = typeof bankAccounts.$inferSelect;
+
+function transferTerms(
+  source: Account,
+  recipient: Account,
+  amountPoisha: bigint,
+) {
+  if (source.id === recipient.id) {
+    throw new ApiError(
+      422,
+      "SAME_ACCOUNT",
+      "Choose a different recipient account.",
+    );
+  }
+  const feePoisha = source.customerId === recipient.customerId ? 0n : 1_000n;
+  const totalDebit = amountPoisha + feePoisha;
+  if (amountPoisha > source.transferLimitPoisha) {
+    throw new ApiError(
+      422,
+      "TRANSFER_LIMIT_EXCEEDED",
+      "The amount exceeds the account's per-transfer limit.",
+    );
+  }
+  if (totalDebit > source.balancePoisha) {
+    throw new ApiError(
+      422,
+      "INSUFFICIENT_FUNDS",
+      "The source account cannot cover the amount and fee.",
+    );
+  }
+  const recipientBalance = recipient.balancePoisha + amountPoisha;
+  if (recipientBalance > maxPoisha) {
+    throw new ApiError(
+      422,
+      "RECIPIENT_BALANCE_LIMIT",
+      "The recipient account cannot accept this amount.",
+    );
+  }
+  return { feePoisha, totalDebit, recipientBalance };
+}
+
+async function assertDailyLimit(
+  db: Reader,
+  source: Account,
+  amountPoisha: bigint,
+  instant: Date,
+) {
+  const day = dhakaDate(instant);
+  const [{ total }] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${transactions.amountPoisha}), 0)::text`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.senderAccountId, source.id),
+        eq(transactions.type, "FUND_TRANSFER"),
+        eq(transactions.status, "COMPLETED"),
+        gte(transactions.createdAt, dhakaDayStart(day)),
+        lt(transactions.createdAt, dhakaDayEnd(day)),
+      ),
+    );
+  if (BigInt(total) + amountPoisha > source.dailyTransferLimitPoisha) {
+    throw new ApiError(
+      422,
+      "DAILY_TRANSFER_LIMIT_EXCEEDED",
+      "The amount exceeds the account's daily transfer limit.",
+    );
+  }
+}
+
+export async function quoteTransfer(
+  userId: string,
+  input: z.infer<typeof transferQuote>,
+) {
+  const db = getDatabase();
+  const rows = await db
+    .select({
+      account: bankAccounts,
+      userId: users.id,
+      blocked: users.blocked,
+      accessActive: users.accessActive,
+    })
+    .from(bankAccounts)
+    .innerJoin(
+      customerProfiles,
+      eq(bankAccounts.customerId, customerProfiles.id),
+    )
+    .innerJoin(users, eq(customerProfiles.userId, users.id))
+    .where(
+      and(
+        eq(users.role, "CUSTOMER"),
+        or(
+          and(eq(bankAccounts.id, input.sourceAccountId), eq(users.id, userId)),
+          eq(bankAccounts.accountNumber, input.recipientAccountNumber),
+        ),
+      ),
+    );
+  const source = rows.find(
+    (row) => row.account.id === input.sourceAccountId && row.userId === userId,
+  );
+  if (!source)
+    throw new ApiError(404, "SOURCE_NOT_FOUND", "Source account not found.");
+  const recipient = rows.find(
+    (row) => row.account.accountNumber === input.recipientAccountNumber,
+  );
+  if (!recipient)
+    throw new ApiError(
+      404,
+      "RECIPIENT_NOT_FOUND",
+      "Recipient account not found.",
+    );
+  assertFinancialAccountEligible({ status: source.account.status, ...source });
+  assertFinancialAccountEligible({
+    status: recipient.account.status,
+    ...recipient,
+  });
+  const { feePoisha, totalDebit } = transferTerms(
+    source.account,
+    recipient.account,
+    input.amountPoisha,
+  );
+  await assertDailyLimit(db, source.account, input.amountPoisha, new Date());
+  return {
+    sourceAccountNumber: source.account.accountNumber,
+    recipientAccountNumber: recipient.account.accountNumber,
+    amountPoisha: input.amountPoisha.toString(),
+    feePoisha: feePoisha.toString(),
+    totalDebitPoisha: totalDebit.toString(),
+  };
+}
 
 function transferView(record: TransferRecord, recipientAccountNumber: string) {
   return {
@@ -218,61 +349,13 @@ export async function createTransfer(identity: Identity, input: TransferInput) {
     });
 
     const { amountPoisha } = input;
-    const feePoisha = source.customerId === recipient.customerId ? 0n : 1_000n;
-    const totalDebit = amountPoisha + feePoisha;
-    if (amountPoisha > source.transferLimitPoisha) {
-      throw new ApiError(
-        422,
-        "TRANSFER_LIMIT_EXCEEDED",
-        "The amount exceeds the account's per-transfer limit.",
-      );
-    }
-    if (totalDebit > source.balancePoisha) {
-      throw new ApiError(
-        422,
-        "INSUFFICIENT_FUNDS",
-        "The source account cannot cover the amount and fee.",
-      );
-    }
-    const recipientBalance = recipient.balancePoisha + amountPoisha;
-    if (recipientBalance > maxPoisha) {
-      throw new ApiError(
-        422,
-        "RECIPIENT_BALANCE_LIMIT",
-        "The recipient account cannot accept this amount.",
-      );
-    }
-
-    // Take the posting date after waiting for locks. Use it for both the limit and the saved transfer.
+    const { feePoisha, totalDebit, recipientBalance } = transferTerms(
+      source,
+      recipient,
+      amountPoisha,
+    );
     const postedAt = new Date();
-    const day = dhakaDate(postedAt);
-    const [{ total }] = await tx
-      .select({
-        total: sql<string>`coalesce(sum(${transactions.amountPoisha}), 0)::text`,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.senderAccountId, source.id),
-          eq(transactions.type, "FUND_TRANSFER"),
-          eq(transactions.status, "COMPLETED"),
-          gte(
-            transactions.createdAt,
-            sql`${day}::date::timestamp at time zone 'Asia/Dhaka'`,
-          ),
-          lt(
-            transactions.createdAt,
-            sql`(${day}::date + 1)::timestamp at time zone 'Asia/Dhaka'`,
-          ),
-        ),
-      );
-    if (BigInt(total) + amountPoisha > source.dailyTransferLimitPoisha) {
-      throw new ApiError(
-        422,
-        "DAILY_TRANSFER_LIMIT_EXCEEDED",
-        "The amount exceeds the account's daily transfer limit.",
-      );
-    }
+    await assertDailyLimit(tx, source, amountPoisha, postedAt);
 
     await tx
       .update(bankAccounts)

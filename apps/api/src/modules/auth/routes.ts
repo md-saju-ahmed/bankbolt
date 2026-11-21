@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
-import { userRole, users } from "../../db/schema.ts";
+import { customerProfiles, userRole, users } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 import { reserveAttempt } from "./attempts.ts";
 import { authDigest, requireWebOrigin } from "./auth-config.ts";
@@ -70,6 +70,21 @@ authRouter.put(
       pinChange.parse(request.body),
     );
     response.status(204).end();
+  },
+);
+
+authRouter.get(
+  "/transaction-pin",
+  requireAuth,
+  requireRole("CUSTOMER"),
+  async (request, response) => {
+    const [profile] = await getDatabase()
+      .select({ pinHash: customerProfiles.pinHash })
+      .from(customerProfiles)
+      .where(eq(customerProfiles.userId, currentIdentity(request).id));
+    if (!profile)
+      throw new ApiError(404, "NOT_FOUND", "Customer profile not found.");
+    response.json({ configured: profile.pinHash !== null });
   },
 );
 

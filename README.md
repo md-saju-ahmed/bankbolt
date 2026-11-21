@@ -49,6 +49,8 @@ Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessio
 
 ### Transaction PIN and transfers API
 
+Customers can set their transaction PIN and send money from **Transfer funds**. The review dialog shows the server-quoted fee and total debit. **Transactions** is available in each workspace, with reference search, Dhaka date filters, and printable receipts for completed transactions. Customers see transfers involving their own accounts, while Staff and Admin can review the bank's transaction history.
+
 - `PUT /api/v1/auth/transaction-pin` sets a six-digit PIN for a signed-in customer. Send `password` and `newPin`, plus `currentPin` if the customer already has a PIN. The same flow applies to fictional demo customers.
 - `POST /api/v1/transfers` accepts `sourceAccountId`, `recipientAccountNumber`, a positive `amountPoisha` decimal string, `description`, `pin`, and a client-generated UUID `idempotencyKey`. The server calculates the fee and returns a receipt with HTTP 201. The PIN and transfer mutations require the configured web origin.
 - Keep the same key and payment details until the result is known. `GET /api/v1/transfers/by-key/{idempotencyKey}` returns the submitting customer's committed receipt. A 404 means no receipt is visible yet. Resubmit the same request with the same key if needed. A committed replay returns the same receipt with HTTP 200, and changing the source, recipient, amount, or description under a committed key returns HTTP 409.

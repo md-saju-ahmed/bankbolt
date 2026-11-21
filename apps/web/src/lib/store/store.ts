@@ -18,7 +18,7 @@ export function makeStore() {
       dispatch(baseApi.util.resetApiState());
       dispatch(accountsSlice.actions.selectAccount(null));
       dispatch(loansSlice.actions.selectLoan(null));
-      dispatch(transactionsSlice.actions.setTransactionSearch(""));
+      dispatch(transactionsSlice.actions.resetTransactionFilters());
     },
   });
   sessionListener.startListening({
@@ -35,7 +35,7 @@ export function makeStore() {
       ) {
         dispatch(accountsSlice.actions.selectAccount(null));
         dispatch(loansSlice.actions.selectLoan(null));
-        dispatch(transactionsSlice.actions.setTransactionSearch(""));
+        dispatch(transactionsSlice.actions.resetTransactionFilters());
       }
     },
   });
