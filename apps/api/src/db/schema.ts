@@ -210,3 +210,78 @@ export const managementEvents = pgTable(
     ),
   ],
 );
+
+export const transactionType = pgEnum("transaction_type", [
+  "DEPOSIT",
+  "WITHDRAWAL",
+  "FUND_TRANSFER",
+  "LOAN_DISBURSEMENT",
+  "LOAN_REPAYMENT",
+]);
+export const transactionStatus = pgEnum("transaction_status", [
+  "PENDING",
+  "COMPLETED",
+  "FAILED",
+  "REVERSED",
+]);
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    reference: uuid().defaultRandom().notNull().unique(),
+    senderAccountId: uuid("sender_account_id").references(
+      () => bankAccounts.id,
+    ),
+    receiverAccountId: uuid("receiver_account_id").references(
+      () => bankAccounts.id,
+    ),
+    type: transactionType().notNull(),
+    status: transactionStatus().notNull(),
+    amountPoisha: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    feePoisha: bigint("fee_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    description: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    initiatedBy: uuid("initiated_by").references(() => users.id),
+    idempotencyKey: uuid("idempotency_key"),
+    // The cash-request and loan migrations will add the foreign keys.
+    cashRequestId: uuid("cash_request_id"),
+    loanId: uuid("loan_id"),
+  },
+  (table) => [
+    unique("transactions_initiator_idempotency_key").on(
+      table.initiatedBy,
+      table.idempotencyKey,
+    ),
+    index("transactions_sender_time_idx").on(
+      table.senderAccountId,
+      table.createdAt,
+    ),
+    index("transactions_receiver_time_idx").on(
+      table.receiverAccountId,
+      table.createdAt,
+    ),
+    check("transactions_positive_amount", sql`${table.amountPoisha} > 0`),
+    check("transactions_nonnegative_fee", sql`${table.feePoisha} >= 0`),
+    check(
+      "transactions_account_direction",
+      sql`case
+        when ${table.type} = 'FUND_TRANSFER' then
+          ${table.senderAccountId} is not null and ${table.receiverAccountId} is not null
+          and ${table.senderAccountId} <> ${table.receiverAccountId}
+        when ${table.type} in ('DEPOSIT', 'LOAN_DISBURSEMENT')
+          then ${table.senderAccountId} is null and ${table.receiverAccountId} is not null
+        else ${table.senderAccountId} is not null and ${table.receiverAccountId} is null
+      end`,
+    ),
+    check(
+      "transactions_transfer_identity",
+      sql`(${table.idempotencyKey} is null or ${table.initiatedBy} is not null)
+        and (${table.type} <> 'FUND_TRANSFER' or ${table.idempotencyKey} is not null)`,
+    ),
+  ],
+);

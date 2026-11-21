@@ -47,6 +47,12 @@ Staff and Admin can search **Customers** and **Bank accounts**. Admin can manage
 
 Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessions. Session cookies are HttpOnly and SameSite=Lax with an eight-hour lifetime. Deployed cookies also require HTTPS. Express checks the request origin on sign-in and sign-out, reloads the user's role and block status on protected calls, and limits repeated login and PIN attempts in PostgreSQL.
 
+### Transaction PIN and transfers API
+
+- `PUT /api/v1/auth/transaction-pin` sets a six-digit PIN for a signed-in customer. Send `password` and `newPin`, plus `currentPin` if the customer already has a PIN. The same flow applies to fictional demo customers.
+- `POST /api/v1/transfers` accepts `sourceAccountId`, `recipientAccountNumber`, a positive `amountPoisha` decimal string, `description`, `pin`, and a client-generated UUID `idempotencyKey`. The server calculates the fee and returns a receipt with HTTP 201. The PIN and transfer mutations require the configured web origin.
+- Keep the same key and payment details until the result is known. `GET /api/v1/transfers/by-key/{idempotencyKey}` returns the submitting customer's committed receipt. A 404 means no receipt is visible yet. Resubmit the same request with the same key if needed. A committed replay returns the same receipt with HTTP 200, and changing the source, recipient, amount, or description under a committed key returns HTTP 409.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

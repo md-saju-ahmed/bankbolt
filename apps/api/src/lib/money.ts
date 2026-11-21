@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+export const maxPoisha = 9_223_372_036_854_775_807n;
+
 export const nonnegativePoisha = z
   .string()
   .regex(/^[0-9]{1,19}$/)
   .transform(BigInt)
-  .refine((value) => value <= 9_223_372_036_854_775_807n);
+  .refine((value) => value <= maxPoisha);
 
 // Round an exact fraction of a poisha to the nearest integer, with ties away from zero.
 export function roundPoisha(numerator: bigint, denominator: bigint): bigint {

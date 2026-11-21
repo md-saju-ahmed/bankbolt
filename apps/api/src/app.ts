@@ -5,6 +5,7 @@ import { authRouter } from "./modules/auth/routes.ts";
 import { ownedAccountsRouter } from "./modules/accounts/owned-routes.ts";
 import { managementRouter } from "./modules/management/routes.ts";
 import { onboardingRouter } from "./modules/onboarding/routes.ts";
+import { transfersRouter } from "./modules/transfers/routes.ts";
 
 const app = express();
 const api = express.Router();
@@ -17,6 +18,7 @@ api.use("/auth", authRouter);
 api.use("/customers", onboardingRouter);
 api.use("/management", managementRouter);
 api.use("/accounts", ownedAccountsRouter);
+api.use("/transfers", transfersRouter);
 api.get("/health", (request, response) => {
   healthQuery.parse(request.query);
   response.set("Cache-Control", "no-store").json({ status: "ok" });

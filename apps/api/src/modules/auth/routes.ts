@@ -14,6 +14,7 @@ import {
   deleteSession,
   publicIdentity,
 } from "./sessions.ts";
+import { changeTransactionPin, pinChange } from "./transaction-pin.ts";
 
 const loginBody = z.strictObject({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
@@ -57,6 +58,20 @@ authRouter.post("/login", requireWebOrigin, async (request, response) => {
 authRouter.get("/me", requireAuth, (request, response) => {
   response.json({ user: currentIdentity(request) });
 });
+
+authRouter.put(
+  "/transaction-pin",
+  requireWebOrigin,
+  requireAuth,
+  requireRole("CUSTOMER"),
+  async (request, response) => {
+    await changeTransactionPin(
+      currentIdentity(request).id,
+      pinChange.parse(request.body),
+    );
+    response.status(204).end();
+  },
+);
 
 for (const role of userRole.enumValues) {
   authRouter.get(

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDatabase } from "../../db/client.ts";
 import { authAttempts } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
@@ -18,17 +18,35 @@ export async function reserveAttempt(
     .onConflictDoUpdate({
       target: [authAttempts.purpose, authAttempts.subject],
       set: {
-        attempts: sql`case when ${expired} then 1 else least(${authAttempts.attempts} + 1, ${limit + 1}) end`,
+        attempts: sql`case when ${expired} then 1 else ${authAttempts.attempts} + 1 end`,
         resetsAt: sql`case when ${expired} then ${windowEnd} else ${authAttempts.resetsAt} end`,
       },
+      setWhere: sql`${expired} or ${authAttempts.attempts} < ${limit}`,
     })
-    .returning({ attempts: authAttempts.attempts });
+    .returning({ window: sql<string>`${authAttempts.resetsAt}::text` });
 
-  if (result.attempts > limit) {
+  if (!result) {
     throw new ApiError(
       429,
       "TOO_MANY_ATTEMPTS",
       "Too many attempts. Try again in 15 minutes.",
     );
   }
+  return result.window;
+}
+
+export async function releaseSuccessfulPinAttempt(
+  subject: string,
+  window: string,
+) {
+  await getDatabase()
+    .update(authAttempts)
+    .set({ attempts: sql`${authAttempts.attempts} - 1` })
+    .where(
+      and(
+        eq(authAttempts.purpose, "PIN"),
+        eq(authAttempts.subject, subject),
+        sql`${authAttempts.resetsAt} = ${window}::timestamptz and ${authAttempts.attempts} > 0`,
+      ),
+    );
 }
