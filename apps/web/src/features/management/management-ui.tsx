@@ -4,6 +4,7 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { cn } from "@/lib/utils";
 import {
   ErrorMessage,
@@ -89,11 +90,6 @@ export function DetailFields({
   );
 }
 
-const dates = new Intl.DateTimeFormat("en-BD", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Dhaka",
-});
 const actions: Record<string, string> = {
   CUSTOMER_ACTIVATED: "Customer access restored",
   CUSTOMER_DEACTIVATED: "Customer access deactivated",
@@ -133,7 +129,7 @@ export function Activity({
                 : ""}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {dates.format(new Date(event.createdAt))} Dhaka
+              {formatDhakaTimestamp(event.createdAt)} Dhaka
               {event.actorName ? ` · ${event.actorName}` : ""}
             </p>
             {event.reason && (

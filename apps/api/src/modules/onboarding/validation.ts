@@ -1,12 +1,7 @@
 import { z } from "zod";
 import { accountType, verificationStatus } from "../../db/schema.ts";
+import { dhakaDate } from "../../lib/dhaka-date.ts";
 
-const dhakaDate = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Asia/Dhaka",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 
 export const registration = z.strictObject({
@@ -18,9 +13,7 @@ export const registration = z.strictObject({
     .regex(/^\+?[0-9][0-9 ().-]{5,23}$/),
   dateOfBirth: z.iso
     .date()
-    .refine(
-      (date) => date >= "0001-01-01" && date <= dhakaDate.format(new Date()),
-    ),
+    .refine((date) => date >= "0001-01-01" && date <= dhakaDate(new Date())),
   address: z.string().trim().min(1).max(300),
   identityReference: z.string().trim().toUpperCase().min(1).max(80),
   occupation: z.string().trim().min(1).max(100).optional(),

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { AccountsPanel } from "./accounts-panel";
 import {
   ErrorMessage,
@@ -250,13 +251,7 @@ function CustomerReview({
         </div>
         {customer.verifiedAt && (
           <p className="text-sm text-muted-foreground">
-            Last reviewed{" "}
-            {new Intl.DateTimeFormat("en-BD", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: "Asia/Dhaka",
-            }).format(new Date(customer.verifiedAt))}{" "}
-            (Dhaka).
+            Last reviewed {formatDhakaTimestamp(customer.verifiedAt)} (Dhaka).
           </p>
         )}
         <ErrorMessage message={feedback} />

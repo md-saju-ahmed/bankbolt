@@ -4,6 +4,7 @@ import {
   accountType,
   verificationStatus,
 } from "../../db/schema.ts";
+import { nonnegativePoisha } from "../../lib/money.ts";
 import { pages } from "../onboarding/validation.ts";
 
 const search = pages.extend({ q: z.string().trim().max(160).default("") });
@@ -22,11 +23,6 @@ export const accessUpdate = z.strictObject({
   reason,
 });
 
-const poisha = z
-  .string()
-  .regex(/^[0-9]{1,19}$/)
-  .transform(BigInt)
-  .refine((value) => value <= 9_223_372_036_854_775_807n);
 export const accountUpdate = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("status"),
@@ -35,8 +31,8 @@ export const accountUpdate = z.discriminatedUnion("kind", [
   }),
   z.strictObject({
     kind: z.literal("limits"),
-    transferLimitPoisha: poisha,
-    dailyTransferLimitPoisha: poisha,
+    transferLimitPoisha: nonnegativePoisha,
+    dailyTransferLimitPoisha: nonnegativePoisha,
     reason,
   }),
   z.strictObject({
