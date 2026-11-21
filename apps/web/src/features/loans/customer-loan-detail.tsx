@@ -16,8 +16,9 @@ import {
 } from "@/features/onboarding/form-ui";
 import { historyLink } from "@/features/transactions/transaction-display";
 import { useTransactionPinStatusQuery } from "@/features/transactions/transfer-api";
-import { formatDhakaDay, formatDhakaTimestamp } from "@/lib/dhaka-date";
+import { formatDhakaDay } from "@/lib/dhaka-date";
 import { LoanActionDialog } from "./loan-action-dialog";
+import { LoanRepaymentHistory, LoanTimeline } from "./loan-history";
 import {
   loanLabels,
   loanStatuses,
@@ -153,6 +154,8 @@ export function CustomerLoanDetail({ id }: { id: string }) {
   });
   const detail = query.currentData;
   const installments = detail?.installments ?? [];
+  const showRepaymentHistory =
+    detail?.loan.status === "ACTIVE" || detail?.loan.status === "COMPLETED";
   const next = installments.find((entry) => !entry.paidAt);
   const hasDue = installments.some((entry) => entry.payable);
   const pin = useTransactionPinStatusQuery(undefined, { skip: !hasDue });
@@ -203,6 +206,14 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                 ],
                 ["Term", `${detail.loan.termMonths} months`],
                 ["Annual interest rate", `${detail.loan.annualRateBps / 100}%`],
+                ...(installments[0]
+                  ? [
+                      [
+                        "Monthly EMI",
+                        formatTaka(installments[0].totalPoisha),
+                      ] as [string, string],
+                    ]
+                  : []),
                 ...(detail.loan.approvedPrincipalPoisha !== null
                   ? [
                       [
@@ -234,7 +245,16 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                 Reason for rejection: {detail.loan.rejectionReason}
               </p>
             )}
+            {showRepaymentHistory && (
+              <a
+                className={`${historyLink} ${secondaryStyle} w-fit`}
+                href="#loan-repayment-history"
+              >
+                Jump to repayment history
+              </a>
+            )}
           </Card>
+          <LoanTimeline loan={detail.loan} />
           {installments.length > 0 && (
             <Card className="gap-3 p-4 sm:p-5">
               <h2 className="text-lg font-semibold">Repayment schedule</h2>
@@ -286,24 +306,8 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                         ["Total installment", formatTaka(entry.totalPoisha)],
                         ["Principal", formatTaka(entry.principalPoisha)],
                         ["Interest", formatTaka(entry.interestPoisha)],
-                        ...(entry.paidAt
-                          ? [
-                              [
-                                "Paid on",
-                                formatDhakaTimestamp(entry.paidAt),
-                              ] as [string, string],
-                            ]
-                          : []),
                       ]}
                     />
-                    {entry.repaymentReference && (
-                      <Link
-                        className={`${historyLink} ${secondaryStyle}`}
-                        href={`/customer/transactions/${entry.repaymentReference}/receipt`}
-                      >
-                        View payment receipt
-                      </Link>
-                    )}
                     {entry.payable && pin.data?.configured && (
                       <InstallmentPayment
                         id={id}
@@ -315,6 +319,13 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                 ))}
               </ol>
             </Card>
+          )}
+          {showRepaymentHistory && (
+            <LoanRepaymentHistory
+              installments={installments}
+              disbursementReference={detail.disbursementReference}
+              workspace="customer"
+            />
           )}
         </>
       ) : (

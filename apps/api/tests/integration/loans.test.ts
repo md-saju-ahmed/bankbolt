@@ -562,8 +562,9 @@ it("disburses exactly once, rolls back a failed posting and recovers using the s
   }
 });
 
-it("repays one due installment per request and completes the loan only after all principal is paid", async () => {
-  const id = await approvedLoan();
+it("reconciles the application, schedule, receipts and balance through final payoff", async () => {
+  const created = await applyForLoan("owner", application()).expect(201);
+  const id = created.body.loan.id as string;
   const accountId = accounts.get("owner")!;
   const account = eq(bankAccounts.id, accountId);
   const repay = (person: Person, number: number, changes?: object) =>
@@ -573,8 +574,33 @@ it("repays one due installment per request and completes the loan only after all
       ...changes,
     });
   await repay("owner", 1).expect(409);
+  await reviewAction("staff", id, "review").expect(200);
+  await reviewAction("staff", id, "notes", {
+    note: "Fictional private lifecycle note.",
+  }).expect(201);
+  await reviewAction("staff", id, "forward").expect(200);
+  await reviewAction("admin", id, "approve", decision).expect(200);
+  const approved = await get("owner", `/${id}`).expect(200);
+  expect(approved.body.loan).toMatchObject({
+    status: "APPROVED",
+    reviewStartedAt: expect.any(String),
+    decidedAt: expect.any(String),
+  });
+  expect(approved.body.disbursementReference).toBeNull();
   const { body } = await reviewAction("admin", id, "disburse").expect(200);
+  const receipt = (person: Person, reference: string) =>
+    request(app)
+      .get(`/api/v1/transactions/${reference}/receipt`)
+      .set("Cookie", cookies.get(person)!);
   try {
+    expect(
+      (await receipt("owner", body.reference).expect(200)).body.transaction,
+    ).toMatchObject({
+      type: "LOAN_DISBURSEMENT",
+      amountPoisha: "1000000",
+      direction: "INCOMING",
+    });
+    await receipt("neighbor", body.reference).expect(404);
     await repay("staff", 1).expect(403);
     await repay("admin", 1).expect(403);
     await repay("neighbor", 1).expect(404);
@@ -618,8 +644,31 @@ it("repays one due installment per request and completes the loan only after all
       paidAmountPoisha: "172548",
     });
     expect(partial.body.installments[1].payable).toBe(true);
-    for (let number = 2; number <= 6; number++)
+    for (let number = 2; number <= 5; number++)
       await repay("owner", number).expect(200);
+    const [finalPayment, ...reads] = await Promise.all([
+      repay("owner", 6).expect(200),
+      ...(["owner", "admin", "owner", "admin"] as const).map((person) =>
+        get(person, `/${id}`).expect(200),
+      ),
+    ]);
+    expect(finalPayment.body.amountPoisha).toBe("172551");
+    for (const read of reads) {
+      const unpaid = (
+        read.body.installments as {
+          paidAt: string | null;
+          principalPoisha: string;
+        }[]
+      ).filter((entry) => !entry.paidAt);
+      expect(read.body.loan.remainingPrincipalPoisha).toBe(
+        unpaid
+          .reduce((total, entry) => total + BigInt(entry.principalPoisha), 0n)
+          .toString(),
+      );
+      expect(read.body.loan.status).toBe(
+        unpaid.length ? "ACTIVE" : "COMPLETED",
+      );
+    }
     const completed = await get("owner", `/${id}`).expect(200);
     expect(completed.body.loan).toMatchObject({
       status: "COMPLETED",
@@ -636,6 +685,31 @@ it("repays one due installment per request and completes the loan only after all
         ),
       );
     expect(postings).toHaveLength(6);
+    expect(completed.body.disbursementReference).toBe(body.reference);
+    const adminHistory = await get("admin", `/${id}`).expect(200);
+    expect(adminHistory.body.disbursementReference).toBe(body.reference);
+    expect(adminHistory.body.decidedByName).toBe("Fictional loan admin");
+    expect(adminHistory.body.notes).toHaveLength(1);
+    expect(completed.body).not.toHaveProperty("decidedByName");
+    expect(completed.body).not.toHaveProperty("notes");
+    expect(completed.body.installments).toEqual(adminHistory.body.installments);
+    for (const entry of completed.body.installments as {
+      repaymentReference: string;
+      paidAmountPoisha: string;
+    }[]) {
+      const ownerReceipt = await receipt(
+        "owner",
+        entry.repaymentReference,
+      ).expect(200);
+      expect(ownerReceipt.body.transaction).toMatchObject({
+        type: "LOAN_REPAYMENT",
+        status: "COMPLETED",
+        amountPoisha: entry.paidAmountPoisha,
+        feePoisha: "0",
+      });
+      await receipt("admin", entry.repaymentReference).expect(200);
+    }
+    await receipt("neighbor", first.body.reference).expect(404);
     expect(
       postings.every(
         (posting) =>
@@ -811,6 +885,7 @@ it("creates a pending application from a customer's verified request data", asyn
   const id = created.body.loan.id as string;
   await get("owner", `/${id}`).expect(200, {
     loan: created.body.loan,
+    disbursementReference: null,
     installments: [],
   });
   await get("neighbor", `/${id}`).expect(404);

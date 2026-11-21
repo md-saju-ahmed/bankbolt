@@ -18,6 +18,7 @@ import {
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
 import { LoanActionDialog } from "./loan-action-dialog";
+import { LoanRepaymentHistory, LoanTimeline } from "./loan-history";
 import {
   loanLabels,
   loanStatuses,
@@ -244,10 +245,7 @@ export function LoanReviewDetail({
             {review.loan.decidedAt && (
               <DetailFields
                 fields={[
-                  [
-                    "Decision recorded",
-                    formatDhakaFullTimestamp(review.loan.decidedAt),
-                  ],
+                  ["Decision by", review.decidedByName],
                   [
                     "Decision reason",
                     review.loan.approvalReason ?? review.loan.rejectionReason,
@@ -256,6 +254,10 @@ export function LoanReviewDetail({
               />
             )}
           </Card>
+          <LoanTimeline
+            loan={review.loan}
+            forwardedAt={review.loan.forwardedAt}
+          />
           <Card className="gap-4 p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Customer and account</h2>
             <DetailFields
@@ -348,12 +350,7 @@ export function LoanReviewDetail({
                 </form>
               )}
           </Card>
-          {review.loan.forwardedAt ? (
-            <p className="text-sm font-medium">
-              Forwarded to Admin on{" "}
-              {formatDhakaFullTimestamp(review.loan.forwardedAt)}
-            </p>
-          ) : workspace === "staff" && review.loan.status === "PENDING" ? (
+          {workspace === "staff" && review.loan.status === "PENDING" ? (
             <Button
               className={primaryStyle}
               disabled={busy}
@@ -363,7 +360,8 @@ export function LoanReviewDetail({
             </Button>
           ) : (
             workspace === "staff" &&
-            review.loan.status === "UNDER_REVIEW" && (
+            review.loan.status === "UNDER_REVIEW" &&
+            !review.loan.forwardedAt && (
               <AlertDialog.Root
                 open={confirmForward}
                 onOpenChange={(open) => {
@@ -422,6 +420,15 @@ export function LoanReviewDetail({
               onSuccessFocus={() => heading.current?.focus()}
             />
           )}
+          {workspace === "admin" &&
+            (review.loan.status === "ACTIVE" ||
+              review.loan.status === "COMPLETED") && (
+              <LoanRepaymentHistory
+                installments={review.installments}
+                disbursementReference={review.disbursementReference}
+                workspace="admin"
+              />
+            )}
           {isLoading && !confirmForward && (
             <p className="text-sm text-muted-foreground" role="status">
               Saving…

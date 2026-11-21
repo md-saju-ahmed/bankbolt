@@ -33,10 +33,16 @@ export type LoanApplication = LoanApplicationInput & {
   createdAt: string;
   rejectionReason: string | null;
 };
-export type ReviewLoan = LoanApplication & {
+export type LoanRecord = LoanApplication & {
   approvedPrincipalPoisha: string | null;
-  forwardedAt: string | null;
+  remainingPrincipalPoisha: string | null;
+  reviewStartedAt: string | null;
   decidedAt: string | null;
+  disbursedAt: string | null;
+  completedAt: string | null;
+};
+export type ReviewLoan = LoanRecord & {
+  forwardedAt: string | null;
   decidedBy: string | null;
   approvalReason: string | null;
 };
@@ -52,14 +58,13 @@ export type LoanInstallment = {
   payable: boolean;
 };
 type CustomerLoanDetail = {
-  loan: LoanApplication & {
-    approvedPrincipalPoisha: string | null;
-    remainingPrincipalPoisha: string | null;
-  };
+  loan: LoanRecord;
   installments: LoanInstallment[];
+  disbursementReference: string | null;
 };
-type LoanReview = {
+type LoanReview = CustomerLoanDetail & {
   loan: ReviewLoan;
+  decidedByName: string | null;
   customer: {
     fullName: string;
     verificationStatus: string;

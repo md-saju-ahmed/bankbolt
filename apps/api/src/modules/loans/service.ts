@@ -19,12 +19,16 @@ import { assertApplicationTerms, type applicationInput } from "./validation.ts";
 
 export type Loan = typeof loans.$inferSelect;
 
-function scopedLoans(identity: Identity, condition?: SQL) {
+function scopedLoans(
+  identity: Identity,
+  condition?: SQL,
+  db: Pick<LoanTransaction, "select"> = getDatabase(),
+) {
   const scope =
     identity.role === "CUSTOMER"
       ? eq(customerProfiles.userId, identity.id)
       : undefined;
-  return getDatabase()
+  return db
     .select({ loan: loans })
     .from(loans)
     .innerJoin(customerProfiles, eq(customerProfiles.id, loans.customerId))
@@ -126,10 +130,21 @@ export function createLoanApplication(
   });
 }
 
-export async function getLoan(identity: Identity, id: string) {
-  const [row] = await scopedLoans(identity, eq(loans.id, id));
+export function getLoan(identity: Identity, id: string) {
+  // Keep the status, surrounding history and ledger links on the same snapshot.
+  return getDatabase().transaction((tx) => readLoanDetail(tx, identity, id), {
+    isolationLevel: "repeatable read",
+    accessMode: "read only",
+  });
+}
+
+async function readLoanDetail(
+  db: LoanTransaction,
+  identity: Identity,
+  id: string,
+) {
+  const [row] = await scopedLoans(identity, eq(loans.id, id), db);
   if (!row) throw missingLoan();
-  const db = getDatabase();
   const installments = await db
     .select({
       installment: loanInstallments,
@@ -142,9 +157,22 @@ export async function getLoan(identity: Identity, id: string) {
     )
     .where(eq(loanInstallments.loanId, id))
     .orderBy(asc(loanInstallments.number));
+  const [disbursement] = row.loan.disbursedAt
+    ? await db
+        .select({ reference: transactions.reference })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.loanId, id),
+            eq(transactions.type, "LOAN_DISBURSEMENT"),
+            eq(transactions.status, "COMPLETED"),
+          ),
+        )
+    : [];
   const today = dhakaDate(new Date());
   const detail = {
     loan: loanView(row.loan, identity),
+    disbursementReference: disbursement?.reference ?? null,
     installments: installments.map(({ installment, repaymentReference }) => ({
       number: installment.number,
       dueDate: installment.dueDate,
@@ -193,7 +221,18 @@ export async function getLoan(identity: Identity, id: string) {
     .innerJoin(users, eq(users.id, loanReviewNotes.authorId))
     .where(eq(loanReviewNotes.loanId, id))
     .orderBy(desc(loanReviewNotes.createdAt), desc(loanReviewNotes.id));
-  return { ...detail, customer, notes };
+  const [decider] = row.loan.decidedBy
+    ? await db
+        .select({ fullName: users.fullName })
+        .from(users)
+        .where(eq(users.id, row.loan.decidedBy))
+    : [];
+  return {
+    ...detail,
+    customer,
+    notes,
+    decidedByName: decider?.fullName ?? null,
+  };
 }
 
 type TransactionWork = Parameters<
