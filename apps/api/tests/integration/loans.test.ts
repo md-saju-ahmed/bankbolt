@@ -47,6 +47,14 @@ function get(person: Person, path = "") {
     .set("Cookie", cookies.get(person)!);
 }
 
+function reviewAction(person: Person, id: string, action: string, input = {}) {
+  return request(app)
+    .post(`${prefix}/${id}/${action}`)
+    .set("Origin", origin)
+    .set("Cookie", cookies.get(person)!)
+    .send(input);
+}
+
 function loanInput(
   person: "owner" | "neighbor" = "owner",
   changes?: Partial<typeof loans.$inferInsert>,
@@ -259,6 +267,154 @@ it("limits customer reads to owned loans and reserves review notes for Staff and
     );
   }
   await get("owner").query({ status: "UNKNOWN" }).expect(400);
+});
+
+it("lets Staff review customer context, save private notes and forward to Admin", async () => {
+  const [loan] = await db.insert(loans).values(loanInput()).returning();
+  const path = `/${loan.id}`;
+  const note = "Fictional internal assessment.";
+
+  const staffDetail = await get("staff", path).expect(200);
+  expect(staffDetail.body.customer).toEqual({
+    fullName: "Fictional loan owner",
+    verificationStatus: "VERIFIED",
+    accessActive: true,
+    blocked: false,
+    accountNumber: expect.any(String),
+    accountType: "SAVINGS",
+    accountStatus: "ACTIVE",
+  });
+
+  const started = await reviewAction("staff", loan.id, "review").expect(200);
+  expect(started.body.loan).toMatchObject({
+    status: "UNDER_REVIEW",
+    reviewStartedAt: expect.any(String),
+    reviewStartedBy: usersByPerson.get("staff"),
+    forwardedAt: null,
+  });
+  const saved = await reviewAction("staff", loan.id, "notes", {
+    note: `  ${note}  `,
+  }).expect(201);
+  expect(saved.body.note).toMatchObject({
+    note,
+    authorId: usersByPerson.get("staff"),
+    createdAt: expect.any(String),
+  });
+  const before = await get("admin")
+    .query({ status: "UNDER_REVIEW", forwarded: "false" })
+    .expect(200);
+  expect(before.body.loans).toContainEqual(
+    expect.objectContaining({ id: loan.id }),
+  );
+
+  const forwarded = await reviewAction("staff", loan.id, "forward").expect(200);
+  expect(forwarded.body.loan).toMatchObject({
+    status: "UNDER_REVIEW",
+    forwardedAt: expect.any(String),
+    forwardedBy: usersByPerson.get("staff"),
+    decidedAt: null,
+    disbursedAt: null,
+  });
+  const queue = await get("admin")
+    .query({ status: "UNDER_REVIEW", forwarded: "true" })
+    .expect(200);
+  expect(queue.body.loans).toContainEqual(forwarded.body.loan);
+  const adminDetail = await get("admin", path).expect(200);
+  expect(adminDetail.body.notes).toEqual([
+    expect.objectContaining({ note, authorName: "Fictional loan staff" }),
+  ]);
+  const customerDetail = await get("owner", path).expect(200);
+  expect(customerDetail.body.loan.status).toBe("UNDER_REVIEW");
+  expect(customerDetail.body).not.toHaveProperty("notes");
+  expect(customerDetail.body).not.toHaveProperty("customer");
+  expect(customerDetail.body.loan).not.toHaveProperty("reviewStartedBy");
+  expect(customerDetail.body.loan).not.toHaveProperty("forwardedBy");
+  expect((await get("owner").expect(200)).text).not.toContain(note);
+  expect(
+    await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.loanId, loan.id)),
+  ).toEqual([]);
+  const [account] = await db
+    .select()
+    .from(bankAccounts)
+    .where(eq(bankAccounts.id, loan.disbursementAccountId));
+  expect(account.balancePoisha).toBe(0n);
+});
+
+it("enforces review authorization, input validation and state boundaries", async () => {
+  const [loan] = await db.insert(loans).values(loanInput()).returning();
+  const note = { note: "Fictional review note." };
+  const path = `${prefix}/${loan.id}`;
+
+  for (const action of ["review", "notes", "forward"]) {
+    await request(app)
+      .post(`${path}/${action}`)
+      .set("Origin", origin)
+      .expect(401);
+    await reviewAction("owner", loan.id, action, note).expect(403);
+    await reviewAction("staff", loan.id, action, note)
+      .set("Origin", "https://example.invalid")
+      .expect(403);
+  }
+  await get("owner").query({ forwarded: "true" }).expect(403);
+  await get("staff").query({ forwarded: "yes" }).expect(400);
+  await reviewAction("staff", "not-a-uuid", "review").expect(400);
+  await reviewAction("staff", randomUUID(), "review").expect(404);
+  await reviewAction("staff", loan.id, "review", { status: "APPROVED" }).expect(
+    400,
+  );
+  await reviewAction("staff", loan.id, "notes", note).expect(409);
+  await reviewAction("staff", loan.id, "forward").expect(409);
+  await reviewAction("staff", loan.id, "review").expect(200);
+  for (const invalidNote of ["  ", "contains\0null", "x".repeat(2001)]) {
+    await reviewAction("staff", loan.id, "notes", { note: invalidNote }).expect(
+      400,
+    );
+  }
+  await reviewAction("staff", loan.id, "notes", {
+    ...note,
+    authorId: usersByPerson.get("admin"),
+  }).expect(400);
+  await reviewAction("staff", loan.id, "forward", {
+    disbursedAt: new Date(),
+  }).expect(400);
+  await reviewAction("staff", loan.id, "forward").expect(200);
+  await reviewAction("staff", loan.id, "notes", note).expect(409);
+  for (const action of ["approve", "reject", "disburse"]) {
+    await reviewAction("staff", loan.id, action).expect(404);
+  }
+
+  const decided = await approvedLoan();
+  await reviewAction("staff", decided, "review").expect(409);
+  await reviewAction("staff", decided, "notes", note).expect(409);
+  await reviewAction("staff", decided, "forward").expect(409);
+});
+
+it("keeps the original reviewer and forwarding actor on concurrent retries", async () => {
+  const [loan] = await db.insert(loans).values(loanInput()).returning();
+  const reviewers = ["staff", "admin"] as const;
+  const actors = reviewers.map((person) => usersByPerson.get(person));
+  const [firstReview, secondReview] = await Promise.all(
+    reviewers.map((person) =>
+      reviewAction(person, loan.id, "review").expect(200),
+    ),
+  );
+  expect(secondReview.body).toEqual(firstReview.body);
+  expect(actors).toContain(firstReview.body.loan.reviewStartedBy);
+  const [firstForward, secondForward] = await Promise.all(
+    reviewers.map((person) =>
+      reviewAction(person, loan.id, "forward").expect(200),
+    ),
+  );
+  expect(secondForward.body).toEqual(firstForward.body);
+  expect(actors).toContain(firstForward.body.loan.forwardedBy);
+  expect(firstForward.body.loan.reviewStartedBy).toBe(
+    firstReview.body.loan.reviewStartedBy,
+  );
+  const stored = await get("admin", `/${loan.id}`).expect(200);
+  expect(stored.body.loan).toEqual(firstForward.body.loan);
 });
 
 it("enforces account ownership and coherent decision and disbursement fields", async () => {

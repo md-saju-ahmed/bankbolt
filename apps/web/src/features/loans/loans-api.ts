@@ -33,6 +33,23 @@ export type LoanApplication = LoanApplicationInput & {
   createdAt: string;
   rejectionReason: string | null;
 };
+type ReviewLoan = LoanApplication & { forwardedAt: string | null };
+type LoanReview = {
+  loan: ReviewLoan;
+  customer: {
+    fullName: string;
+    verificationStatus: string;
+    accessActive: boolean;
+    blocked: boolean;
+    accountNumber: string;
+    accountType: string;
+    accountStatus: string;
+  };
+  notes: { id: string; authorName: string; note: string; createdAt: string }[];
+};
+type ReviewAction = { id: string } & (
+  { action: "review" | "forward" } | { action: "notes"; note: string }
+);
 export type LoanProduct = {
   type: LoanType;
   label: string;
@@ -67,6 +84,28 @@ const loansApi = baseApi.injectEndpoints({
       providesTags: ["Loans"],
       keepUnusedDataFor: 0,
     }),
+    loanReviewQueue: build.query<
+      { loans: ReviewLoan[]; hasNextPage: boolean },
+      { page: number; status: "PENDING" | "UNDER_REVIEW"; forwarded?: boolean }
+    >({
+      query: (params) => ({ url: "/loans", params, cache: "no-store" }),
+      providesTags: ["Loans"],
+      keepUnusedDataFor: 0,
+    }),
+    loanReview: build.query<LoanReview, string>({
+      query: (id) => ({ url: `/loans/${id}`, cache: "no-store" }),
+      providesTags: ["Loans"],
+      keepUnusedDataFor: 0,
+    }),
+    reviewLoan: build.mutation<unknown, ReviewAction>({
+      query: ({ id, action, ...body }) => ({
+        url: `/loans/${id}/${action}`,
+        method: "POST",
+        body,
+        timeout: 15_000,
+      }),
+      invalidatesTags: ["Loans"],
+    }),
     submitLoanApplication: build.mutation<
       { loan: LoanApplication },
       LoanApplicationInput
@@ -86,5 +125,8 @@ export const {
   useLoanCatalogQuery,
   useLazyLoanEstimateQuery,
   useCustomerLoansQuery,
+  useLoanReviewQueueQuery,
+  useLoanReviewQuery,
+  useReviewLoanMutation,
   useSubmitLoanApplicationMutation,
 } = loansApi;

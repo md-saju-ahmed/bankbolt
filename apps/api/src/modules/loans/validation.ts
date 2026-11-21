@@ -35,6 +35,17 @@ export const applicationInput = termsInput.extend({
     .refine((value) => !value.includes("\0")),
 });
 
+export const loanReviewActionInput = z.strictObject({}).default({});
+
+export const loanReviewNoteInput = z.strictObject({
+  note: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2000)
+    .refine((value) => !value.includes("\0")),
+});
+
 export function assertApplicationTerms(terms: z.infer<typeof termsInput>) {
   if (
     !validLoanTerms(

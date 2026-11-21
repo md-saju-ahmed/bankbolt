@@ -312,6 +312,7 @@ export const loans = pgTable(
       .notNull()
       .defaultNow(),
     reviewStartedAt: timestamp("review_started_at", { withTimezone: true }),
+    reviewStartedBy: uuid("review_started_by").references(() => users.id),
     forwardedAt: timestamp("forwarded_at", { withTimezone: true }),
     forwardedBy: uuid("forwarded_by").references(() => users.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -337,6 +338,7 @@ export const loans = pgTable(
     check(
       "loans_review_fields",
       sql`(${table.forwardedAt} is null) = (${table.forwardedBy} is null)
+    and (${table.reviewStartedBy} is null or ${table.reviewStartedAt} is not null)
     and (${table.status} <> 'PENDING' or (${table.reviewStartedAt} is null and ${table.forwardedAt} is null))`,
     ),
     check(

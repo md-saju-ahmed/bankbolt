@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
 import {
@@ -32,26 +32,42 @@ function scopedLoans(identity: Identity, condition?: SQL) {
 }
 
 function loanView(loan: Loan, identity: Identity) {
-  const { decidedBy, forwardedBy, ...details } = loan;
+  const { decidedBy, forwardedBy, reviewStartedBy, ...details } = loan;
   return {
     ...details,
     requestedPrincipalPoisha: loan.requestedPrincipalPoisha.toString(),
     approvedPrincipalPoisha: loan.approvedPrincipalPoisha?.toString() ?? null,
     remainingPrincipalPoisha: loan.remainingPrincipalPoisha?.toString() ?? null,
     monthlyIncomePoisha: loan.monthlyIncomePoisha.toString(),
-    ...(identity.role === "CUSTOMER" ? {} : { decidedBy, forwardedBy }),
+    ...(identity.role === "CUSTOMER"
+      ? {}
+      : { decidedBy, forwardedBy, reviewStartedBy }),
   };
 }
 
 export async function listLoans(
   identity: Identity,
-  page: number,
-  status?: Loan["status"],
+  {
+    page,
+    status,
+    forwarded,
+  }: {
+    page: number;
+    status?: Loan["status"];
+    forwarded?: "true" | "false";
+  },
 ) {
   const size = 20;
+  const forwardingFilter = {
+    true: isNotNull(loans.forwardedAt),
+    false: isNull(loans.forwardedAt),
+  };
   const rows = await scopedLoans(
     identity,
-    status ? eq(loans.status, status) : undefined,
+    and(
+      status ? eq(loans.status, status) : undefined,
+      forwarded === undefined ? undefined : forwardingFilter[forwarded],
+    ),
   )
     .orderBy(desc(loans.createdAt), desc(loans.id))
     .limit(size + 1)
@@ -136,6 +152,23 @@ export async function getLoan(identity: Identity, id: string) {
   };
   if (identity.role === "CUSTOMER") return detail;
 
+  const [customer] = await db
+    .select({
+      fullName: users.fullName,
+      verificationStatus: customerProfiles.verificationStatus,
+      accessActive: users.accessActive,
+      blocked: users.blocked,
+      accountNumber: bankAccounts.accountNumber,
+      accountType: bankAccounts.type,
+      accountStatus: bankAccounts.status,
+    })
+    .from(customerProfiles)
+    .innerJoin(users, eq(users.id, customerProfiles.userId))
+    .innerJoin(
+      bankAccounts,
+      eq(bankAccounts.id, row.loan.disbursementAccountId),
+    )
+    .where(eq(customerProfiles.id, row.loan.customerId));
   const notes = await db
     .select({
       id: loanReviewNotes.id,
@@ -148,13 +181,100 @@ export async function getLoan(identity: Identity, id: string) {
     .innerJoin(users, eq(users.id, loanReviewNotes.authorId))
     .where(eq(loanReviewNotes.loanId, id))
     .orderBy(desc(loanReviewNotes.createdAt), desc(loanReviewNotes.id));
-  return { ...detail, notes };
+  return { ...detail, customer, notes };
 }
 
 type TransactionWork = Parameters<
   ReturnType<typeof getDatabase>["transaction"]
 >[0];
 type LoanTransaction = Parameters<TransactionWork>[0];
+
+async function lockLoanForReview(tx: LoanTransaction, id: string) {
+  const [loan] = await tx
+    .select()
+    .from(loans)
+    .where(eq(loans.id, id))
+    .for("no key update");
+  if (!loan) throw missingLoan();
+  return loan;
+}
+
+export function startLoanReview(identity: Identity, id: string) {
+  return getDatabase().transaction(async (tx) => {
+    const loan = await lockLoanForReview(tx, id);
+    if (loan.status === "UNDER_REVIEW") return loanView(loan, identity);
+    if (loan.status !== "PENDING") {
+      throw new ApiError(
+        409,
+        "LOAN_NOT_PENDING",
+        "Only pending loans can enter review.",
+      );
+    }
+
+    const now = new Date();
+    const [updated] = await tx
+      .update(loans)
+      .set({
+        status: "UNDER_REVIEW",
+        reviewStartedAt: now,
+        reviewStartedBy: identity.id,
+        updatedAt: now,
+      })
+      .where(eq(loans.id, id))
+      .returning();
+    return loanView(updated, identity);
+  });
+}
+
+function assertLoanUnderReview(loan: Loan) {
+  if (loan.status !== "UNDER_REVIEW") {
+    throw new ApiError(
+      409,
+      "LOAN_NOT_UNDER_REVIEW",
+      "The loan must be under review.",
+    );
+  }
+}
+
+export function addLoanReviewNote(
+  identity: Identity,
+  id: string,
+  note: string,
+) {
+  return getDatabase().transaction(async (tx) => {
+    const loan = await lockLoanForReview(tx, id);
+    assertLoanUnderReview(loan);
+    if (loan.forwardedAt) {
+      throw new ApiError(
+        409,
+        "LOAN_ALREADY_FORWARDED",
+        "The review has been forwarded to Admin.",
+      );
+    }
+
+    const [savedNote] = await tx
+      .insert(loanReviewNotes)
+      .values({ loanId: id, authorId: identity.id, note })
+      .returning();
+    return savedNote;
+  });
+}
+
+export function forwardLoan(identity: Identity, id: string) {
+  return getDatabase().transaction(async (tx) => {
+    const loan = await lockLoanForReview(tx, id);
+    assertLoanUnderReview(loan);
+    if (loan.forwardedAt) return loanView(loan, identity);
+
+    const now = new Date();
+    const [updated] = await tx
+      .update(loans)
+      .set({ forwardedAt: now, forwardedBy: identity.id, updatedAt: now })
+      .where(eq(loans.id, id))
+      .returning();
+    return loanView(updated, identity);
+  });
+}
 
 // Store the schedule in the same transaction that posts the disbursement and activates the loan.
 export async function storeLoanSchedule(

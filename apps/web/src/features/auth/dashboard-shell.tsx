@@ -104,13 +104,6 @@ function WorkspaceLinks({
         pathname === `${root}/cash-requests` ||
         pathname.startsWith(`${root}/cash-requests/`),
     });
-    links.push({
-      href: `${root}/loans`,
-      label: "Loans",
-      icon: Landmark,
-      active:
-        pathname === `${root}/loans` || pathname.startsWith(`${root}/loans/`),
-    });
   } else {
     links.push(
       {
@@ -134,6 +127,15 @@ function WorkspaceLinks({
           pathname.startsWith(`${root}/cash-requests/`),
       },
     );
+  }
+  if (role !== "ADMIN") {
+    links.push({
+      href: `${root}/loans`,
+      label: "Loans",
+      icon: Landmark,
+      active:
+        pathname === `${root}/loans` || pathname.startsWith(`${root}/loans/`),
+    });
   }
   links.push({
     href: `${root}/transactions`,
