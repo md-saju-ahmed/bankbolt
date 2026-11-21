@@ -1,0 +1,36 @@
+/* Hallmark v2.0.0 · shape: app screen · theme: BankBolt design system · signature: posted balance and dated activity ledger */
+/* Critique: grouping current totals and dated activity avoids implying that the period changes the bank's posted balance. */
+
+:global(html):has(.overview),
+:global(body):has(.overview) {
+  overflow-x: clip;
+}
+
+.overview {
+  container-type: inline-size;
+}
+
+.overview :where(a, button:not(:disabled)):active {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.overview button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.metricsGrid,
+.queueGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+@container (min-width: 43rem) {
+  .metricsGrid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+
+  .queueGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

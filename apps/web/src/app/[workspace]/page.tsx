@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/features/auth/dashboard-shell";
-import { workspaces, type Role } from "@/features/auth/identity";
+import { workspaceRole } from "@/features/auth/identity";
+import { AdminOverview } from "@/features/reports/admin-overview";
 
 export default async function WorkspacePage({
   params,
@@ -8,9 +9,11 @@ export default async function WorkspacePage({
   params: Promise<{ workspace: string }>;
 }) {
   const { workspace } = await params;
-  const role = (Object.keys(workspaces) as Role[]).find(
-    (key) => workspaces[key].path === `/${workspace}`,
-  );
+  const role = workspaceRole(workspace);
   if (!role) notFound();
-  return <DashboardShell role={role} />;
+  return (
+    <DashboardShell role={role}>
+      {role === "ADMIN" ? <AdminOverview /> : undefined}
+    </DashboardShell>
+  );
 }
