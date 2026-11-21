@@ -7,6 +7,7 @@ import { ownedAccountsRouter } from "./modules/accounts/owned-routes.ts";
 import { managementRouter } from "./modules/management/routes.ts";
 import { loansRouter } from "./modules/loans/routes.ts";
 import { onboardingRouter } from "./modules/onboarding/routes.ts";
+import { reportsRouter } from "./modules/reports/routes.ts";
 import { transfersRouter } from "./modules/transfers/routes.ts";
 import { transactionsRouter } from "./modules/transactions/routes.ts";
 import { transactionFlagsRouter } from "./modules/transaction-flags/routes.ts";
@@ -27,6 +28,7 @@ api.use("/transactions", transactionsRouter);
 api.use("/transaction-flags", transactionFlagsRouter);
 api.use("/cash-requests", cashRequestsRouter);
 api.use("/loans", loansRouter);
+api.use("/reports", reportsRouter);
 api.get("/health", (request, response) => {
   healthQuery.parse(request.query);
   response.set("Cache-Control", "no-store").json({ status: "ok" });
