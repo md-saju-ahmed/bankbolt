@@ -14,9 +14,10 @@ pnpm format:check
 
 Use `pnpm format` to apply formatting.
 
-## Planned application layout
+## Local development
 
-- `apps/web` will contain the Next.js App Router frontend.
-- `apps/api` will contain the Express API and own all PostgreSQL access.
+Run `pnpm dev` from the repository root and open <http://localhost:3000>.
+Use `pnpm build` for a production build and `pnpm typecheck` to check types.
 
-The current repository contains the workspace tooling. As the apps are added, `pnpm dev`, `pnpm build`, and `pnpm typecheck` will run their corresponding scripts through Turborepo. App TypeScript configurations will extend the root `tsconfig.base.json` to inherit strict mode.
+- `apps/web` contains the Next.js App Router frontend with Tailwind CSS and local shadcn/ui components.
+- `apps/api` is planned for the Express API and will own all PostgreSQL access.
