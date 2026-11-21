@@ -8,6 +8,7 @@ import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { accountView } from "../onboarding/service.ts";
 import { pages } from "../onboarding/validation.ts";
 import { financialRestriction } from "./eligibility.ts";
+import { createStatement, statementDates } from "./statement.ts";
 
 export const ownedAccountsRouter = Router();
 ownedAccountsRouter.use((_request, response, next) => {
@@ -63,4 +64,15 @@ ownedAccountsRouter.get("/:accountId", async (request, response) => {
     );
   if (!row) throw new ApiError(404, "NOT_FOUND", "Bank account not found.");
   response.json({ account: ownedView(row) });
+});
+
+ownedAccountsRouter.get("/:accountId/statement", async (request, response) => {
+  const accountId = z.uuid().parse(request.params.accountId).toLowerCase();
+  const dates = statementDates.parse(request.query);
+  const { filename, csv } = await createStatement(
+    currentIdentity(request).id,
+    accountId,
+    dates,
+  );
+  response.attachment(filename).type("text/csv").send(csv);
 });

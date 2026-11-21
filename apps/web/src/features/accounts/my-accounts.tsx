@@ -18,6 +18,7 @@ import {
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
 import { accountStatuses, accountTypes, formatTaka } from "./account-display";
+import { AccountStatement } from "./account-statement";
 import { accountsSlice } from "./accounts-slice";
 
 export function MyAccounts() {
@@ -116,6 +117,13 @@ export function MyAccounts() {
           <Pager page={page} next={!!data?.hasNextPage} onPage={setPage} />
         )}
       </Card>
+      {!query.isError && account && (
+        <AccountStatement
+          key={account.id}
+          accountId={account.id}
+          accountNumber={account.accountNumber}
+        />
+      )}
     </section>
   );
 }

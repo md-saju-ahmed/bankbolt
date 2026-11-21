@@ -49,6 +49,9 @@ const profileIds = new Map<Person, string>();
 const cookies = new Map<Person, string>();
 const accountIds: string[] = [];
 const transactionIds: string[] = [];
+const references: string[] = [];
+const statementHeader =
+  '\uFEFF"Reference","Posted at (Asia/Dhaka)","Type","Direction","Amount (BDT)","Fee (BDT)","Debit (BDT)","Credit (BDT)","Description"\r\n';
 let db: ReturnType<typeof getDatabase>;
 let registeredCustomersBeforeFixtures: number;
 let baselineAdmin: {
@@ -250,6 +253,7 @@ beforeAll(async () => {
     .values([
       {
         ...posted,
+        description: 'Note, "demo"\r\nবাংলা',
         type: "DEPOSIT",
         receiverAccountId: savings.id,
         amountPoisha: 10_000n,
@@ -264,7 +268,10 @@ beforeAll(async () => {
         loanId: activeLoan.id,
         createdAt: start,
       },
-      transfer(savings.id, outside.id, 9_000n, 1000n, closingMonth),
+      {
+        ...transfer(savings.id, outside.id, 9_000n, 1000n, closingMonth),
+        description: " \t＝demo",
+      },
       transfer(outside.id, current.id, 7_000n, 1000n, closingMonth),
       {
         ...posted,
@@ -323,8 +330,9 @@ beforeAll(async () => {
         createdAt: afterEnd,
       },
     ])
-    .returning({ id: transactions.id });
+    .returning({ id: transactions.id, reference: transactions.reference });
   transactionIds.push(...activity.map(({ id }) => id));
+  references.push(...activity.map(({ reference }) => reference));
 
   const cash = {
     accountId: savings.id,
@@ -398,6 +406,91 @@ afterAll(async () => {
     await db?.$client.end();
     vi.unstubAllEnvs();
   }
+});
+
+function statement(accountId: string, person?: Person, dates: object = period) {
+  const exportRequest = request(app)
+    .get(`/api/v1/accounts/${accountId}/statement`)
+    .query(dates);
+  if (person) exportRequest.set("Cookie", cookies.get(person)!);
+  return exportRequest;
+}
+
+it("requires a signed-in customer and limits CSV statements to owned accounts", async () => {
+  const [savings, , outside] = accountIds;
+  await statement(savings).expect(401);
+  await statement(savings, "admin").expect(403);
+  await statement(savings, "staff").expect(403);
+  await statement(savings, "other").expect(404);
+  await statement(outside, "owner").expect(404);
+  await statement(randomUUID(), "owner").expect(404);
+  await statement("invalid", "owner").expect(400);
+  await statement(savings, "owner", { to: period.to }).expect(400);
+  await statement(savings, "owner", {
+    from: period.to,
+    to: period.from,
+  }).expect(400);
+  await statement(savings, "owner", { ...period, from: "2042-02-30" }).expect(
+    400,
+  );
+  await statement(savings, "owner", { ...period, from: "0000-01-01" }).expect(
+    400,
+  );
+  await statement(savings, "owner", {
+    ...period,
+    customerId: profileIds.get("other"),
+  }).expect(400);
+});
+
+it("exports posted CSV rows with Dhaka boundaries, exact amounts, and safe text cells", async () => {
+  const [savings, current, outside] = accountIds;
+  const savingsCsv = await statement(savings.toUpperCase(), "owner")
+    .expect("Content-Type", /text\/csv; charset=utf-8/i)
+    .expect("Cache-Control", "no-store")
+    .expect(
+      "Content-Disposition",
+      /^attachment; filename="?bankbolt-statement-\d{4}-2041-12-31-to-2042-02-01\.csv"?$/,
+    )
+    .expect(200);
+  expect(savingsCsv.text.startsWith(statementHeader)).toBe(true);
+  expect(savingsCsv.text).toContain(
+    `"${references[0]}","2041-12-31 00:00:00.000","DEPOSIT","Credit","100.00","0.00","0.00","100.00","Note, ""demo""\r\nবাংলা"\r\n`,
+  );
+  expect(savingsCsv.text).toContain(
+    `"${references[1]}","2041-12-31 00:00:00.000","FUND_TRANSFER","Debit","50.00","0.00","50.00","0.00"`,
+  );
+  expect(savingsCsv.text).toContain(
+    `"${references[3]}","2042-02-01 00:00:00.000","FUND_TRANSFER","Debit","90.00","10.00","100.00","0.00","' \t＝demo"\r\n`,
+  );
+  expect(savingsCsv.text.indexOf(references[3])).toBeLessThan(
+    savingsCsv.text.indexOf(references[0]),
+  );
+  for (const index of [4, 7, 8, 10, 11, 12]) {
+    expect(savingsCsv.text).not.toContain(references[index]);
+  }
+
+  const currentCsv = await statement(current, "owner", {
+    from: period.to,
+    to: period.to,
+  }).expect(200);
+  expect(currentCsv.text).toContain(
+    `"${references[4]}","2042-02-01 00:00:00.000","FUND_TRANSFER","Credit","70.00","0.00","0.00","70.00"`,
+  );
+  expect(currentCsv.text).toContain(
+    `"${references[6]}","2042-02-01 00:00:00.000","LOAN_REPAYMENT","Debit","17.25","0.00","17.25","0.00"`,
+  );
+  for (const index of [1, 7, 9])
+    expect(currentCsv.text).not.toContain(references[index]);
+
+  const outsideCsv = await statement(outside, "other").expect(200);
+  expect(outsideCsv.text).toContain(
+    `"${references[7]}","2042-02-01 00:00:00.100","DEPOSIT","Credit","90071992547409.93","0.00","0.00","90071992547409.93"`,
+  );
+  const empty = await statement(savings, "owner", {
+    from: "2042-01-01",
+    to: "2042-01-31",
+  }).expect(200);
+  expect(empty.text).toBe(statementHeader);
 });
 
 it("enforces report roles, owner filtering, strict queries and bounded Dhaka periods", async () => {
