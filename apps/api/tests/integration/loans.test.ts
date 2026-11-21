@@ -292,6 +292,107 @@ it("enforces account ownership and coherent decision and disbursement fields", a
 
 const postedAt = new Date("2026-01-30T18:30:00Z");
 
+const applicationTerms = {
+  type: "PERSONAL",
+  requestedPrincipalPoisha: "1000000",
+  termMonths: 6,
+};
+function application() {
+  return {
+    ...applicationTerms,
+    disbursementAccountId: accounts.get("owner")!,
+    monthlyIncomePoisha: "0",
+    employmentStatus: " Self-employed ",
+    description: " Fictional submitted application ",
+  };
+}
+function applyForLoan(person: Person, input: object) {
+  return request(app)
+    .post(prefix)
+    .set("Origin", origin)
+    .set("Cookie", cookies.get(person)!)
+    .send(input);
+}
+
+it("estimates EMI with server catalog limits and exact poisha", async () => {
+  const base = { ...applicationTerms, termMonths: "6" };
+  await request(app).get(`${prefix}/estimate`).query(base).expect(401);
+  await get("owner", "/estimate")
+    .query(base)
+    .expect(200, { emiPoisha: "172548", annualRateBps: 1200 });
+  await get("owner", "/estimate")
+    .query({ ...base, termMonths: "37" })
+    .expect(422);
+  await get("owner", "/estimate")
+    .query({ ...base, termMonths: "6.0" })
+    .expect(400);
+});
+
+it("creates a pending application from a customer's verified request data", async () => {
+  const created = await applyForLoan("owner", application()).expect(201);
+  expect(created.body.loan).toMatchObject({
+    ...applicationTerms,
+    status: "PENDING",
+    customerId: profiles.get("owner"),
+    annualRateBps: 1200,
+    disbursementAccountId: accounts.get("owner"),
+    monthlyIncomePoisha: "0",
+    employmentStatus: "Self-employed",
+    description: "Fictional submitted application",
+    approvedPrincipalPoisha: null,
+    remainingPrincipalPoisha: null,
+    createdAt: expect.any(String),
+  });
+  const id = created.body.loan.id as string;
+  await get("owner", `/${id}`).expect(200, {
+    loan: created.body.loan,
+    installments: [],
+  });
+  await get("neighbor", `/${id}`).expect(404);
+  const visible = await get("owner").expect(200);
+  expect(visible.body.loans).toEqual([created.body.loan]);
+  const [account] = await db
+    .select({ balance: bankAccounts.balancePoisha })
+    .from(bankAccounts)
+    .where(eq(bankAccounts.id, accounts.get("owner")!));
+  expect(account.balance).toBe(0n);
+});
+
+it("rejects unauthorized applications, invalid terms and ineligible accounts", async () => {
+  const input = application();
+  await applyForLoan("staff", input).expect(403);
+  await applyForLoan("admin", input).expect(403);
+  await applyForLoan("owner", input)
+    .set("Origin", "https://example.invalid")
+    .expect(403);
+  await applyForLoan("owner", {
+    ...input,
+    status: "APPROVED",
+    annualRateBps: 1,
+  }).expect(400);
+  await applyForLoan("owner", { ...input, monthlyIncomePoisha: 1000 }).expect(
+    400,
+  );
+  await applyForLoan("owner", {
+    ...input,
+    requestedPrincipalPoisha: "999999",
+  }).expect(422);
+  await applyForLoan("owner", { ...input, termMonths: 37 }).expect(422);
+  await applyForLoan("owner", {
+    ...input,
+    disbursementAccountId: accounts.get("neighbor")!,
+  }).expect(404);
+  const account = eq(bankAccounts.id, accounts.get("owner")!);
+  await db.update(bankAccounts).set({ status: "FROZEN" }).where(account);
+  try {
+    const rejected = await applyForLoan("owner", input).expect(409);
+    expect(rejected.body.error.code).toBe("ACCOUNT_RESTRICTED");
+  } finally {
+    await db.update(bankAccounts).set({ status: "ACTIVE" }).where(account);
+  }
+  await get("owner").expect(200, { loans: [], hasNextPage: false });
+});
+
 it("stores one schedule from approved terms using the Dhaka disbursement date", async () => {
   const [pending] = await db.insert(loans).values(loanInput()).returning();
   await expect(

@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, type SQL } from "drizzle-orm";
+import type { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
 import {
+  bankAccounts,
   customerProfiles,
   loanInstallments,
   loanReviewNotes,
@@ -11,7 +13,9 @@ import {
 import { ApiError } from "../../errors.ts";
 import { dhakaDate } from "../../lib/dhaka-date.ts";
 import type { Identity } from "../auth/sessions.ts";
+import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
 import { calculateLoanSchedule } from "./calculations.ts";
+import { assertApplicationTerms, type applicationInput } from "./validation.ts";
 
 type Loan = typeof loans.$inferSelect;
 
@@ -59,6 +63,45 @@ export async function listLoans(
 }
 
 const missingLoan = () => new ApiError(404, "NOT_FOUND", "Loan not found.");
+
+export function createLoanApplication(
+  identity: Identity,
+  input: z.infer<typeof applicationInput>,
+) {
+  assertApplicationTerms(input);
+  return getDatabase().transaction(async (tx) => {
+    const [owner] = await tx
+      .select({
+        customerId: customerProfiles.id,
+        blocked: users.blocked,
+        accessActive: users.accessActive,
+      })
+      .from(customerProfiles)
+      .innerJoin(users, eq(users.id, customerProfiles.userId))
+      .where(and(eq(users.id, identity.id), eq(users.role, "CUSTOMER")))
+      .for("share", { of: [customerProfiles, users] });
+    const unavailable = () =>
+      new ApiError(404, "NOT_FOUND", "Disbursement account not found.");
+    if (!owner) throw unavailable();
+    const [account] = await tx
+      .select({ status: bankAccounts.status })
+      .from(bankAccounts)
+      .where(
+        and(
+          eq(bankAccounts.id, input.disbursementAccountId),
+          eq(bankAccounts.customerId, owner.customerId),
+        ),
+      )
+      .for("share");
+    if (!account) throw unavailable();
+    assertFinancialAccountEligible({ ...owner, status: account.status });
+    const [loan] = await tx
+      .insert(loans)
+      .values({ ...input, customerId: owner.customerId })
+      .returning();
+    return loanView(loan, identity);
+  });
+}
 
 export async function getLoan(identity: Identity, id: string) {
   const [row] = await scopedLoans(identity, eq(loans.id, id));

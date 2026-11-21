@@ -73,6 +73,8 @@ The authenticated loan catalog at `GET /api/v1/loans/catalog` lists Personal, Ed
 
 `GET /api/v1/loans` lists loan records, and `GET /api/v1/loans/{id}` includes the stored schedule. Customers can read their own loans. Staff and Admin can also read internal review notes.
 
+Customers can review an installment estimate and submit an application from **Loans**. The application appears as **Pending** in their loan history. `GET /api/v1/loans/estimate` uses the requested type, principal in poisha, and term. `POST /api/v1/loans` accepts those terms with the customer's active disbursement account, declared monthly income, employment status, and description.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

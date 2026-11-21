@@ -7,6 +7,7 @@ import {
   CreditCard,
   Flag,
   LayoutDashboard,
+  Landmark,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -102,6 +103,13 @@ function WorkspaceLinks({
       active:
         pathname === `${root}/cash-requests` ||
         pathname.startsWith(`${root}/cash-requests/`),
+    });
+    links.push({
+      href: `${root}/loans`,
+      label: "Loans",
+      icon: Landmark,
+      active:
+        pathname === `${root}/loans` || pathname.startsWith(`${root}/loans/`),
     });
   } else {
     links.push(

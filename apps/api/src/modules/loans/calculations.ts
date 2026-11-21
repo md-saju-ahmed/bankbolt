@@ -13,6 +13,24 @@ function dueDate(anchor: Date, monthsAfterDisbursement: number) {
   return due.toISOString().slice(0, 10);
 }
 
+export function calculateLoanEmi(
+  type: LoanType,
+  principalPoisha: bigint,
+  termMonths: number,
+) {
+  if (!validLoanTerms(type, principalPoisha, termMonths)) {
+    throw new RangeError("Principal or term is outside the loan catalog.");
+  }
+  // Apply the EMI formula as a fraction. Round only when converting to poisha.
+  const growth =
+    (monthlyRateDenominator + monthlyRateNumerator) ** BigInt(termMonths);
+  const base = monthlyRateDenominator ** BigInt(termMonths);
+  return roundPoisha(
+    principalPoisha * monthlyRateNumerator * growth,
+    monthlyRateDenominator * (growth - base),
+  );
+}
+
 export function calculateLoanSchedule({
   type,
   principalPoisha,
@@ -24,9 +42,7 @@ export function calculateLoanSchedule({
   termMonths: number;
   disbursementDate: string;
 }) {
-  if (!validLoanTerms(type, principalPoisha, termMonths)) {
-    throw new RangeError("Principal or term is outside the loan catalog.");
-  }
+  const emiPoisha = calculateLoanEmi(type, principalPoisha, termMonths);
   const anchor = new Date(`${disbursementDate}T00:00:00.000Z`);
   if (
     !Number.isFinite(anchor.getTime()) ||
@@ -39,14 +55,6 @@ export function calculateLoanSchedule({
     );
   }
 
-  // Apply the EMI formula as a fraction. Round only when converting to poisha.
-  const growth =
-    (monthlyRateDenominator + monthlyRateNumerator) ** BigInt(termMonths);
-  const base = monthlyRateDenominator ** BigInt(termMonths);
-  const emiPoisha = roundPoisha(
-    principalPoisha * monthlyRateNumerator * growth,
-    monthlyRateDenominator * (growth - base),
-  );
   let remaining = principalPoisha;
   const installments = Array.from({ length: termMonths }, (_, index) => {
     const number = index + 1;
