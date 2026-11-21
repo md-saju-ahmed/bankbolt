@@ -210,6 +210,9 @@ function CustomerReview({
           <p className="mt-1 text-sm text-muted-foreground">
             {verificationLabels[customer.verificationStatus]}
             {customer.blocked ? " · Access blocked" : ""}
+            {!customer.blocked && !customer.accessActive
+              ? " · Access inactive"
+              : ""}
           </p>
         </div>
         <Button className={secondaryStyle} onClick={onBack}>

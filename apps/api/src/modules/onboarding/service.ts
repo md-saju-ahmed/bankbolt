@@ -1,7 +1,12 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
-import { bankAccounts, customerProfiles, users } from "../../db/schema.ts";
+import {
+  bankAccounts,
+  customerProfiles,
+  managementEvents,
+  users,
+} from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 import { hashCredential } from "../auth/credentials.ts";
 import type { accountRequest, registration, review } from "./validation.ts";
@@ -19,6 +24,7 @@ async function findCustomer(db: Reader, condition: SQL) {
       fullName: users.fullName,
       email: users.email,
       blocked: users.blocked,
+      accessActive: users.accessActive,
       phone: customerProfiles.phone,
       dateOfBirth: customerProfiles.dateOfBirth,
       address: customerProfiles.address,
@@ -38,6 +44,10 @@ async function findCustomer(db: Reader, condition: SQL) {
 
 export function findCustomerByEmail(email: string) {
   return findCustomer(getDatabase(), eq(users.email, email));
+}
+
+export function findCustomerById(customerId: string) {
+  return findCustomer(getDatabase(), eq(customerProfiles.id, customerId));
 }
 
 export async function registerCustomer({
@@ -98,12 +108,16 @@ export function recordVerification(
   });
 }
 
-async function lockVerifiedCustomer(transaction: Reader, customerId: string) {
+export async function lockVerifiedCustomer(
+  transaction: Reader,
+  customerId: string,
+) {
   // Verification changes and account writes serialize on the customer profile.
   const [customer] = await transaction
     .select({
       status: customerProfiles.verificationStatus,
       blocked: users.blocked,
+      active: users.accessActive,
     })
     .from(customerProfiles)
     .innerJoin(users, eq(users.id, customerProfiles.userId))
@@ -111,16 +125,16 @@ async function lockVerifiedCustomer(transaction: Reader, customerId: string) {
     .for("update", { of: [customerProfiles, users] });
 
   if (!customer) throw missingCustomer();
-  if (customer.blocked || customer.status !== "VERIFIED") {
+  if (customer.blocked || !customer.active || customer.status !== "VERIFIED") {
     throw new ApiError(
       409,
       "CUSTOMER_NOT_ELIGIBLE",
-      "The customer must be verified and unblocked.",
+      "The customer must be verified with active access.",
     );
   }
 }
 
-function accountView(account: BankAccount) {
+export function accountView(account: BankAccount) {
   return {
     id: account.id,
     accountNumber: account.accountNumber,
@@ -157,6 +171,7 @@ export async function listAccounts(customerId: string, page: number) {
 export function createAccount(
   customerId: string,
   input: z.infer<typeof accountRequest>,
+  actorId: string,
 ) {
   return getDatabase().transaction(async (transaction) => {
     await lockVerifiedCustomer(transaction, customerId);
@@ -196,11 +211,21 @@ export function createAccount(
       .insert(bankAccounts)
       .values(values)
       .returning();
+    await transaction.insert(managementEvents).values({
+      customerId,
+      accountId: account.id,
+      actorId,
+      action: "ACCOUNT_OPENED",
+    });
     return { account: accountView(account), created: true };
   });
 }
 
-export function activateAccount(customerId: string, accountId: string) {
+export function activateAccount(
+  customerId: string,
+  accountId: string,
+  actorId: string,
+) {
   return getDatabase().transaction(async (transaction) => {
     await lockVerifiedCustomer(transaction, customerId);
     const ownerScope = and(
@@ -229,6 +254,12 @@ export function activateAccount(customerId: string, accountId: string) {
       .set({ status: "ACTIVE", activatedAt: sql`now()`, updatedAt: sql`now()` })
       .where(ownerScope)
       .returning();
+    await transaction.insert(managementEvents).values({
+      customerId,
+      accountId,
+      actorId,
+      action: "ACCOUNT_ACTIVATED",
+    });
     return accountView(activated);
   });
 }

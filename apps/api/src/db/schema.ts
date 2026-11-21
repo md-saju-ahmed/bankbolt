@@ -33,6 +33,7 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     role: userRole().notNull(),
     blocked: boolean().notNull().default(false),
+    accessActive: boolean("access_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -165,6 +166,47 @@ export const bankAccounts = pgTable(
     check(
       "bank_accounts_business_metadata",
       sql`${table.type} = 'BUSINESS' OR (${table.businessName} IS NULL AND ${table.businessRegistrationReference} IS NULL)`,
+    ),
+  ],
+);
+
+export const managementAction = pgEnum("management_action", [
+  "CUSTOMER_ACTIVATED",
+  "CUSTOMER_DEACTIVATED",
+  "CUSTOMER_BLOCKED",
+  "ACCOUNT_OPENED",
+  "ACCOUNT_ACTIVATED",
+  "ACCOUNT_FROZEN",
+  "ACCOUNT_UNFROZEN",
+  "ACCOUNT_DEACTIVATED",
+  "ACCOUNT_REACTIVATED",
+  "ACCOUNT_METADATA_UPDATED",
+  "ACCOUNT_LIMITS_UPDATED",
+]);
+
+export const managementEvents = pgTable(
+  "management_events",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customerProfiles.id),
+    accountId: uuid("account_id").references(() => bankAccounts.id),
+    actorId: uuid("actor_id").references(() => users.id),
+    action: managementAction().notNull(),
+    reason: text(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("management_events_customer_time_idx").on(
+      table.customerId,
+      table.createdAt,
+    ),
+    index("management_events_account_time_idx").on(
+      table.accountId,
+      table.createdAt,
     ),
   ],
 );

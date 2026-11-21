@@ -6,6 +6,7 @@ export type Customer = {
   fullName: string;
   email: string;
   blocked: boolean;
+  accessActive: boolean;
   phone: string;
   dateOfBirth: string;
   address: string;
@@ -33,6 +34,8 @@ export type Account = {
   type: AccountType;
   status: "PENDING" | "ACTIVE" | "FROZEN" | "DEACTIVATED";
   balancePoisha: string;
+  transferLimitPoisha: string;
+  dailyTransferLimitPoisha: string;
   businessName: string | null;
   businessRegistrationReference: string | null;
 };

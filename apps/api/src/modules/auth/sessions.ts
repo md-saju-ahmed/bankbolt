@@ -3,6 +3,7 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { getDatabase } from "../../db/client.ts";
 import { sessions, users } from "../../db/schema.ts";
+import { ApiError } from "../../errors.ts";
 import { authDigest, isProduction } from "./auth-config.ts";
 
 const sessionDurationMs = 8 * 60 * 60 * 1000;
@@ -47,6 +48,18 @@ export async function createSession(
   const expiresAt = new Date(Date.now() + sessionDurationMs);
 
   await getDatabase().transaction(async (transaction) => {
+    const [user] = await transaction
+      .select({ blocked: users.blocked, active: users.accessActive })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for("update");
+    if (!user || user.blocked || !user.active) {
+      throw new ApiError(
+        401,
+        "INVALID_CREDENTIALS",
+        "Email or password is incorrect.",
+      );
+    }
     if (previous) {
       await transaction
         .delete(sessions)
@@ -69,7 +82,11 @@ export async function loadSession(request: Request) {
   if (!tokenDigest) return undefined;
 
   const [session] = await getDatabase()
-    .select({ identity: publicIdentity, blocked: users.blocked })
+    .select({
+      identity: publicIdentity,
+      blocked: users.blocked,
+      active: users.accessActive,
+    })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(

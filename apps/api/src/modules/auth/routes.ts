@@ -35,13 +35,14 @@ authRouter.post("/login", requireWebOrigin, async (request, response) => {
       identity: publicIdentity,
       passwordHash: users.passwordHash,
       blocked: users.blocked,
+      active: users.accessActive,
     })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
   const valid = await verifyCredential(password, user?.passwordHash);
-  if (!valid || !user || user.blocked) {
+  if (!valid || !user || user.blocked || !user.active) {
     throw new ApiError(
       401,
       "INVALID_CREDENTIALS",

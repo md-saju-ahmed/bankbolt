@@ -11,6 +11,7 @@ import {
   authAttempts,
   bankAccounts,
   customerProfiles,
+  managementEvents,
   users,
 } from "../../src/db/schema.ts";
 import { authDigest } from "../../src/modules/auth/auth-config.ts";
@@ -109,6 +110,12 @@ afterAll(async () => {
         .from(customerProfiles)
         .innerJoin(users, eq(users.id, customerProfiles.userId))
         .where(inArray(users.email, fixtureEmails));
+      await database.delete(managementEvents).where(
+        inArray(
+          managementEvents.customerId,
+          profiles.map(({ id }) => id),
+        ),
+      );
       await database.delete(bankAccounts).where(
         inArray(
           bankAccounts.customerId,

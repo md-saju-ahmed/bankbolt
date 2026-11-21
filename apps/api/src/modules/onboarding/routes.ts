@@ -72,6 +72,7 @@ onboardingRouter.post(
     const { account, created } = await createAccount(
       customerId,
       accountRequest.parse(request.body),
+      currentIdentity(request).id,
     );
     response.status(created ? 201 : 200).json({ account });
   },
@@ -82,6 +83,12 @@ onboardingRouter.post(
   requireWebOrigin,
   async (request, response) => {
     const { customerId, accountId } = accountParams.parse(request.params);
-    response.json({ account: await activateAccount(customerId, accountId) });
+    response.json({
+      account: await activateAccount(
+        customerId,
+        accountId,
+        currentIdentity(request).id,
+      ),
+    });
   },
 );

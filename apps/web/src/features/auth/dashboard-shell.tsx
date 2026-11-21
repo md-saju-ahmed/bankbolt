@@ -3,16 +3,18 @@
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
   ChevronDown,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   UserRoundPlus,
+  UsersRound,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,12 +49,12 @@ function WorkspaceLinks({
   role,
   compact,
   inSheet,
-  onboarding,
+  pathname,
 }: {
   role: Role;
   compact?: boolean;
   inSheet?: boolean;
-  onboarding: boolean;
+  pathname: string;
 }) {
   const root = workspaces[role].path;
   const links: {
@@ -65,7 +67,7 @@ function WorkspaceLinks({
       href: root,
       label: "Overview",
       icon: LayoutDashboard,
-      active: !onboarding,
+      active: pathname === root,
     },
   ];
   if (role !== "CUSTOMER") {
@@ -73,8 +75,31 @@ function WorkspaceLinks({
       href: `${root}/onboarding`,
       label: "Customer onboarding",
       icon: UserRoundPlus,
-      active: onboarding,
+      active: pathname === `${root}/onboarding`,
     });
+  }
+  if (role === "CUSTOMER") {
+    links.push({
+      href: `${root}/accounts`,
+      label: "My accounts",
+      icon: CreditCard,
+      active: pathname === `${root}/accounts`,
+    });
+  } else {
+    links.push(
+      {
+        href: `${root}/management/customers`,
+        label: "Customers",
+        icon: UsersRound,
+        active: pathname === `${root}/management/customers`,
+      },
+      {
+        href: `${root}/management/accounts`,
+        label: "Bank accounts",
+        icon: CreditCard,
+        active: pathname === `${root}/management/accounts`,
+      },
+    );
   }
   return (
     <div className="space-y-2">
@@ -189,6 +214,7 @@ function Workspace({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const pathname = usePathname();
   const { role } = user;
   return (
     <div className="flex min-h-svh">
@@ -219,11 +245,11 @@ function Workspace({
           className="p-3"
         >
           <div className={cn(!collapsed && "lg:hidden")}>
-            <WorkspaceLinks role={role} compact onboarding={!!children} />
+            <WorkspaceLinks role={role} compact pathname={pathname} />
           </div>
           {!collapsed && (
             <div className="hidden lg:block">
-              <WorkspaceLinks role={role} onboarding={!!children} />
+              <WorkspaceLinks role={role} pathname={pathname} />
             </div>
           )}
         </nav>
@@ -243,11 +269,7 @@ function Workspace({
                 </SheetTrigger>
                 <SheetContent title={`${workspaces[role].label} navigation`}>
                   <nav className="p-3" aria-label="Workspace">
-                    <WorkspaceLinks
-                      role={role}
-                      inSheet
-                      onboarding={!!children}
-                    />
+                    <WorkspaceLinks role={role} inSheet pathname={pathname} />
                   </nav>
                 </SheetContent>
               </Sheet>

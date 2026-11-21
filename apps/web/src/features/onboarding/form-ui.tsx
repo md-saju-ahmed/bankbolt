@@ -42,7 +42,13 @@ const messages: Record<string, string> = {
   IDENTITY_IN_USE: "This identity reference is already registered.",
   VALIDATION_ERROR: "Check the details and try again.",
   NOT_FOUND: "The requested record could not be found.",
-  CUSTOMER_NOT_ELIGIBLE: "The customer must be verified and unblocked.",
+  CUSTOMER_NOT_ELIGIBLE: "The customer must be verified with active access.",
+  INVALID_CUSTOMER_STATUS:
+    "Restore this blocked customer's access before deactivating it.",
+  INVALID_TRANSITION:
+    "The account status changed. Reopen this record and try again.",
+  BUSINESS_ACCOUNT_REQUIRED:
+    "Business details can only be edited on Business accounts.",
   INVALID_ACCOUNT_STATUS: "Only pending accounts can be activated here.",
   REQUEST_ID_REUSED:
     "This request already created an account with different details.",

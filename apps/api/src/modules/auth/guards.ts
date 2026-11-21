@@ -23,10 +23,14 @@ export const requireAuth: RequestHandler = async (request, response, next) => {
     clearSessionCookie(response);
     throw new ApiError(401, "AUTH_REQUIRED", "Sign in to continue.");
   }
-  if (session.blocked) {
+  if (session.blocked || !session.active) {
     await deleteSession(request);
     clearSessionCookie(response);
-    throw new ApiError(403, "ACCOUNT_BLOCKED", "This account is blocked.");
+    throw new ApiError(
+      403,
+      "ACCOUNT_BLOCKED",
+      "This account's access is restricted.",
+    );
   }
 
   requestIdentity.set(request, session.identity);

@@ -43,6 +43,8 @@ Visit `/login` and use the configured demo password. The web app restores the se
 
 In the Staff or Admin workspace, open **Customer onboarding**. Register a fictional customer with a temporary password, or reopen an existing record by email. Review the submitted details and save a verification decision. Verified, unblocked customers can receive Savings, Current, or Business accounts. Express assigns each account an immutable number and opens it at ৳0.00. Staff or Admin can activate the pending account after confirmation.
 
+Staff and Admin can search **Customers** and **Bank accounts**. Admin can manage customer access, freeze or deactivate accounts, restore eligible accounts, and update Business details or transfer limits. Confirmed changes record the actor, reason, and time. Deactivating or blocking customer access revokes existing sessions. Customers use **My accounts** to switch between their own accounts and see the balance or restriction for the selected account.
+
 Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessions. Session cookies are HttpOnly and SameSite=Lax with an eight-hour lifetime. Deployed cookies also require HTTPS. Express checks the request origin on sign-in and sign-out, reloads the user's role and block status on protected calls, and limits repeated login and PIN attempts in PostgreSQL.
 
 ## PostgreSQL development setup

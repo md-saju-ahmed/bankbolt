@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  accountStatuses as statuses,
+  accountTypes as titles,
+  formatTaka,
+} from "@/features/accounts/account-display";
+import {
   ErrorMessage,
   Field,
   fieldStyle,
@@ -21,21 +26,6 @@ import {
   type AccountType,
   type Customer,
 } from "./onboarding-api";
-
-const titles = { SAVINGS: "Savings", CURRENT: "Current", BUSINESS: "Business" };
-const statuses = {
-  PENDING: "Pending activation",
-  ACTIVE: "Active",
-  FROZEN: "Frozen",
-  DEACTIVATED: "Deactivated",
-};
-const wholeTaka = new Intl.NumberFormat("en-IN");
-const poishaPerTaka = BigInt(100);
-
-function balance(poisha: string) {
-  const amount = BigInt(poisha);
-  return `৳${wholeTaka.format(amount / poishaPerTaka)}.${(amount % poishaPerTaka).toString().padStart(2, "0")}`;
-}
 
 function Activation({
   customer,
@@ -213,7 +203,9 @@ export function AccountsPanel({ customer }: { customer: Customer }) {
   const [page, setPage] = useState(1);
   const query = useOnboardingAccountsQuery({ customerId: customer.id, page });
   const allowed =
-    customer.verificationStatus === "VERIFIED" && !customer.blocked;
+    customer.verificationStatus === "VERIFIED" &&
+    !customer.blocked &&
+    customer.accessActive;
   const data = query.currentData;
 
   return (
@@ -222,8 +214,8 @@ export function AccountsPanel({ customer }: { customer: Customer }) {
         <h2 className="text-lg font-semibold">Bank accounts</h2>
         {!allowed && (
           <p className="mt-1 text-sm text-muted-foreground">
-            A customer must be verified and unblocked to open or activate an
-            account.
+            A customer must be verified with active access to open or activate
+            an account.
           </p>
         )}
       </div>
@@ -283,7 +275,7 @@ export function AccountsPanel({ customer }: { customer: Customer }) {
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm font-semibold tabular-nums">
-                      {balance(account.balancePoisha)}
+                      {formatTaka(account.balancePoisha)}
                     </p>
                     {allowed && account.status === "PENDING" && (
                       <Activation customer={customer} account={account} />
