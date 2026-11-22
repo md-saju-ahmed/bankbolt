@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { hashCredential } from "../modules/auth/credentials.ts";
 import { getDatabase } from "./client.ts";
+import { seedPortfolio } from "./seed-portfolio.ts";
 import { customerProfiles, users } from "./schema.ts";
 
 const fixtures = [
@@ -15,6 +16,7 @@ const fixtures = [
 ] as const;
 
 let database: ReturnType<typeof getDatabase> | undefined;
+const portfolio = process.argv.includes("--portfolio");
 try {
   const password = z
     .string()
@@ -27,6 +29,14 @@ try {
     );
   }
 
+  const pin = z
+    .string()
+    .regex(/^\d{6}$/)
+    .safeParse(process.env.DEMO_PIN);
+  if (portfolio && !pin.success) {
+    throw new Error("DEMO_PIN must contain six digits for the portfolio seed.");
+  }
+
   const records = await Promise.all(
     fixtures.map(async (fixture) => ({
       ...fixture,
@@ -35,40 +45,53 @@ try {
   );
   database = getDatabase();
 
-  await database.transaction(async (transaction) => {
-    for (const record of records) {
-      await transaction
-        .insert(users)
-        .values(record)
-        .onConflictDoNothing({ target: users.email });
-      const [user] = await transaction
-        .select({ id: users.id, role: users.role })
-        .from(users)
-        .where(eq(users.email, record.email));
-      if (user.role !== record.role)
-        throw new Error("A demo email already belongs to a different role.");
-
-      if (user.role === "CUSTOMER") {
+  if (portfolio && pin.success) {
+    const pinHash = await hashCredential(pin.data);
+    const seeded = await database.transaction((tx) =>
+      seedPortfolio(tx, records, pinHash),
+    );
+    console.log(
+      seeded
+        ? "Portfolio demo data created."
+        : "Portfolio demo data already exists.",
+    );
+  } else {
+    await database.transaction(async (transaction) => {
+      for (const record of records) {
         await transaction
-          .insert(customerProfiles)
-          .values({
-            userId: user.id,
-            phone: "+1-202-555-0108",
-            dateOfBirth: "1995-05-12",
-            address: "BankBolt Demo Address, Dhaka",
-            identityReference: "BANKBOLT-DEMO-CUSTOMER",
-          })
-          .onConflictDoNothing({ target: customerProfiles.userId });
-      }
-    }
-  });
+          .insert(users)
+          .values(record)
+          .onConflictDoNothing({ target: users.email });
+        const [user] = await transaction
+          .select({ id: users.id, role: users.role })
+          .from(users)
+          .where(eq(users.email, record.email));
+        if (user.role !== record.role)
+          throw new Error("A demo email already belongs to a different role.");
 
-  console.log("Demo accounts are present. Existing records were preserved.");
+        if (user.role === "CUSTOMER") {
+          await transaction
+            .insert(customerProfiles)
+            .values({
+              userId: user.id,
+              phone: "+1-202-555-0108",
+              dateOfBirth: "1995-05-12",
+              address: "BankBolt Demo Address, Dhaka",
+              identityReference: "BANKBOLT-DEMO-CUSTOMER",
+            })
+            .onConflictDoNothing({ target: customerProfiles.userId });
+        }
+      }
+    });
+
+    console.log("Demo accounts are present. Existing records were preserved.");
+  }
 } catch (error) {
   if (
     !database &&
     error instanceof Error &&
-    error.message.startsWith("DEMO_PASSWORD")
+    (error.message.startsWith("DEMO_PASSWORD") ||
+      error.message.startsWith("DEMO_PIN"))
   ) {
     console.error(error.message);
   } else {

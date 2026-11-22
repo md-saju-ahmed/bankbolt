@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:ping": "node --env-file-if-exists=.env.local src/db/ping.ts",
     "db:seed:demo": "node --env-file-if-exists=.env.local src/db/seed.ts",
+    "db:seed:portfolio": "node --env-file=.env.demo.local src/db/seed.ts --portfolio",
     "test": "vitest run --project unit --project api",
     "test:unit": "vitest run --project unit",
     "test:api": "vitest run --project api",
