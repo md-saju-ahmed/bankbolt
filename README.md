@@ -1,128 +1,98 @@
-# BankBolt
+﻿# BankBolt
 
-BankBolt is a simulated digital banking management system that uses fictional banking data.
+BankBolt is a simulated digital banking system with separate workspaces for customers, bank staff, and administrators. It uses fictional accounts and balances. No real money moves through the app.
 
-## Repository setup
+[Live demo](https://bankbolt.vercel.app/) · [Sign in](https://bankbolt.vercel.app/login)
 
-Install Node.js 24 or newer and pnpm 12.18.0, then run:
+## Demo access
+
+On the sign-in page, choose a role under **Demo accounts** to fill the form, then select **Sign in**. If quick-fill is unavailable, use the shared demo password provided with the submission or configured during local setup.
+
+| Role       | Demo email                  | What to try                                                                                                         |
+| ---------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Customer   | `customer@bankbolt.example` | Switch accounts, transfer funds, request cash, apply for a loan, and export statements.                             |
+| Bank Staff | `staff@bankbolt.example`    | Verify customers, open accounts, review cash requests, flag transactions, and forward loan applications.            |
+| Admin      | `admin@bankbolt.example`    | Manage customer and account access, set transfer limits, decide loans, reverse transfers, and review audit history. |
+
+## Features
+
+- Manage Savings, Current, and Business accounts with customer verification, balance and status views, and account restrictions.
+- Transfer BDT with PIN confirmation, fees, and limits. Filter and page through transaction history, print receipts or download PDFs, and export CSV/PDF statements.
+- Staff and Admin review deposit and withdrawal requests. Staff forward loan applications to Admin for a decision. Customers can follow disbursement, schedules, and repayments.
+- Explore five Admin charts for transaction volume, deposits vs. withdrawals, account distribution, loan decisions, and monthly activity. Three Customer charts show spending, deposit history, and transaction distribution. All charts use API data.
+- Use responsive workspaces with light and dark themes. The app supports optional authenticator verification for sensitive actions and flags unusual posted activity for review.
+
+## Architecture and state
+
+BankBolt is a pnpm and Turborepo monorepo. [`apps/web`](apps/web) uses Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, and Recharts. [`apps/api`](apps/api) uses Express, TypeScript, Zod, Drizzle, and PostgreSQL on Neon. Next.js forwards same-origin `/api/v1/*` requests to Express, which owns database access and banking rules.
+
+[Redux Toolkit](apps/web/src/lib/store/store.ts) stores the authenticated role in `auth`, the selected account in `accounts`, history filters in `transactions`, and loan review selections in `loans`. [RTK Query](apps/web/src/lib/api/base-api.ts) handles API requests, caching, loading and error states, and cache invalidation after mutations. Logout clears the API cache and workspace selections.
+
+## Authentication and financial integrity
+
+Express verifies salted password hashes and stores sessions in PostgreSQL. Clients receive an HttpOnly, SameSite=Lax cookie that requires HTTPS in production. The API validates inputs, request origins, role and account ownership, and limits repeated login and PIN attempts.
+
+Amounts are stored as integer poisha. Express calculates fees and validates the PIN, account status, ownership, limits, and available balance. A transfer locks the affected accounts and commits the debit, credit, and history record together. An identical retry with the same idempotency key returns the original result. Cash approvals, loan disbursements, and repayments commit their balance changes and transaction records together.
+
+## Database
+
+See the [Drizzle schema](apps/api/src/db/schema.ts) and [migrations](apps/api/drizzle).
+
+| Area     | Stored records                                                        |
+| -------- | --------------------------------------------------------------------- |
+| Identity | Users, customer profiles, sessions, authenticators, and auth attempts |
+| Banking  | Accounts, transactions, cash requests, and transaction flags          |
+| Lending  | Loan applications, review notes, installments, and settlements        |
+| Audit    | Management events and actor references on financial records           |
+
+## Local setup
+
+Use Node.js 24 or newer and pnpm 12.18.0. Copy [the API template](apps/api/.env.example) to `apps/api/.env.local`, point both database URLs at a dedicated development database, set a session secret, and choose a fictional-account password for `DEMO_PASSWORD`.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm lint
-pnpm format:check
+pnpm --filter @bankbolt/api db:migrate
+pnpm --filter @bankbolt/api db:seed:demo
+pnpm dev
 ```
 
-Use `pnpm format` to apply formatting.
+Open [localhost:3000](http://localhost:3000/). The API listens on port 4000 by default. Check the [proxied health endpoint](http://localhost:3000/api/v1/health) if the web app cannot reach it. For local quick-fill, copy [the web template](apps/web/.env.example) to `apps/web/.env.local` and set `NEXT_PUBLIC_DEMO_PASSWORD` to the password used to seed the local fictional accounts.
 
-## Local development
+### Docker
 
-Run `pnpm dev` from the repository root. Open the web app at <http://localhost:3000>
-and check the API through the web origin at <http://localhost:3000/api/v1/health>.
-Use `pnpm build` for a production build and `pnpm typecheck` to check types.
+Copy [the Compose template](.env.example) to `.env`. Set the same development `DATABASE_URL` and a `SESSION_SECRET`. Run the migration and demo seed commands above from the host, then run `docker compose up --build`. The default web and API ports are 3000 and 4000. If you change the web port, use the matching `WEB_ORIGIN`.
 
-- `apps/web` contains the Next.js App Router frontend with Tailwind CSS and local shadcn/ui components.
-- `apps/api` contains the Express API. Run `pnpm --filter @bankbolt/api dev` to start it independently. Set `PORT` in the shell to override its default port of `4000` when running it independently.
+## Environment variables
 
-The web app forwards `/api/v1/*` to Express. Set the server-side `API_ORIGIN` in `apps/web/.env.local` to override `http://localhost:4000`. For Vercel, use separate projects rooted at `apps/web` and `apps/api`, and set `API_ORIGIN` to the matching HTTPS API origin in each web deployment environment.
+| Variable                    | Location          | Purpose                                                                                   |
+| --------------------------- | ----------------- | ----------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | API runtime       | Pooled PostgreSQL URL.                                                                    |
+| `DATABASE_MIGRATION_URL`    | Migration tooling | Direct PostgreSQL URL for Drizzle migrations.                                             |
+| `SESSION_SECRET`            | API runtime       | Random secret of at least 32 bytes.                                                       |
+| `WEB_ORIGIN`                | API runtime       | Exact frontend origin, without a trailing slash.                                          |
+| `PORT`                      | Local API         | Optional local HTTP port. Defaults to 4000.                                               |
+| `TOTP_ENCRYPTION_KEY`       | API runtime       | Optional stable 64-character hex key for authenticator enrollment.                        |
+| `DEMO_PASSWORD`             | Seed tooling      | Shared 12–128 character password for fictional users.                                     |
+| `DEMO_PIN`                  | Portfolio seed    | Six-digit customer PIN for the portfolio fixtures.                                        |
+| `API_ORIGIN`                | Web               | Express origin. Defaults to `http://localhost:4000` locally and requires HTTPS on Vercel. |
+| `NEXT_PUBLIC_DEMO_PASSWORD` | Web build         | Optional public quick-fill password for the isolated demo.                                |
+| `TEST_DATABASE_URL`         | Integration tests | Connection URL for a disposable test database.                                            |
 
-## Authentication and demo access
+## Deployment
 
-Set a randomly generated `SESSION_SECRET` of at least 32 bytes in the API environment. Set `WEB_ORIGIN` to the exact frontend origin, such as `http://localhost:3000` for local development or the HTTPS web URL for Vercel. Use separate secrets and origins for each environment.
+1. Create two Vercel projects from this repository. Use `apps/api` for Express and `apps/web` for Next.js.
+2. Provision an isolated Neon database. Apply the Drizzle migrations with its direct connection. Use [the portfolio seed template](apps/api/.env.demo.example) for the fictional demo dataset, then run `pnpm --filter @bankbolt/api db:seed:portfolio` explicitly against that database.
+3. Set `DATABASE_URL`, `SESSION_SECRET`, and `WEB_ORIGIN` on the API project. Set `API_ORIGIN` to the HTTPS API URL on the web project.
+4. To enable quick-fill on the public demo, set `NEXT_PUBLIC_DEMO_PASSWORD` to the password seeded for that isolated dataset before building the web project. That value is visible in the browser.
+5. Check `/api/v1/health` through the deployed web URL and sign in with each role.
 
-After running the database migrations, set `DEMO_PASSWORD` in `apps/api/.env.local` to a private password of at least 12 characters and run `pnpm --filter @bankbolt/api db:seed:demo` against the intended development database. The command creates these fictional accounts and preserves existing passwords and account state when repeated.
-
-| Role       | Demo email                  |
-| ---------- | --------------------------- |
-| Admin      | `admin@bankbolt.example`    |
-| Bank Staff | `staff@bankbolt.example`    |
-| Customer   | `customer@bankbolt.example` |
-
-Visit `/login` and use the configured demo password. The web app restores the session and opens the signed-in account's workspace. Redux Toolkit holds client UI state, and RTK Query manages requests and the session cache.
-
-To enable quick-fill buttons on the isolated portfolio demo, set `NEXT_PUBLIC_DEMO_PASSWORD` in the web project's build environment to the shared password used to seed its three fictional accounts. Rebuild the web app after setting or changing it. This value is public in the browser. Leave it unset on deployments where visitors should sign in with their own credentials.
-
-Use **Appearance** on sign-in or in a workspace to select System, Light, or Dark. BankBolt remembers the choice in your browser and prints receipts in a light layout.
-
-### Optional authenticator verification
-
-Set a stable, randomly generated 32-byte `TOTP_ENCRYPTION_KEY` as 64 hex characters on the API to enable enrollment. In **Security**, enter your account password, add the setup key to an authenticator app, and confirm with a six-digit code. Save the one-time recovery code offline. Enrolled users verify sensitive operations such as transfers, cash requests, loan decisions and payments, reversals, account controls and PIN changes. Removing an authenticator requires the password and a fresh authenticator or recovery code.
-
-### Customer onboarding
-
-In the Staff or Admin workspace, open **Customer onboarding**. Register a fictional customer with a temporary password, or reopen an existing record by email. Review the submitted details and save a verification decision. Verified, unblocked customers can receive Savings, Current, or Business accounts. Express assigns each account an immutable number and opens it at ৳0.00. Staff or Admin can activate the pending account after confirmation.
-
-Staff and Admin can search **Customers** and **Bank accounts**. Admin can manage customer access, freeze or deactivate accounts, restore eligible accounts, and update Business details or transfer limits. Confirmed changes record the actor, reason, and time. Deactivating or blocking customer access revokes existing sessions. Customers use **My accounts** to switch between their own accounts and see the balance or restriction for the selected account.
-
-Express verifies salted scrypt password hashes and uses PostgreSQL-backed sessions. Session cookies are HttpOnly and SameSite=Lax with an eight-hour lifetime. Deployed cookies also require HTTPS. Express checks the request origin on sign-in and sign-out, reloads the user's role and block status on protected calls, and limits repeated login and PIN attempts in PostgreSQL.
-
-### Transaction PIN and transfers API
-
-Customers can set their transaction PIN and send money from **Transfer funds**. The review dialog shows the server-quoted fee and total debit. **Transactions** is available in each workspace, with reference search, Dhaka date filters, and printable receipts for completed transactions. Customers see transfers involving their own accounts, while Staff and Admin can review the bank's transaction history.
-
-- `PUT /api/v1/auth/transaction-pin` sets a six-digit PIN for a signed-in customer. Send `password` and `newPin`, plus `currentPin` if the customer already has a PIN. The same flow applies to fictional demo customers.
-- `POST /api/v1/transfers` accepts `sourceAccountId`, `recipientAccountNumber`, a positive `amountPoisha` decimal string, `description`, `pin`, and a client-generated UUID `idempotencyKey`. The server calculates the fee and returns a receipt with HTTP 201. The PIN and transfer mutations require the configured web origin.
-- Keep the same key and payment details until the result is known. `GET /api/v1/transfers/by-key/{idempotencyKey}` returns the submitting customer's committed receipt. A 404 means no receipt is visible yet. Resubmit the same request with the same key if needed. A committed replay returns the same receipt with HTTP 200, and changing the source, recipient, amount, or description under a committed key returns HTTP 409.
-
-Admins can reverse a completed transfer once from its transaction details. The reversal requires a reason, debits the recipient's available principal, and credits the original sender with the principal and original fee. Both records remain linked in transaction history. Reversed transfers still count toward the original day's transfer limit.
-
-### Simulated cash requests API
-
-Customers can use **Cash requests** to submit a simulated deposit or withdrawal and track its review status. Approved requests link to the posted transaction in the customer workspace.
-
-Staff and Admin use **Cash request review** to filter the queue, inspect requests, and confirm decisions. Finalized requests show the reviewer, decision time, and any rejection reason.
-
-Staff can flag a transaction for Admin from its detail page with a reason. The Admin **Transaction flags** queue shows open and resolved flags. Resolving a flag records the reviewer, time, and optional note.
-
-The Admin **Transaction flags** queue includes automatic review flags for posted external transfers of at least BDT 25,000, the third or later external transfer from the same account in 10 minutes, and posted cash deposits or withdrawals of at least BDT 50,000. These flags are review signals. Funds post through the existing banking workflow, and Admin can resolve the flag with a note.
-
-- Customers submit a deposit or withdrawal through `POST /api/v1/cash-requests` with `accountId`, `type` (`DEPOSIT` or `WITHDRAWAL`), `amountPoisha` as a positive decimal string, and `description`. The server records the request date. New pending withdrawals reserve funds. Available balance is posted balance minus holds. Approval posts the withdrawal and consumes the hold. Rejection releases it. Requests created before reservations were introduced are checked against available funds at approval.
-- `GET /api/v1/cash-requests` lists requests with optional `status`, `type`, and `page` filters, and `GET /api/v1/cash-requests/{id}` returns one request. Customers can view only their own requests. Staff and Admin can view the review queue.
-- Customers can POST to `/api/v1/cash-requests/{id}/cancel` to cancel their own pending request. Cancellation releases any hold and creates no transaction.
-- Staff and Admin can POST to `/api/v1/cash-requests/{id}/approve` or `/api/v1/cash-requests/{id}/reject`. Reject requires a `reason`. Approval returns the reference for one posted transaction. Rejection leaves the balance intact. Repeated decisions return HTTP 409. Read the request detail to recover the recorded decision if a response is lost.
-
-### Loan catalog and schedules API
-
-Applicants must be verified, at least 18, and have an active disbursement account. At submission, approval, and disbursement, the requested EMI plus the customer's active loan EMIs must fit within 40% of the application's declared monthly income. Admin approvals cannot bypass this check.
-
-The authenticated loan catalog at `GET /api/v1/loans/catalog` lists Personal, Education, and Business loan limits and terms. Each product uses 12% annual interest on the remaining principal. Monthly installments use the 1% monthly rate, rounded to poisha, with a final principal adjustment. Due dates follow the disbursement day in Asia/Dhaka and use the month's last day when that day is unavailable.
-
-`GET /api/v1/loans` lists loan records, and `GET /api/v1/loans/{id}` includes the stored schedule. Customers can read their own loans. Staff and Admin can also read internal review notes.
-
-Customers can review an installment estimate and submit an application from **Loans**. The application appears as **Pending** in their loan history. `GET /api/v1/loans/estimate` uses the requested type, principal in poisha, and term. `POST /api/v1/loans` accepts those terms with the customer's active disbursement account, declared monthly income, employment status, and description.
-
-Installments must be paid in order. An unpaid installment is in grace on days one through seven and overdue on day eight. Simple overdue interest accrues from the day after the due date through payment using Dhaka calendar days, the loan's annual rate divided by 365, and only that installment's unpaid principal. Interest is rounded once per installment and posted with the scheduled payment.
-
-Customers can settle an active loan in full from its details page. Settlement covers remaining principal, unpaid scheduled interest already due, the accrued portion of the current period's scheduled interest, and overdue interest through the settlement day. The current-period portion is prorated by elapsed Dhaka calendar days. The settlement has a separate repayment receipt.
-
-Admins can open **Audit history** and search recorded management changes, cash decisions and cancellations, loan lifecycle events, transfer reversals, and flag activity by actor, action, or record ID. Category and Dhaka date filters narrow the results.
-
-### PDF downloads
-
-Use **Download PDF** on a transaction receipt or in the account statement form. Receipts follow the transaction's existing access rules. Statements use an owned account and an inclusive Dhaka date range. The statement PDF supports up to 1,000 postings per download. Printable receipts and CSV statements are available from the same screens.
-
-## PostgreSQL development setup
-
-Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.
+## Checks
 
 ```sh
-pnpm --filter @bankbolt/api db:ping
-pnpm --filter @bankbolt/api db:generate --name=describe_schema_change
-pnpm --filter @bankbolt/api db:check
-pnpm --filter @bankbolt/api db:migrate
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-Generate a migration after changing the Drizzle schema. Review its SQL and metadata under `apps/api/drizzle` before applying it to the intended database. The identity migration creates users, customer profiles, sessions, and authentication attempt records. The health route reports API liveness, and `db:ping` checks PostgreSQL separately.
-
-## Docker development
-
-Copy the root `.env.example` to `.env`. Set `DATABASE_URL` to the pooled URL for your dedicated development database and set `SESSION_SECRET` to a generated secret. For a fresh database, configure `apps/api/.env.local` for that same database, then run the [migration](#postgresql-development-setup) and [demo sign-in setup](#authentication-and-demo-access) commands from the host.
-
-Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Open <http://localhost:3000/login> and use one of the seeded role emails with the password you configured. Check the API through <http://localhost:3000/api/v1/health>.
-
-Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. Compose derives the allowed web origin from `WEB_PORT` unless you set `WEB_ORIGIN` explicitly. Update the browser URL and any explicit `WEB_ORIGIN` to match. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
-
-## Tests
-
-Run `pnpm test` for the unit and API suites, or use `pnpm test:unit` and `pnpm test:api` individually.
-
-For the PostgreSQL integration suite, start the disposable test service with `docker compose --profile test-db up -d --wait test-db`. Copy `apps/api/.env.test.example` to `apps/api/.env.test` and set `TEST_DATABASE_URL` to `postgresql://bankbolt_test:bankbolt_test@127.0.0.1:55433/bankbolt_test`. Those credentials are only for the local Compose test database. To change the host port, set `TEST_DB_PORT` in both the root `.env` and `apps/api/.env.test`, and update the URL to match. Run `pnpm test:integration` to verify migrations and transaction rollback against PostgreSQL.
+For PostgreSQL integration tests, run `docker compose --profile test-db up -d --wait test-db`. Copy [the test template](apps/api/.env.test.example) to `apps/api/.env.test` and set `TEST_DATABASE_URL` to `postgresql://bankbolt_test:bankbolt_test@127.0.0.1:55433/bankbolt_test`, then run `pnpm test:integration`. Use the disposable test database for this suite.
