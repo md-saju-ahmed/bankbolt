@@ -26,6 +26,11 @@ const actionErrors: Record<string, string> = {
   LOAN_NOT_FORWARDED:
     "This application is no longer awaiting an Admin decision.",
   LOAN_NOT_APPROVED: "This loan must be approved before disbursement.",
+  LOAN_APPLICANT_UNVERIFIED:
+    "Ask Bank Staff to verify the applicant before proceeding.",
+  LOAN_APPLICANT_UNDERAGE: "The applicant must be at least 18 years old.",
+  LOAN_AFFORDABILITY_LIMIT:
+    "The requested loan and active loans exceed 40% of declared monthly income.",
   LOAN_NOT_ACTIVE: "This loan must be active before a payment can be made.",
   SELF_REVIEW: "You cannot decide or disburse your own loan.",
 };

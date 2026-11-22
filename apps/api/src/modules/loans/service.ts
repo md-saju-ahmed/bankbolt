@@ -14,6 +14,10 @@ import { ApiError } from "../../errors.ts";
 import { dhakaDate } from "../../lib/dhaka-date.ts";
 import type { Identity } from "../auth/sessions.ts";
 import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
+import {
+  assertApplicantEligibility,
+  assertLoanAffordability,
+} from "./eligibility.ts";
 import { calculateLoanSchedule } from "./calculations.ts";
 import { assertApplicationTerms, type applicationInput } from "./validation.ts";
 
@@ -100,6 +104,8 @@ export function createLoanApplication(
     const [owner] = await tx
       .select({
         customerId: customerProfiles.id,
+        verificationStatus: customerProfiles.verificationStatus,
+        dateOfBirth: customerProfiles.dateOfBirth,
         blocked: users.blocked,
         accessActive: users.accessActive,
       })
@@ -122,6 +128,13 @@ export function createLoanApplication(
       .for("share");
     if (!account) throw unavailable();
     assertFinancialAccountEligible({ ...owner, status: account.status });
+    assertApplicantEligibility(owner);
+    await assertLoanAffordability(
+      tx,
+      owner.customerId,
+      input,
+      input.requestedPrincipalPoisha,
+    );
     const [loan] = await tx
       .insert(loans)
       .values({ ...input, customerId: owner.customerId })

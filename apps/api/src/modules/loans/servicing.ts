@@ -22,12 +22,22 @@ import {
   type Loan,
   type LoanTransaction,
 } from "./service.ts";
+import {
+  assertApplicantEligibility,
+  assertLoanAffordability,
+} from "./eligibility.ts";
 import { assertApplicationTerms } from "./validation.ts";
 
-async function lockLoanOwner(tx: LoanTransaction, loan: Loan) {
+async function lockLoanOwner(
+  tx: LoanTransaction,
+  loan: Loan,
+  serializeAffordability = false,
+) {
   const [owner] = await tx
     .select({
       userId: users.id,
+      verificationStatus: customerProfiles.verificationStatus,
+      dateOfBirth: customerProfiles.dateOfBirth,
       role: users.role,
       accessActive: users.accessActive,
       blocked: users.blocked,
@@ -35,7 +45,9 @@ async function lockLoanOwner(tx: LoanTransaction, loan: Loan) {
     .from(customerProfiles)
     .innerJoin(users, eq(users.id, customerProfiles.userId))
     .where(eq(customerProfiles.id, loan.customerId))
-    .for("share", { of: [customerProfiles, users] });
+    .for(serializeAffordability ? "no key update" : "share", {
+      of: [customerProfiles, users],
+    });
   if (!owner) throw missingLoan();
   return owner;
 }
@@ -108,7 +120,7 @@ export function decideLoan(
 ) {
   return getDatabase().transaction(async (tx) => {
     const loan = await lockLoan(tx, id);
-    const owner = await lockLoanOwner(tx, loan);
+    const owner = await lockLoanOwner(tx, loan, status === "APPROVED");
     await assertLoanAdmin(tx, identity.id, owner.userId);
     if (loan.status !== "UNDER_REVIEW" || !loan.forwardedAt) {
       throw new ApiError(
@@ -125,6 +137,13 @@ export function decideLoan(
         loan.disbursementAccountId,
         owner,
         "share",
+      );
+      assertApplicantEligibility(owner);
+      await assertLoanAffordability(
+        tx,
+        loan.customerId,
+        loan,
+        loan.requestedPrincipalPoisha,
       );
     }
     const decidedAt = new Date();
@@ -156,7 +175,8 @@ const ledgerMismatch = () =>
 export function disburseLoan(identity: Identity, id: string) {
   return getDatabase().transaction(async (tx) => {
     const loan = await lockLoan(tx, id);
-    const owner = await lockLoanOwner(tx, loan);
+    // Serialize activation using the applicant row, even across different loan accounts.
+    const owner = await lockLoanOwner(tx, loan, true);
     await assertLoanAdmin(tx, identity.id, owner.userId);
     if (loan.status === "ACTIVE" || loan.status === "COMPLETED") {
       const [posting] = await tx
@@ -185,6 +205,13 @@ export function disburseLoan(identity: Identity, id: string) {
       loan.disbursementAccountId,
       owner,
       "no key update",
+    );
+    assertApplicantEligibility(owner);
+    await assertLoanAffordability(
+      tx,
+      loan.customerId,
+      loan,
+      loan.approvedPrincipalPoisha,
     );
     const balancePoisha = account.balancePoisha + loan.approvedPrincipalPoisha;
     if (balancePoisha > maxPoisha)

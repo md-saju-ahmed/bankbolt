@@ -6,6 +6,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import app from "../../src/app.ts";
+import { dhakaDate } from "../../src/lib/dhaka-date.ts";
 import { getDatabase } from "../../src/db/client.ts";
 import {
   authAttempts,
@@ -73,7 +74,7 @@ function loanInput(
   } satisfies typeof loans.$inferInsert;
 }
 
-async function approvedLoan() {
+async function approvedLoan(changes?: Partial<typeof loans.$inferInsert>) {
   const [loan] = await db
     .insert(loans)
     .values(
@@ -82,6 +83,7 @@ async function approvedLoan() {
         approvedPrincipalPoisha: 1_000_000n,
         decidedAt: new Date("2026-01-30T16:00:00Z"),
         decidedBy: usersByPerson.get("admin"),
+        ...changes,
       }),
     )
     .returning();
@@ -840,7 +842,7 @@ function application() {
   return {
     ...applicationTerms,
     disbursementAccountId: accounts.get("owner")!,
-    monthlyIncomePoisha: "0",
+    monthlyIncomePoisha: "5000000",
     employmentStatus: " Self-employed ",
     description: " Fictional submitted application ",
   };
@@ -875,7 +877,7 @@ it("creates a pending application from a customer's verified request data", asyn
     customerId: profiles.get("owner"),
     annualRateBps: 1200,
     disbursementAccountId: accounts.get("owner"),
-    monthlyIncomePoisha: "0",
+    monthlyIncomePoisha: "5000000",
     employmentStatus: "Self-employed",
     description: "Fictional submitted application",
     approvedPrincipalPoisha: null,
@@ -1051,4 +1053,115 @@ it("links disbursement and repayment records and enforces one disbursement per l
     paidAmountPoisha: "172548",
     repaymentReference: rightLoan.reference,
   });
+});
+
+it("enforces verification, adult age and the exact affordability boundary at submission", async () => {
+  const profile = eq(customerProfiles.id, profiles.get("owner")!);
+  try {
+    await db
+      .update(customerProfiles)
+      .set({ verificationStatus: "PENDING" })
+      .where(profile);
+    const unverified = await applyForLoan("owner", application()).expect(409);
+    expect(unverified.body.error.code).toBe("LOAN_APPLICANT_UNVERIFIED");
+    await db
+      .update(customerProfiles)
+      .set({
+        verificationStatus: "VERIFIED",
+        dateOfBirth: dhakaDate(new Date()),
+      })
+      .where(profile);
+    const underage = await applyForLoan("owner", application()).expect(422);
+    expect(underage.body.error.code).toBe("LOAN_APPLICANT_UNDERAGE");
+  } finally {
+    await db
+      .update(customerProfiles)
+      .set({ verificationStatus: "VERIFIED", dateOfBirth: "1991-05-12" })
+      .where(profile);
+  }
+  for (const monthlyIncomePoisha of ["0", "431369"]) {
+    const response = await applyForLoan("owner", {
+      ...application(),
+      monthlyIncomePoisha,
+    }).expect(422);
+    expect(response.body.error.code).toBe("LOAN_AFFORDABILITY_LIMIT");
+  }
+  await applyForLoan("owner", {
+    ...application(),
+    monthlyIncomePoisha: "431370",
+  }).expect(201);
+});
+
+it("blocks Admin approval when existing active EMIs exceed the application's budget", async () => {
+  const existing = await approvedLoan();
+  const pending = await forwardedLoan();
+  await db
+    .update(loans)
+    .set({ monthlyIncomePoisha: 500_000n })
+    .where(eq(loans.id, pending));
+  const account = eq(bankAccounts.id, accounts.get("owner")!);
+  try {
+    await reviewAction("admin", existing, "disburse").expect(200);
+    const response = await reviewAction(
+      "admin",
+      pending,
+      "approve",
+      decision,
+    ).expect(422);
+    expect(response.body.error.code).toBe("LOAN_AFFORDABILITY_LIMIT");
+    await applyForLoan("owner", {
+      ...application(),
+      monthlyIncomePoisha: "500000",
+    }).expect(422);
+    await reviewAction("admin", pending, "reject", decision).expect(200);
+  } finally {
+    await db.update(bankAccounts).set({ balancePoisha: 0n }).where(account);
+  }
+});
+
+it("serializes disbursements even when approved applications use different accounts", async () => {
+  const [otherAccount] = await db
+    .insert(bankAccounts)
+    .values({
+      customerId: profiles.get("owner")!,
+      creationKey: randomUUID(),
+      type: "CURRENT",
+      status: "ACTIVE",
+    })
+    .returning({ id: bankAccounts.id });
+  try {
+    const first = await approvedLoan({ monthlyIncomePoisha: 500_000n });
+    const second = await approvedLoan({
+      monthlyIncomePoisha: 500_000n,
+      disbursementAccountId: otherAccount.id,
+    });
+    const outcomes = await Promise.all([
+      reviewAction("admin", first, "disburse"),
+      reviewAction("admin", second, "disburse"),
+    ]);
+    expect(outcomes.map((result) => result.status).sort()).toEqual([200, 422]);
+    expect(
+      outcomes.find((result) => result.status === 422)?.body.error.code,
+    ).toBe("LOAN_AFFORDABILITY_LIMIT");
+    const posted = await db
+      .select()
+      .from(transactions)
+      .where(inArray(transactions.loanId, [first, second]));
+    expect(posted).toHaveLength(1);
+    const states = await db
+      .select({ status: loans.status })
+      .from(loans)
+      .where(inArray(loans.id, [first, second]));
+    expect(states.map(({ status }) => status).sort()).toEqual([
+      "ACTIVE",
+      "APPROVED",
+    ]);
+  } finally {
+    await clearLoans();
+    await db.delete(bankAccounts).where(eq(bankAccounts.id, otherAccount.id));
+    await db
+      .update(bankAccounts)
+      .set({ balancePoisha: 0n })
+      .where(eq(bankAccounts.id, accounts.get("owner")!));
+  }
 });

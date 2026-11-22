@@ -72,6 +72,8 @@ Staff can flag a transaction for Admin from its detail page with a reason. The A
 
 ### Loan catalog and schedules API
 
+Applicants must be verified, at least 18, and have an active disbursement account. At submission, approval, and disbursement, the requested EMI plus the customer's active loan EMIs must fit within 40% of the application's declared monthly income. Admin approvals cannot bypass this check.
+
 The authenticated loan catalog at `GET /api/v1/loans/catalog` lists Personal, Education, and Business loan limits and terms. Each product uses 12% annual interest on the remaining principal. Monthly installments use the 1% monthly rate, rounded to poisha, with a final principal adjustment. Due dates follow the disbursement day in Asia/Dhaka and use the month's last day when that day is unavailable.
 
 `GET /api/v1/loans` lists loan records, and `GET /api/v1/loans/{id}` includes the stored schedule. Customers can read their own loans. Staff and Admin can also read internal review notes.

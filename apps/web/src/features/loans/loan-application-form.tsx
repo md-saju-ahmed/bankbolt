@@ -51,6 +51,12 @@ function amountRange(product: {
 
 function failureMessage(failure: unknown, fallback: string) {
   const code = errorCode(failure);
+  if (code === "LOAN_APPLICANT_UNVERIFIED")
+    return "Ask Bank Staff to verify your customer profile before applying.";
+  if (code === "LOAN_APPLICANT_UNDERAGE")
+    return "You must be at least 18 years old to apply.";
+  if (code === "LOAN_AFFORDABILITY_LIMIT")
+    return "Total monthly loan payments would exceed 40% of declared monthly income. Try a smaller amount or a longer term within the loan limits.";
   if (code === "LOAN_TERMS_OUT_OF_RANGE")
     return "Choose an amount and term within this loan type’s limits.";
   if (code === "ACCOUNT_RESTRICTED" || code === "NOT_FOUND")
