@@ -39,6 +39,8 @@ After running the database migrations, set `DEMO_PASSWORD` in `apps/api/.env.loc
 
 Visit `/login` and use the configured demo password. The web app restores the session and opens the signed-in account's workspace. Redux Toolkit holds client UI state, and RTK Query manages requests and the session cache.
 
+To enable quick-fill buttons on the isolated portfolio demo, set `NEXT_PUBLIC_DEMO_PASSWORD` in the web project's build environment to the shared password used to seed its three fictional accounts. Rebuild the web app after setting or changing it. This value is public in the browser. Leave it unset on deployments where visitors should sign in with their own credentials.
+
 Use **Appearance** on sign-in or in a workspace to select System, Light, or Dark. BankBolt remembers the choice in your browser and prints receipts in a light layout.
 
 ### Optional authenticator verification

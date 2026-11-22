@@ -2,11 +2,11 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from "@/lib/store/provider";
 import { errorCode, useLoginMutation, useMeQuery } from "./auth-api";
-import { workspaces } from "./identity";
+import { workspaces, type Role } from "./identity";
 
 const messages: Record<string, string> = {
   INVALID_CREDENTIALS: "Email or password is incorrect.",
@@ -15,13 +15,22 @@ const messages: Record<string, string> = {
   INVALID_ORIGIN: "Use the configured BankBolt web address to sign in.",
 };
 
-export function LoginForm() {
+const demoAccounts = [
+  { role: "ADMIN", email: "admin@bankbolt.example" },
+  { role: "STAFF", email: "staff@bankbolt.example" },
+  { role: "CUSTOMER", email: "customer@bankbolt.example" },
+] as const;
+
+export function LoginForm({ demoPassword }: { demoPassword?: string }) {
   const router = useRouter();
   const role = useAppSelector((state) => state.auth.role);
   const session = useMeQuery(undefined, { refetchOnMountOrArgChange: true });
   const [login, { isLoading }] = useLoginMutation();
   const [visible, setVisible] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [demoFeedback, setDemoFeedback] = useState("");
+  const emailInput = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (role && !session.isFetching && !session.isError && session.data) {
@@ -29,12 +38,24 @@ export function LoginForm() {
     }
   }, [role, router, session.data, session.isError, session.isFetching]);
 
+  function fillDemoCredentials(role: Role, email: string) {
+    if (!demoPassword || !emailInput.current || !passwordInput.current) return;
+
+    emailInput.current.value = email;
+    passwordInput.current.value = demoPassword;
+    setVisible(false);
+    setFeedback("");
+    setDemoFeedback(`${workspaces[role].label} demo credentials filled.`);
+    emailInput.current.focus();
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
     const form = event.currentTarget;
     const fields = new FormData(form);
     setFeedback("");
+    setDemoFeedback("");
     try {
       const { user } = await login({
         email: String(fields.get("email") ?? ""),
@@ -62,11 +83,35 @@ export function LoginForm() {
   const blocked = errorCode(session.error) === "ACCOUNT_BLOCKED";
   return (
     <form method="post" onSubmit={submit} className="space-y-5">
+      {demoPassword && (
+        <fieldset className="min-w-0 space-y-2">
+          <legend className="text-sm font-semibold">Demo accounts</legend>
+          <p className="text-sm text-muted-foreground">
+            Choose a role to fill the form, then select Sign in.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {demoAccounts.map(({ role, email }) => (
+              <Button
+                key={role}
+                onClick={() => fillDemoCredentials(role, email)}
+                className="border border-input bg-card hover:bg-muted"
+                disabled={isLoading}
+              >
+                {workspaces[role].label}
+              </Button>
+            ))}
+          </div>
+          <p role="status" className="sr-only">
+            {demoFeedback}
+          </p>
+        </fieldset>
+      )}
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-semibold">
           Email address
         </label>
         <input
+          ref={emailInput}
           className={fieldClass}
           id="email"
           name="email"
@@ -82,6 +127,7 @@ export function LoginForm() {
         </label>
         <div className="relative">
           <input
+            ref={passwordInput}
             className={`${fieldClass} pr-13`}
             id="password"
             name="password"

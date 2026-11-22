@@ -3,6 +3,14 @@ import Image from "next/image";
 import { LoginForm } from "@/features/auth/login-form";
 
 export default function LoginPage() {
+  const configuredPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+  const demoPassword =
+    configuredPassword &&
+    configuredPassword.length >= 12 &&
+    configuredPassword.length <= 128
+      ? configuredPassword
+      : undefined;
+
   return (
     <main className="grid min-h-svh bg-card lg:grid-cols-[minmax(22rem,0.9fr)_minmax(25rem,1.1fr)]">
       <aside className="hidden flex-col justify-between bg-navy p-12 text-white lg:flex xl:p-16">
@@ -50,7 +58,7 @@ export default function LoginPage() {
         <p className="mt-2 mb-8 text-muted-foreground">
           Access your banking workspace.
         </p>
-        <LoginForm />
+        <LoginForm demoPassword={demoPassword} />
         <p className="mt-9 text-sm text-muted-foreground lg:hidden">
           Demo banking platform. No real money.
         </p>
