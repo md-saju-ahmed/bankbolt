@@ -101,7 +101,7 @@ export function CashRequestHistory() {
         }}
       >
         <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+          <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
           <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-card p-5 shadow-lg">
             <AlertDialog.Title className="text-lg font-semibold">
               Cancel cash request?

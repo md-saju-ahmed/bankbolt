@@ -25,7 +25,7 @@ const cashFlow: Series<FlowKey>[] = [
   {
     key: "withdrawalsPoisha",
     label: "Withdrawals",
-    color: "var(--brand-accent)",
+    color: "var(--chart-withdrawal)",
     striped: true,
   },
 ];

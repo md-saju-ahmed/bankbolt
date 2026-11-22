@@ -102,7 +102,7 @@ function FlagDialog({
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
         <AlertDialog.Content
           onEscapeKeyDown={(event) => {
             if (lock.current) event.preventDefault();
@@ -191,7 +191,7 @@ function FlagEntry({
           </p>
         </div>
         <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${flag.status === "OPEN" ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700"}`}
+          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${flag.status === "OPEN" ? "bg-warning-surface text-warning-ink" : "bg-muted text-muted-foreground"}`}
         >
           {flag.status === "OPEN" ? "Open" : "Resolved"}
         </span>

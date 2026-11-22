@@ -65,10 +65,10 @@ export function CashRequestHeader({
 }
 
 const statusStyles = {
-  PENDING: "bg-amber-50 text-amber-800",
-  APPROVED: "bg-emerald-50 text-emerald-800",
+  PENDING: "bg-warning-surface text-warning-ink",
+  APPROVED: "bg-success-surface text-success-ink",
   CANCELLED: "bg-muted text-muted-foreground",
-  REJECTED: "bg-red-50 text-red-800",
+  REJECTED: "bg-danger-surface text-danger-ink",
 };
 
 export function CashRequestBadge({ status }: { status: CashRequestStatus }) {

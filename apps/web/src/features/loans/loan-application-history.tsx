@@ -16,12 +16,12 @@ import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { loanLabels, loanStatuses, useCustomerLoansQuery } from "./loans-api";
 
 const statusStyles = {
-  PENDING: "bg-amber-50 text-amber-800",
-  UNDER_REVIEW: "bg-blue-50 text-blue-800",
-  APPROVED: "bg-emerald-50 text-emerald-800",
-  REJECTED: "bg-red-50 text-red-800",
-  ACTIVE: "bg-teal-50 text-teal-800",
-  COMPLETED: "bg-slate-100 text-slate-700",
+  PENDING: "bg-warning-surface text-warning-ink",
+  UNDER_REVIEW: "bg-info-surface text-info-ink",
+  APPROVED: "bg-success-surface text-success-ink",
+  REJECTED: "bg-danger-surface text-danger-ink",
+  ACTIVE: "bg-active-surface text-active-ink",
+  COMPLETED: "bg-muted text-muted-foreground",
 };
 
 export function LoanApplicationHistory() {

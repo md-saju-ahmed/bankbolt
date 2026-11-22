@@ -54,7 +54,7 @@ function CodeDialog({ prompt }: { prompt: Prompt }) {
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-foreground/55" />
+        <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-scrim/60" />
         <AlertDialog.Content
           className="fixed left-1/2 top-1/2 z-[70] max-h-[90dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border bg-card p-5 shadow-lg"
           onOpenAutoFocus={(event) => {

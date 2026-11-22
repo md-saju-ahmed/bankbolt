@@ -1,3 +1,4 @@
+import { ThemeMenu } from "@/components/theme-menu";
 import Image from "next/image";
 import { LoginForm } from "@/features/auth/login-form";
 
@@ -25,17 +26,24 @@ export default function LoginPage() {
         </p>
       </aside>
       <section
-        className="mx-auto flex w-full max-w-lg flex-col justify-center px-5 py-12 sm:px-10"
+        className="mx-auto flex w-full max-w-lg flex-col justify-center px-5 pt-4 pb-12 sm:px-10"
         aria-labelledby="login-title"
       >
-        <Image
-          src="/brand/bankbolt-logo.svg"
-          width={174}
-          height={49}
-          alt="BankBolt"
-          priority
-          className="mb-9 h-auto w-40 lg:hidden"
-        />
+        <div className="mb-6 flex justify-end">
+          <ThemeMenu />
+        </div>
+        <div className="mb-9 flex items-center gap-2.5 lg:hidden">
+          <Image
+            src="/brand/bankbolt-icon.svg"
+            width={40}
+            height={40}
+            alt=""
+            priority
+          />
+          <span className="text-2xl font-semibold tracking-tight">
+            BankBolt
+          </span>
+        </div>
         <h1 id="login-title" className="text-3xl font-semibold tracking-tight">
           Sign in to BankBolt
         </h1>

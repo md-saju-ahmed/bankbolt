@@ -78,10 +78,10 @@ function BalanceCard({
         ? "Available balance"
         : "Account balance";
   return (
-    <Card className="min-w-0 border-navy bg-navy p-4 text-primary-foreground sm:p-5">
+    <Card className="min-w-0 border-navy bg-navy p-4 text-navy-foreground sm:p-5">
       <h2 className="font-semibold">{scope}</h2>
       {account && (
-        <p className="mt-1 text-sm text-primary-foreground/80">
+        <p className="mt-1 text-sm text-navy-foreground/80">
           Account {account.accountNumber}{" "}
           <span className="mx-1" aria-hidden="true">
             /
@@ -93,14 +93,14 @@ function BalanceCard({
         <p className="mt-2 text-sm text-brand-accent">{account.restriction}</p>
       )}
       {summary.accountCount === 0 ? (
-        <p className="mt-4 text-sm text-primary-foreground/80">
+        <p className="mt-4 text-sm text-navy-foreground/80">
           You don&apos;t have any bank accounts yet.
         </p>
       ) : (
         <>
           <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
-            <div className="col-span-2 min-w-0 border-b border-primary-foreground/20 pb-4">
-              <dt className="text-sm text-primary-foreground/80">
+            <div className="col-span-2 min-w-0 border-b border-navy-foreground/20 pb-4">
+              <dt className="text-sm text-navy-foreground/80">
                 {balanceLabel}
               </dt>
               <dd className="mt-1 text-3xl font-semibold tracking-tight break-words tabular-nums sm:text-4xl">
@@ -108,7 +108,7 @@ function BalanceCard({
               </dd>
             </div>
             <div className="min-w-0">
-              <dt className="text-sm text-primary-foreground/80">
+              <dt className="text-sm text-navy-foreground/80">
                 Total deposits
               </dt>
               <dd className="mt-1 text-xl font-semibold break-words tabular-nums">
@@ -116,7 +116,7 @@ function BalanceCard({
               </dd>
             </div>
             <div className="min-w-0">
-              <dt className="text-sm text-primary-foreground/80">
+              <dt className="text-sm text-navy-foreground/80">
                 Total withdrawals
               </dt>
               <dd className="mt-1 text-xl font-semibold break-words tabular-nums">
@@ -124,7 +124,7 @@ function BalanceCard({
               </dd>
             </div>
           </dl>
-          <p className="mt-2 text-sm text-primary-foreground/80">
+          <p className="mt-2 text-sm text-navy-foreground/80">
             Completed activity from{" "}
             <time dateTime={period.from}>{periodDay(period.from)}</time> to{" "}
             <time dateTime={period.to}>{periodDay(period.to)}</time>
@@ -141,13 +141,13 @@ function BalanceCard({
                 Transfer
               </Link>
               <Link
-                className={`${historyLink} border border-primary-foreground/45 text-primary-foreground hover:bg-primary-foreground/10 focus-visible:outline-brand-accent`}
+                className={`${historyLink} border border-navy-foreground/45 text-navy-foreground hover:bg-navy-foreground/10 focus-visible:outline-brand-accent`}
                 href="/customer/cash-requests/deposit"
               >
                 Deposit
               </Link>
               <Link
-                className={`${historyLink} border border-primary-foreground/45 text-primary-foreground hover:bg-primary-foreground/10 focus-visible:outline-brand-accent`}
+                className={`${historyLink} border border-navy-foreground/45 text-navy-foreground hover:bg-navy-foreground/10 focus-visible:outline-brand-accent`}
                 href="/customer/cash-requests/withdrawal"
               >
                 Withdraw

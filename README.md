@@ -39,6 +39,8 @@ After running the database migrations, set `DEMO_PASSWORD` in `apps/api/.env.loc
 
 Visit `/login` and use the configured demo password. The web app restores the session and opens the signed-in account's workspace. Redux Toolkit holds client UI state, and RTK Query manages requests and the session cache.
 
+Use **Appearance** on sign-in or in a workspace to select System, Light, or Dark. BankBolt remembers the choice in your browser and prints receipts in a light layout.
+
 ### Optional authenticator verification
 
 Set a stable, randomly generated 32-byte `TOTP_ENCRYPTION_KEY` as 64 hex characters on the API to enable enrollment. In **Security**, enter your account password, add the setup key to an authenticator app, and confirm with a six-digit code. Save the one-time recovery code offline. Enrolled users verify sensitive operations such as transfers, cash requests, loan decisions and payments, reversals, account controls and PIN changes. Removing an authenticator requires the password and a fresh authenticator or recovery code.

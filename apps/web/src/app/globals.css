@@ -19,10 +19,54 @@
   --accent: var(--muted);
   --accent-foreground: var(--foreground);
   --destructive: #b42318;
+  --danger-ink: #991b1b;
+  --danger-surface: #fef2f2;
+  --success-ink: #065f46;
+  --success-surface: #ecfdf5;
+  --warning-ink: #78350f;
+  --warning-surface: #fffbeb;
+  --warning-border: #d1a363;
+  --info-ink: #1e40af;
+  --info-surface: #eff6ff;
+  --active-ink: #115e59;
+  --active-surface: #f0fdfa;
+  --navy: #0b192a;
+  --navy-foreground: #ffffff;
+  --scrim: #071321;
+  --chart-withdrawal: #0f766e;
   --border: #e2e8f0;
   --input: #7a8ca3;
   --ring: var(--primary);
   --radius: 0.75rem;
+}
+
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --background: #101a2a;
+    --foreground: #edf3ff;
+    --card: #19263a;
+    --popover: #1e2c42;
+    --primary: #adc1ff;
+    --primary-foreground: #102041;
+    --muted: #233249;
+    --muted-foreground: #aebed3;
+    --destructive: #b42318;
+    --danger-ink: #ffb4af;
+    --danger-surface: #46282e;
+    --success-ink: #a6ebc9;
+    --success-surface: #1b382e;
+    --warning-ink: #ffda96;
+    --warning-surface: #43311b;
+    --warning-border: #a4783e;
+    --info-ink: #bbd1ff;
+    --info-surface: #23395c;
+    --active-ink: #9ae8dc;
+    --active-surface: #183b3e;
+    --border: #344760;
+    --input: #8498b5;
+    --chart-withdrawal: #50cdbb;
+  }
 }
 
 @theme inline {
@@ -37,7 +81,20 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-brand: var(--brand);
   --color-brand-accent: var(--brand-accent);
-  --color-navy: #0b192a;
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-scrim: var(--scrim);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-surface: var(--danger-surface);
+  --color-success-ink: var(--success-ink);
+  --color-success-surface: var(--success-surface);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
+  --color-info-ink: var(--info-ink);
+  --color-info-surface: var(--info-surface);
+  --color-active-ink: var(--active-ink);
+  --color-active-surface: var(--active-surface);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-secondary: var(--secondary);

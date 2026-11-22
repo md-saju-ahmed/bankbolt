@@ -60,11 +60,11 @@ function periodError(dates: ReportDates) {
 
 function CurrentTotals({ summary }: { summary: AdminReport["summary"] }) {
   return (
-    <Card className="flex min-w-0 flex-col justify-between border-navy bg-navy p-4 text-primary-foreground sm:p-5">
+    <Card className="flex min-w-0 flex-col justify-between border-navy bg-navy p-4 text-navy-foreground sm:p-5">
       <h2 className="text-base font-semibold">Current bank totals</h2>
       <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
-        <div className="col-span-2 min-w-0 border-b border-primary-foreground/20 pb-4">
-          <dt className="text-sm text-primary-foreground/80">
+        <div className="col-span-2 min-w-0 border-b border-navy-foreground/20 pb-4">
+          <dt className="text-sm text-navy-foreground/80">
             Total bank balance
           </dt>
           <dd className="mt-1 text-3xl font-semibold tracking-tight break-words tabular-nums sm:text-4xl">
@@ -72,7 +72,7 @@ function CurrentTotals({ summary }: { summary: AdminReport["summary"] }) {
           </dd>
         </div>
         <div className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-1">
-          <dt className="text-sm text-primary-foreground/80">
+          <dt className="text-sm text-navy-foreground/80">
             Registered customers
           </dt>
           <dd>
@@ -88,7 +88,7 @@ function CurrentTotals({ summary }: { summary: AdminReport["summary"] }) {
           </dd>
         </div>
         <div className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-1">
-          <dt className="text-sm text-primary-foreground/80">Bank accounts</dt>
+          <dt className="text-sm text-navy-foreground/80">Bank accounts</dt>
           <dd>
             <span className="block text-xl font-semibold break-words tabular-nums">
               {countFormat.format(summary.accountCount)}

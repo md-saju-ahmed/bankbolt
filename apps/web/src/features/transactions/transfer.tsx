@@ -194,7 +194,7 @@ function PinSettings({ configured }: { configured: boolean }) {
         </Button>
       )}
       {feedback && (
-        <p role="status" className="text-sm text-emerald-800">
+        <p role="status" className="text-sm text-success-ink">
           {feedback}
         </p>
       )}
@@ -241,7 +241,7 @@ function TransferSuccess({
       <div className="flex items-start gap-3">
         <CircleCheck
           aria-hidden
-          className="mt-0.5 text-emerald-700"
+          className="mt-0.5 text-success-ink"
           size={24}
         />
         <div>
@@ -487,7 +487,7 @@ function TransferForm({ userId }: { userId: string }) {
       ) : (
         <>
           {pending && (
-            <Card className="space-y-2 border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <Card className="space-y-2 border-warning-border bg-warning-surface p-4 text-warning-ink">
               <h2 className="text-sm font-semibold">
                 Check the previous transfer
               </h2>
@@ -680,7 +680,7 @@ function TransferForm({ userId }: { userId: string }) {
       >
         {review && (
           <AlertDialog.Portal>
-            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-navy/60" />
+            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
             <AlertDialog.Content
               onEscapeKeyDown={(event) => {
                 if (sending) event.preventDefault();

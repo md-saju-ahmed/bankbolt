@@ -192,7 +192,7 @@ export function LoanApplicationForm() {
             >
               Application submitted
             </h2>
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            <span className="rounded-full bg-warning-surface px-2.5 py-1 text-xs font-semibold text-warning-ink">
               {loanStatuses[result.status]}
             </span>
           </div>
@@ -213,7 +213,7 @@ export function LoanApplicationForm() {
         <Card className="max-w-3xl space-y-4 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">Application details</h2>
           {unknown && (
-            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <div className="space-y-2 rounded-md border border-warning-border bg-warning-surface p-3 text-sm text-warning-ink">
               <p role="alert">
                 The submission outcome is unknown. Check your applications
                 before submitting again.
@@ -396,7 +396,7 @@ export function LoanApplicationForm() {
       >
         {review && (
           <AlertDialog.Portal>
-            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
             <AlertDialog.Content
               onEscapeKeyDown={(event) => {
                 if (busy.current) event.preventDefault();

@@ -106,7 +106,7 @@ export function LoginForm() {
       {(feedback || blocked) && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-danger-ink"
         >
           {feedback ||
             "This account is blocked. Contact your BankBolt administrator."}

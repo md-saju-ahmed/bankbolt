@@ -183,7 +183,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
             </p>
           )}
           {uncertain && (
-            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <div className="space-y-2 rounded-md border border-warning-border bg-warning-surface p-3 text-sm text-warning-ink">
               <p role="alert">
                 The submission outcome is unknown. Check request history before
                 submitting another request.
@@ -296,7 +296,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
                   <p
                     id="cash-amount-error"
                     role="alert"
-                    className="text-sm text-destructive"
+                    className="text-sm text-danger-ink"
                   >
                     {amountError}
                   </p>
@@ -338,7 +338,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
       >
         {review && (
           <AlertDialog.Portal>
-            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
             <AlertDialog.Content
               onEscapeKeyDown={(event) => {
                 if (sending.current) event.preventDefault();

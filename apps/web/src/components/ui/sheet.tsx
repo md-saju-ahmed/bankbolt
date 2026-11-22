@@ -20,7 +20,7 @@ export function SheetContent({
 }) {
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+      <Dialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
       <Dialog.Content
         aria-describedby={undefined}
         onCloseAutoFocus={onCloseAutoFocus}

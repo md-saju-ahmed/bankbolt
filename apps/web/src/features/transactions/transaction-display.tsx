@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 import { transactionStatuses, type Transaction } from "./transactions-api";
 
 const statusStyles = {
-  COMPLETED: "bg-emerald-50 text-emerald-800",
-  PENDING: "bg-amber-50 text-amber-800",
-  FAILED: "bg-red-50 text-red-800",
-  REVERSED: "bg-slate-100 text-slate-700",
+  COMPLETED: "bg-success-surface text-success-ink",
+  PENDING: "bg-warning-surface text-warning-ink",
+  FAILED: "bg-danger-surface text-danger-ink",
+  REVERSED: "bg-muted text-muted-foreground",
 };
 
 export const directions = {

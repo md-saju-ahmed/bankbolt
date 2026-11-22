@@ -24,6 +24,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { ThemeMenu } from "@/components/theme-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -392,7 +393,10 @@ function Workspace({
               <span className="hidden sm:inline"> workspace</span>
             </span>
           </div>
-          <AccountMenu user={user} />
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeMenu />
+            <AccountMenu user={user} />
+          </div>
         </header>
         <main
           ref={main}

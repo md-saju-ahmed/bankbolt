@@ -68,7 +68,7 @@ function Activation({
         <Button className={secondaryStyle}>Activate</Button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 max-h-[90svh] w-[calc(100%-2rem)] max-w-md -translate-1/2 overflow-auto rounded-xl border bg-card p-5 shadow-lg sm:p-6">
           <Dialog.Title className="text-lg font-semibold">
             Activate account?

@@ -27,10 +27,10 @@ export function Status({
       className={cn(
         "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
         ["ACTIVE", "VERIFIED"].includes(value)
-          ? "bg-emerald-50 text-emerald-800"
+          ? "bg-success-surface text-success-ink"
           : ["BLOCKED", "REJECTED", "FROZEN"].includes(value)
-            ? "bg-red-50 text-red-800"
-            : "bg-slate-100 text-slate-700",
+            ? "bg-danger-surface text-danger-ink"
+            : "bg-muted text-muted-foreground",
       )}
     >
       {labels[value] ?? value}
@@ -197,7 +197,7 @@ export function ConfirmAction({
         <Button
           className={
             dangerous
-              ? "border border-destructive/35 text-destructive hover:bg-destructive/5"
+              ? "border border-destructive/35 text-danger-ink hover:bg-destructive/5"
               : secondaryStyle
           }
         >
@@ -205,7 +205,7 @@ export function ConfirmAction({
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
         <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 max-h-[90svh] w-[calc(100%-2rem)] max-w-md -translate-1/2 overflow-auto rounded-xl border bg-card p-5 shadow-lg sm:p-6">
           <AlertDialog.Title className="text-lg font-semibold">
             {title}

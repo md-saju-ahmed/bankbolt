@@ -255,7 +255,7 @@ export function CashReviewDetail({
       >
         {action && record && (
           <AlertDialog.Portal>
-            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-foreground/55" />
+            <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
             <AlertDialog.Content
               onEscapeKeyDown={(event) => {
                 if (lock.current) event.preventDefault();
