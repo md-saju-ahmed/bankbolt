@@ -329,7 +329,7 @@ export async function repayInstallment(
       owner,
       "no key update",
     );
-    if (account.balancePoisha < amountPoisha)
+    if (account.balancePoisha - account.heldBalancePoisha < amountPoisha)
       throw new ApiError(
         422,
         "INSUFFICIENT_FUNDS",

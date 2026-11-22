@@ -17,7 +17,8 @@ import type { cashRequestFilters, cashRequestInput } from "./validation.ts";
 
 type Reader = Pick<ReturnType<typeof getDatabase>, "select">;
 type CashRequest = typeof cashRequests.$inferSelect;
-type Decision = { status: "APPROVED" } | { status: "REJECTED"; reason: string };
+type Decision =
+  { status: "APPROVED" | "CANCELLED" } | { status: "REJECTED"; reason: string };
 const requester = alias(users, "cash_requester");
 const reviewActor = alias(users, "cash_reviewer");
 
@@ -136,6 +137,8 @@ export function createCashRequest(
       .select({
         number: bankAccounts.accountNumber,
         status: bankAccounts.status,
+        balancePoisha: bankAccounts.balancePoisha,
+        heldBalancePoisha: bankAccounts.heldBalancePoisha,
       })
       .from(bankAccounts)
       .where(
@@ -144,13 +147,34 @@ export function createCashRequest(
           eq(bankAccounts.customerId, owner.id),
         ),
       )
-      .for("share");
+      .for("no key update");
     if (!account) throw missingAccount();
     assertFinancialAccountEligible({ status: account.status, ...owner });
 
+    const fundsReserved = input.type === "WITHDRAWAL";
+    if (fundsReserved) {
+      if (
+        input.amountPoisha >
+        account.balancePoisha - account.heldBalancePoisha
+      ) {
+        throw new ApiError(
+          422,
+          "INSUFFICIENT_FUNDS",
+          "The account cannot cover the withdrawal.",
+        );
+      }
+      await tx
+        .update(bankAccounts)
+        .set({
+          heldBalancePoisha: account.heldBalancePoisha + input.amountPoisha,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankAccounts.id, input.accountId));
+    }
+
     const [created] = await tx
       .insert(cashRequests)
-      .values({ ...input, customerId: owner.id })
+      .values({ ...input, customerId: owner.id, fundsReserved })
       .returning();
     return requestView(created, account.number);
   });
@@ -173,34 +197,46 @@ export function decideCashRequest(
       eq(customerProfiles.id, request.customerId),
     );
     if (!owner) throw missingRequest();
-    if (owner.userId === reviewerId) {
-      throw new ApiError(
-        403,
-        "SELF_REVIEW",
-        "You cannot review your own cash request.",
-      );
-    }
+    const cancelled = decision.status === "CANCELLED";
+    if (cancelled) {
+      if (
+        owner.userId !== reviewerId ||
+        owner.role !== "CUSTOMER" ||
+        owner.blocked ||
+        !owner.accessActive
+      ) {
+        throw missingRequest();
+      }
+    } else {
+      if (owner.userId === reviewerId) {
+        throw new ApiError(
+          403,
+          "SELF_REVIEW",
+          "You cannot review your own cash request.",
+        );
+      }
 
-    const [reviewer] = await tx
-      .select({
-        role: users.role,
-        blocked: users.blocked,
-        active: users.accessActive,
-      })
-      .from(users)
-      .where(eq(users.id, reviewerId))
-      .for("share");
-    if (
-      !reviewer ||
-      reviewer.blocked ||
-      !reviewer.active ||
-      (reviewer.role !== "ADMIN" && reviewer.role !== "STAFF")
-    ) {
-      throw new ApiError(
-        403,
-        "FORBIDDEN",
-        "This cash request requires an active Staff or Admin reviewer.",
-      );
+      const [reviewer] = await tx
+        .select({
+          role: users.role,
+          blocked: users.blocked,
+          active: users.accessActive,
+        })
+        .from(users)
+        .where(eq(users.id, reviewerId))
+        .for("share");
+      if (
+        !reviewer ||
+        reviewer.blocked ||
+        !reviewer.active ||
+        (reviewer.role !== "ADMIN" && reviewer.role !== "STAFF")
+      ) {
+        throw new ApiError(
+          403,
+          "FORBIDDEN",
+          "This cash request requires an active Staff or Admin reviewer.",
+        );
+      }
     }
     if (request.status !== "PENDING") {
       throw new ApiError(
@@ -222,6 +258,15 @@ export function decideCashRequest(
       .for("no key update");
     if (!account) throw missingAccount();
     const reviewedAt = new Date();
+    const heldBalancePoisha =
+      account.heldBalancePoisha -
+      (request.fundsReserved ? request.amountPoisha : 0n);
+    if (request.fundsReserved && decision.status !== "APPROVED") {
+      await tx
+        .update(bankAccounts)
+        .set({ heldBalancePoisha, updatedAt: reviewedAt })
+        .where(eq(bankAccounts.id, account.id));
+    }
     let transactionReference: string | null = null;
     if (decision.status === "APPROVED") {
       if (owner.role !== "CUSTOMER") {
@@ -236,7 +281,7 @@ export function decideCashRequest(
       const balancePoisha =
         account.balancePoisha +
         (deposit ? request.amountPoisha : -request.amountPoisha);
-      if (balancePoisha < 0n) {
+      if (balancePoisha < heldBalancePoisha) {
         throw new ApiError(
           422,
           "INSUFFICIENT_FUNDS",
@@ -252,7 +297,7 @@ export function decideCashRequest(
       }
       await tx
         .update(bankAccounts)
-        .set({ balancePoisha, updatedAt: reviewedAt })
+        .set({ balancePoisha, heldBalancePoisha, updatedAt: reviewedAt })
         .where(eq(bankAccounts.id, account.id));
       const [posting] = await tx
         .insert(transactions)
@@ -274,8 +319,10 @@ export function decideCashRequest(
       .update(cashRequests)
       .set({
         status: decision.status,
-        reviewedBy: reviewerId,
-        reviewedAt,
+        reviewedBy: cancelled ? null : reviewerId,
+        reviewedAt: cancelled ? null : reviewedAt,
+        cancelledAt: cancelled ? reviewedAt : null,
+        fundsReserved: false,
         rejectionReason:
           decision.status === "REJECTED" ? decision.reason : null,
       })

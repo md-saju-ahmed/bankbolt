@@ -575,7 +575,7 @@ function TransferForm({ userId }: { userId: string }) {
                           Available balance
                         </dt>
                         <dd className="break-words font-semibold tabular-nums">
-                          {formatTaka(source.balancePoisha)}
+                          {formatTaka(source.availableBalancePoisha)}
                         </dd>
                       </div>
                       <div>

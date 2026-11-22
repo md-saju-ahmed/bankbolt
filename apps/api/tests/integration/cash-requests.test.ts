@@ -92,12 +92,16 @@ function postings(...requestIds: string[]) {
     .where(inArray(transactions.cashRequestId, requestIds));
 }
 
-async function expectBalance(value: bigint) {
+async function expectBalance(value: bigint, held = 0n) {
   const [account] = await db
-    .select({ balance: bankAccounts.balancePoisha })
+    .select({
+      balance: bankAccounts.balancePoisha,
+      held: bankAccounts.heldBalancePoisha,
+    })
     .from(bankAccounts)
     .where(eq(bankAccounts.id, ownerAccount.id));
   expect(account.balance).toBe(value);
+  expect(account.held).toBe(held);
 }
 
 beforeAll(async () => {
@@ -192,7 +196,7 @@ beforeEach(async () => {
     .where(eq(users.id, ids.get("owner")!));
   await db
     .update(bankAccounts)
-    .set({ status: "ACTIVE", balancePoisha: 30_000n })
+    .set({ status: "ACTIVE", balancePoisha: 30_000n, heldBalancePoisha: 0n })
     .where(inArray(bankAccounts.id, [...accountIds.values()]));
 });
 
@@ -217,7 +221,7 @@ afterAll(async () => {
   }
 });
 
-it("creates pending requests with server dates, exact amounts and no holds", async () => {
+it("creates pending requests with server dates, exact amounts and withdrawal holds", async () => {
   await request(app).get(prefix).expect(401);
   await post("staff", "", input()).expect(403);
   await post("neighbor", "", input()).expect(404);
@@ -234,7 +238,7 @@ it("creates pending requests with server dates, exact amounts and no holds", asy
   const response = await post(
     "owner",
     "",
-    input({ amountPoisha: "9007199254740993" }),
+    input({ type: "DEPOSIT", amountPoisha: "9007199254740993" }),
   ).expect(201);
   const row = response.body.request;
   expect(response.headers["cache-control"]).toBe("no-store");
@@ -243,7 +247,7 @@ it("creates pending requests with server dates, exact amounts and no holds", asy
     accountNumber: ownerAccount.accountNumber,
     amountPoisha: "9007199254740993",
     status: "PENDING",
-    type: "WITHDRAWAL",
+    type: "DEPOSIT",
     transactionReference: null,
   });
   expect(typeof row.createdAt).toBe("string");
@@ -253,6 +257,8 @@ it("creates pending requests with server dates, exact amounts and no holds", asy
   await get("owner", `/${row.id}`).expect(200, response.body);
   await get("neighbor", `/${row.id}`).expect(404);
   await get("neighbor").expect(200, { requests: [], hasNextPage: false });
+  await submit();
+  await expectBalance(30_000n, 10_000n);
   await db
     .update(bankAccounts)
     .set({ status: "FROZEN" })
@@ -317,7 +323,7 @@ it("posts both approval types once with linked history and no fee", async () => 
     .set("Origin", "https://example.invalid")
     .expect(403);
   const credited = await post("staff", `/${deposit}/approve`).expect(200);
-  await expectBalance(30_125n);
+  await expectBalance(30_125n, 1000n);
   const debited = await post("admin", `/${withdrawal}/approve`).expect(200);
   await expectBalance(29_125n);
   expect(credited.body.request).toMatchObject({
@@ -416,7 +422,7 @@ it.each(["STAFF", "ADMIN"] as const)(
     await post("owner", `/${id}/reject`, { reason: "Self review" }).expect(403);
     await pending(id);
     expect(await postings(id)).toHaveLength(0);
-    await expectBalance(30_000n);
+    await expectBalance(30_000n, 10_000n);
   },
 );
 
@@ -424,7 +430,15 @@ it("rechecks balance and account restrictions at approval time", async () => {
   const withdrawal = await submit();
   const deposit = await submit({ type: "DEPOSIT" });
   const account = eq(bankAccounts.id, ownerAccount.id);
-  await db.update(bankAccounts).set({ balancePoisha: 1n }).where(account);
+  // Requests created before the migration had no reservation.
+  await db
+    .update(cashRequests)
+    .set({ fundsReserved: false })
+    .where(eq(cashRequests.id, withdrawal));
+  await db
+    .update(bankAccounts)
+    .set({ balancePoisha: 1n, heldBalancePoisha: 0n })
+    .where(account);
   const short = await post("staff", `/${withdrawal}/approve`).expect(422);
   expect(short.body.error.code).toBe("INSUFFICIENT_FUNDS");
   await db
@@ -493,17 +507,44 @@ it("persists one outcome when approval and rejection race", async () => {
 });
 
 it("serializes concurrent withdrawals against the same available balance", async () => {
-  const first = await submit({ amountPoisha: "20000" });
-  const second = await submit({ amountPoisha: "20000" });
   const results = await Promise.all([
-    post("staff", `/${first}/approve`),
-    post("admin", `/${second}/approve`),
+    post("owner", "", input({ amountPoisha: "20000" })),
+    post("owner", "", input({ amountPoisha: "20000" })),
   ]);
-  expect(results.map((result) => result.status).sort()).toEqual([200, 422]);
-  const loser = results[0].status === 422 ? first : second;
-  await pending(loser);
-  expect(await postings(first, second)).toHaveLength(1);
+  expect(results.map((result) => result.status).sort()).toEqual([201, 422]);
+  const id = results.find((result) => result.status === 201)!.body.request.id;
+  await expectBalance(30_000n, 20_000n);
+  await post("staff", `/${id}/approve`).expect(200);
+  expect(await postings(id)).toHaveLength(1);
   await expectBalance(10_000n);
+});
+
+it("allows only the owner to cancel and serializes cancellation with approval", async () => {
+  const id = await submit();
+  await post("neighbor", `/${id}/cancel`).expect(404);
+  await post("staff", `/${id}/cancel`).expect(403);
+  await post("owner", `/${id}/cancel`)
+    .set("Origin", "https://example.invalid")
+    .expect(403);
+  const [cancel, approve] = await Promise.all([
+    post("owner", `/${id}/cancel`),
+    post("staff", `/${id}/approve`),
+  ]);
+  expect([cancel.status, approve.status].sort()).toEqual([200, 409]);
+  const cancelled = cancel.status === 200;
+  expect(await postings(id)).toHaveLength(cancelled ? 0 : 1);
+  await expectBalance(cancelled ? 30_000n : 20_000n);
+  await post("owner", `/${id}/cancel`).expect(409);
+
+  const pendingId = await submit();
+  const result = await post("owner", `/${pendingId}/cancel`).expect(200);
+  expect(result.body.request).toMatchObject({
+    status: "CANCELLED",
+    reviewedBy: null,
+  });
+  expect(result.body.request.cancelledAt).toEqual(expect.any(String));
+  expect(await postings(pendingId)).toHaveLength(0);
+  await expectBalance(cancelled ? 30_000n : 20_000n);
 });
 
 it("rolls back the balance and leaves the request pending if posting fails", async () => {
@@ -513,7 +554,7 @@ it("rolls back the balance and leaves the request pending if posting fails", asy
   try {
     await post("staff", `/${id}/approve`).expect(500);
     await pending(id);
-    await expectBalance(30_000n);
+    await expectBalance(30_000n, 10_000n);
     expect(await postings(id)).toHaveLength(0);
   } finally {
     await db.execute(
@@ -537,7 +578,7 @@ it.each(["PENDING", "FROZEN", "DEACTIVATED"] as const)(
     expect(response.body.error.code).toBe("ACCOUNT_RESTRICTED");
     await pending(id);
     expect(await postings(id)).toHaveLength(0);
-    await expectBalance(30_000n);
+    await expectBalance(30_000n, 10_000n);
   },
 );
 

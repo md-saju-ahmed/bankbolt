@@ -38,7 +38,7 @@ import {
 } from "./cash-requests-api";
 
 const withdrawalNotice =
-  "Funds stay available while the request is pending. The balance is checked at approval.";
+  "The requested amount is held until the withdrawal is approved, rejected, or cancelled.";
 
 function positivePoisha(value: string) {
   const amount = parseTakaInput(value);
@@ -259,7 +259,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
                 <p className="text-sm text-muted-foreground">
                   Available balance{" "}
                   <span className="font-semibold tabular-nums text-foreground">
-                    {formatTaka(selected.balancePoisha)}
+                    {formatTaka(selected.availableBalancePoisha)}
                   </span>
                 </p>
               )}

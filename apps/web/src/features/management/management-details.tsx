@@ -215,7 +215,7 @@ export function AccountDetails({ id, admin }: { id: string; admin: boolean }) {
           ["Account number", account.accountNumber],
           ["Customer", account.ownerName],
           ["Customer email", account.ownerEmail],
-          ["Available balance", formatTaka(account.balancePoisha)],
+          ["Available balance", formatTaka(account.availableBalancePoisha)],
           ["Maximum per transfer", formatTaka(account.transferLimitPoisha)],
           [
             "Daily outgoing limit",

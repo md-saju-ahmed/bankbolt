@@ -131,6 +131,9 @@ export const bankAccounts = pgTable(
     balancePoisha: bigint("balance_poisha", { mode: "bigint" })
       .notNull()
       .default(sql`0`),
+    heldBalancePoisha: bigint("held_balance_poisha", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
     transferLimitPoisha: bigint("transfer_limit_poisha", { mode: "bigint" })
       .notNull()
       .default(sql`5000000`),
@@ -162,6 +165,10 @@ export const bankAccounts = pgTable(
     check(
       "bank_accounts_nonnegative_balance",
       sql`${table.balancePoisha} >= 0`,
+    ),
+    check(
+      "bank_accounts_valid_hold",
+      sql`${table.heldBalancePoisha} between 0 and ${table.balancePoisha}`,
     ),
     check(
       "bank_accounts_nonnegative_limits",
@@ -223,6 +230,7 @@ export const cashRequestStatus = pgEnum("cash_request_status", [
   "PENDING",
   "APPROVED",
   "REJECTED",
+  "CANCELLED",
 ]);
 
 export const cashRequests = pgTable(
@@ -245,6 +253,8 @@ export const cashRequests = pgTable(
     reviewedBy: uuid("reviewed_by").references(() => users.id),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     rejectionReason: text("rejection_reason"),
+    fundsReserved: boolean("funds_reserved").notNull().default(false),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   },
   (table) => [
     index("cash_requests_customer_time_idx").on(
@@ -252,11 +262,19 @@ export const cashRequests = pgTable(
       table.createdAt,
     ),
     index("cash_requests_status_time_idx").on(table.status, table.createdAt),
+    check(
+      "cash_requests_valid_reservation",
+      sql`not ${table.fundsReserved} or (${table.type} = 'WITHDRAWAL' and ${table.status} = 'PENDING')`,
+    ),
+    check(
+      "cash_requests_cancellation_time",
+      sql`(${table.status}::text = 'CANCELLED') = (${table.cancelledAt} is not null)`,
+    ),
     check("cash_requests_positive_amount", sql`${table.amountPoisha} > 0`),
     check(
       "cash_requests_review_fields",
       sql`case
-      when ${table.status} = 'PENDING' then
+      when ${table.status}::text in ('PENDING', 'CANCELLED') then
         ${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.rejectionReason} is null
       when ${table.status} = 'APPROVED' then
         ${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.rejectionReason} is null

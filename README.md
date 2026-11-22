@@ -63,8 +63,9 @@ Staff and Admin use **Cash request review** to filter the queue, inspect request
 
 Staff can flag a transaction for Admin from its detail page with a reason. The Admin **Transaction flags** queue shows open and resolved flags. Resolving a flag records the reviewer, time, and optional note.
 
-- Customers submit a deposit or withdrawal through `POST /api/v1/cash-requests` with `accountId`, `type` (`DEPOSIT` or `WITHDRAWAL`), `amountPoisha` as a positive decimal string, and `description`. The server records the request date. Pending withdrawals leave the posted balance available.
+- Customers submit a deposit or withdrawal through `POST /api/v1/cash-requests` with `accountId`, `type` (`DEPOSIT` or `WITHDRAWAL`), `amountPoisha` as a positive decimal string, and `description`. The server records the request date. New pending withdrawals reserve funds. Available balance is posted balance minus holds. Approval posts the withdrawal and consumes the hold. Rejection releases it. Requests created before reservations were introduced are checked against available funds at approval.
 - `GET /api/v1/cash-requests` lists requests with optional `status`, `type`, and `page` filters, and `GET /api/v1/cash-requests/{id}` returns one request. Customers can view only their own requests. Staff and Admin can view the review queue.
+- Customers can POST to `/api/v1/cash-requests/{id}/cancel` to cancel their own pending request. Cancellation releases any hold and creates no transaction.
 - Staff and Admin can POST to `/api/v1/cash-requests/{id}/approve` or `/api/v1/cash-requests/{id}/reject`. Reject requires a `reason`. Approval returns the reference for one posted transaction. Rejection leaves the balance intact. Repeated decisions return HTTP 409. Read the request detail to recover the recorded decision if a response is lost.
 
 ### Loan catalog and schedules API

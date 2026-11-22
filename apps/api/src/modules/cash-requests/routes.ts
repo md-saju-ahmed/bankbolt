@@ -51,6 +51,21 @@ cashRequestsRouter.post(
 );
 
 cashRequestsRouter.post(
+  "/:id/cancel",
+  requireWebOrigin,
+  requireRole("CUSTOMER"),
+  async (request, response) => {
+    const { id } = cashRequestParams.parse(request.params);
+    approvalInput.parse(request.body);
+    response.json({
+      request: await decideCashRequest(currentIdentity(request).id, id, {
+        status: "CANCELLED",
+      }),
+    });
+  },
+);
+
+cashRequestsRouter.post(
   "/:id/approve",
   requireWebOrigin,
   requireRole("ADMIN", "STAFF"),

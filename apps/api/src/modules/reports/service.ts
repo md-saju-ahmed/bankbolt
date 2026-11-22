@@ -165,7 +165,7 @@ function accountTotals(db: ReportTransaction, scope?: CustomerScope) {
     .select({
       type: bankAccounts.type,
       count: count(),
-      balance: sql<string>`sum(${bankAccounts.balancePoisha})::text`,
+      balance: sql<string>`sum(${scope ? sql`${bankAccounts.balancePoisha} - ${bankAccounts.heldBalancePoisha}` : bankAccounts.balancePoisha})::text`,
     })
     .from(bankAccounts)
     .where(

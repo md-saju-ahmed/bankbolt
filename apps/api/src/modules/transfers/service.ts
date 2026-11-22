@@ -41,7 +41,7 @@ function transferTerms(
       "The amount exceeds the account's per-transfer limit.",
     );
   }
-  if (totalDebit > source.balancePoisha) {
+  if (totalDebit > source.balancePoisha - source.heldBalancePoisha) {
     throw new ApiError(
       422,
       "INSUFFICIENT_FUNDS",

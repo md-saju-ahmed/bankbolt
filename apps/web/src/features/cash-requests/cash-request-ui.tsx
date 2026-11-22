@@ -67,6 +67,7 @@ export function CashRequestHeader({
 const statusStyles = {
   PENDING: "bg-amber-50 text-amber-800",
   APPROVED: "bg-emerald-50 text-emerald-800",
+  CANCELLED: "bg-muted text-muted-foreground",
   REJECTED: "bg-red-50 text-red-800",
 };
 

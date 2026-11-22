@@ -34,6 +34,8 @@ export type Account = {
   type: AccountType;
   status: "PENDING" | "ACTIVE" | "FROZEN" | "DEACTIVATED";
   balancePoisha: string;
+  heldBalancePoisha: string;
+  availableBalancePoisha: string;
   transferLimitPoisha: string;
   dailyTransferLimitPoisha: string;
   businessName: string | null;

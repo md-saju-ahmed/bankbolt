@@ -69,7 +69,7 @@ function RepaymentFields() {
       </label>
       {selected && (
         <p id="loan-payment-balance" className="text-sm text-muted-foreground">
-          Available balance {formatTaka(selected.balancePoisha)}
+          Available balance {formatTaka(selected.availableBalancePoisha)}
         </p>
       )}
       {query.isError ? (

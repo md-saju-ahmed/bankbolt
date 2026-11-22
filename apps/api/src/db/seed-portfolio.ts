@@ -236,6 +236,7 @@ export async function seedPortfolio(
       initiatedBy: staff.id,
     });
   }
+  const pendingWithdrawalPoisha = 150_000n;
   await tx.insert(cashRequests).values([
     {
       accountId: savings.id,
@@ -248,7 +249,8 @@ export async function seedPortfolio(
       accountId: current.id,
       customerId: owner.id,
       type: "WITHDRAWAL",
-      amountPoisha: 150_000n,
+      amountPoisha: pendingWithdrawalPoisha,
+      fundsReserved: true,
       description: "Cash withdrawal awaiting review",
     },
   ]);
@@ -386,7 +388,11 @@ export async function seedPortfolio(
   for (const [id, balancePoisha] of balances) {
     await tx
       .update(bankAccounts)
-      .set({ balancePoisha, updatedAt: now })
+      .set({
+        balancePoisha,
+        heldBalancePoisha: id === current.id ? pendingWithdrawalPoisha : 0n,
+        updatedAt: now,
+      })
       .where(eq(bankAccounts.id, id));
   }
   return true;

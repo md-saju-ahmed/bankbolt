@@ -9,6 +9,7 @@ export const cashRequestStatuses = {
   PENDING: "Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
 } as const;
 
 export type CashRequestType = keyof typeof cashRequestTypes;
@@ -55,7 +56,28 @@ const cashRequestsApi = baseApi.injectEndpoints({
         body,
         timeout: 15_000,
       }),
-      invalidatesTags: (result) => (result ? ["CashRequests"] : []),
+      invalidatesTags: (result) =>
+        result
+          ? [
+              "CashRequests",
+              "OwnedAccounts",
+              "Management",
+              "OnboardingAccounts",
+            ]
+          : [],
+    }),
+    cancelCashRequest: build.mutation<{ request: CashRequest }, string>({
+      query: (id) => ({
+        url: `/cash-requests/${encodeURIComponent(id)}/cancel`,
+        method: "POST",
+        body: {},
+      }),
+      invalidatesTags: [
+        "CashRequests",
+        "OwnedAccounts",
+        "Management",
+        "OnboardingAccounts",
+      ],
     }),
     cashReviewQueue: build.query<
       { requests: ReviewCashRequest[]; hasNextPage: boolean },
@@ -93,7 +115,12 @@ const cashRequestsApi = baseApi.injectEndpoints({
               "OnboardingAccounts",
               "Transactions",
             ]
-          : ["CashRequests"];
+          : [
+              "CashRequests",
+              "OwnedAccounts",
+              "Management",
+              "OnboardingAccounts",
+            ];
       },
     }),
   }),
@@ -102,6 +129,7 @@ const cashRequestsApi = baseApi.injectEndpoints({
 export const {
   useCustomerCashRequestsQuery,
   useSubmitCashRequestMutation,
+  useCancelCashRequestMutation,
   useCashReviewQueueQuery,
   useCashRequestReviewQuery,
   useDecideCashRequestMutation,

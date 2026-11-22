@@ -94,7 +94,11 @@ export function MyAccounts() {
             <div className="rounded-lg border bg-muted p-4 sm:p-5">
               <p className="text-sm text-muted-foreground">Available balance</p>
               <p className="mt-1 break-all text-3xl font-semibold tabular-nums">
-                {formatTaka(account.balancePoisha)}
+                {formatTaka(account.availableBalancePoisha)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Posted {formatTaka(account.balancePoisha)} ? Held{" "}
+                {formatTaka(account.heldBalancePoisha)}
               </p>
               <div className="mt-3">
                 <Status value={account.status} labels={accountStatuses} />

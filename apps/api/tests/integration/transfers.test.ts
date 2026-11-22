@@ -412,7 +412,14 @@ it("rejects restrictions, insufficient fee-inclusive balance and recipient overf
   expect((await post(payload()).expect(422)).body.error.code).toBe(
     "INSUFFICIENT_FUNDS",
   );
-  await changeAccount(source, { balancePoisha: 30_000n });
+  await changeAccount(source, {
+    balancePoisha: 30_000n,
+    heldBalancePoisha: 20_000n,
+  });
+  expect((await post(payload()).expect(422)).body.error.code).toBe(
+    "INSUFFICIENT_FUNDS",
+  );
+  await changeAccount(source, { heldBalancePoisha: 0n });
   await changeAccount(otherRecipient, { balancePoisha: maxPoisha });
   expect((await post(payload()).expect(422)).body.error.code).toBe(
     "RECIPIENT_BALANCE_LIMIT",

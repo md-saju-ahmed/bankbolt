@@ -141,6 +141,10 @@ export function accountView(account: BankAccount) {
     type: account.type,
     status: account.status,
     balancePoisha: account.balancePoisha.toString(),
+    heldBalancePoisha: account.heldBalancePoisha.toString(),
+    availableBalancePoisha: (
+      account.balancePoisha - account.heldBalancePoisha
+    ).toString(),
     transferLimitPoisha: account.transferLimitPoisha.toString(),
     dailyTransferLimitPoisha: account.dailyTransferLimitPoisha.toString(),
     businessName: account.businessName,
