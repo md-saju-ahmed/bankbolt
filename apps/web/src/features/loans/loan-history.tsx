@@ -121,6 +121,8 @@ export function LoanRepaymentHistory({
                 <p className="text-sm text-muted-foreground">
                   Principal {formatTaka(payment.principalPoisha)} · Interest{" "}
                   {formatTaka(payment.interestPoisha)}
+                  {payment.overdueInterestPoisha !== "0" &&
+                    ` ? Overdue interest ${formatTaka(payment.overdueInterestPoisha)}`}
                 </p>
               </div>
               <Link

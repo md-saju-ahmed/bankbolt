@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import { getDatabase } from "../../db/client.ts";
 import {
   bankAccounts,
@@ -26,6 +26,7 @@ import {
   assertApplicantEligibility,
   assertLoanAffordability,
 } from "./eligibility.ts";
+import { installmentAccrual } from "./calculations.ts";
 import { assertApplicationTerms } from "./validation.ts";
 
 async function lockLoanOwner(
@@ -259,6 +260,7 @@ export async function repayInstallment(
   number: number,
   accountId: string,
   pin: string,
+  expectedAmountPoisha?: bigint,
 ) {
   const db = getDatabase();
   const [owned] = await db
@@ -309,8 +311,6 @@ export async function repayInstallment(
       );
     if (!installment)
       throw new ApiError(404, "NOT_FOUND", "Installment not found.");
-    const amountPoisha =
-      installment.principalPoisha + installment.interestPoisha;
     if (installment.repaymentTransactionId) {
       const [posting] = await tx
         .select({
@@ -326,7 +326,7 @@ export async function repayInstallment(
             eq(transactions.status, "COMPLETED"),
           ),
         );
-      if (!posting || posting.amountPoisha !== amountPoisha)
+      if (!posting || posting.amountPoisha !== installment.paidAmountPoisha)
         throw ledgerMismatch();
       if (posting.accountId !== accountId)
         throw new ApiError(
@@ -336,12 +336,28 @@ export async function repayInstallment(
         );
       return {
         reference: posting.reference,
-        amountPoisha: amountPoisha.toString(),
+        amountPoisha: posting.amountPoisha.toString(),
       };
     }
 
+    const [oldestUnpaid] = await tx
+      .select({ id: loanInstallments.id })
+      .from(loanInstallments)
+      .where(
+        and(eq(loanInstallments.loanId, id), isNull(loanInstallments.paidAt)),
+      )
+      .orderBy(asc(loanInstallments.number))
+      .limit(1);
+    if (oldestUnpaid?.id !== installment.id)
+      throw new ApiError(
+        409,
+        "INSTALLMENT_OUT_OF_ORDER",
+        "Pay the oldest unpaid installment first.",
+      );
+
     const now = new Date();
-    if (installment.dueDate > dhakaDate(now))
+    const today = dhakaDate(now);
+    if (installment.dueDate > today)
       throw new ApiError(
         409,
         "INSTALLMENT_NOT_DUE",
@@ -356,6 +372,23 @@ export async function repayInstallment(
       owner,
       "no key update",
     );
+    const { overdueInterestPoisha } = installmentAccrual(
+      installment,
+      loan.annualRateBps,
+      today,
+    );
+    // Full payment covers scheduled and overdue interest before reducing principal.
+    const interestPoisha = installment.interestPoisha + overdueInterestPoisha;
+    const amountPoisha = interestPoisha + installment.principalPoisha;
+    if (
+      expectedAmountPoisha !== undefined &&
+      expectedAmountPoisha !== amountPoisha
+    )
+      throw new ApiError(
+        409,
+        "INSTALLMENT_AMOUNT_CHANGED",
+        "The payment amount changed. Review the updated amount.",
+      );
     if (account.balancePoisha - account.heldBalancePoisha < amountPoisha)
       throw new ApiError(
         422,
@@ -404,6 +437,7 @@ export async function repayInstallment(
       .set({
         paidAt: now,
         paidAmountPoisha: amountPoisha,
+        paidOverdueInterestPoisha: overdueInterestPoisha,
         repaymentTransactionId: posting.id,
       })
       .where(eq(loanInstallments.id, installment.id));

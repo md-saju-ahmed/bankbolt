@@ -68,6 +68,7 @@ export const loanRepaymentParams = z.strictObject({
 export const loanRepaymentInput = z.strictObject({
   accountId: z.uuid(),
   pin: transactionPin,
+  expectedAmountPoisha: nonnegativePoisha.optional(),
 });
 
 export function assertApplicationTerms(terms: z.infer<typeof termsInput>) {

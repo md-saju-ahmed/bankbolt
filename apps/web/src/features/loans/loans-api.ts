@@ -52,6 +52,9 @@ export type LoanInstallment = {
   principalPoisha: string;
   interestPoisha: string;
   totalPoisha: string;
+  overdueInterestPoisha: string;
+  amountDuePoisha: string | null;
+  status: "PAID" | "OVERDUE" | "IN_GRACE" | "DUE" | "SCHEDULED";
   paidAmountPoisha: string | null;
   paidAt: string | null;
   repaymentReference: string | null;
@@ -161,7 +164,13 @@ const loansApi = baseApi.injectEndpoints({
     }),
     repayLoan: build.mutation<
       LoanReceipt,
-      { id: string; number: number; accountId: string; pin: string }
+      {
+        id: string;
+        number: number;
+        accountId: string;
+        pin: string;
+        expectedAmountPoisha: string;
+      }
     >({
       query: ({ id, number, ...body }) => ({
         url: `/loans/${id}/installments/${number}/repay`,

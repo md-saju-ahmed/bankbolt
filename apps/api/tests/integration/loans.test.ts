@@ -612,7 +612,7 @@ it("reconciles the application, schedule, receipts and balance through final pay
     await repay("owner", 1).expect(409);
     await db
       .update(loanInstallments)
-      .set({ dueDate: "2000-01-01" })
+      .set({ dueDate: dhakaDate(new Date()) })
       .where(eq(loanInstallments.loanId, id));
     await repay("owner", 1, { accountId: accounts.get("neighbor") }).expect(
       404,
@@ -747,7 +747,7 @@ it("serializes concurrent repayments from the same account across loans", async 
       await reviewAction("admin", id, "disburse").expect(200);
     await db
       .update(loanInstallments)
-      .set({ dueDate: "2000-01-01" })
+      .set({ dueDate: dhakaDate(new Date()) })
       .where(inArray(loanInstallments.loanId, ids));
     await db
       .update(bankAccounts)
@@ -1163,5 +1163,101 @@ it("serializes disbursements even when approved applications use different accou
       .update(bankAccounts)
       .set({ balancePoisha: 0n })
       .where(eq(bankAccounts.id, accounts.get("owner")!));
+  }
+});
+
+it("tracks grace and overdue interest and posts only the oldest installment once", async () => {
+  const id = await approvedLoan();
+  const accountId = accounts.get("owner")!;
+  const account = eq(bankAccounts.id, accountId);
+  const today = dhakaDate(new Date());
+  const daysAgo = (days: number) =>
+    new Date(Date.parse(today) - days * 86_400_000).toISOString().slice(0, 10);
+  await db
+    .update(bankAccounts)
+    .set({ status: "ACTIVE", balancePoisha: 0n })
+    .where(account);
+  try {
+    await reviewAction("admin", id, "disburse").expect(200);
+    for (const [number, days] of [
+      [1, 8],
+      [2, 7],
+    ]) {
+      await db
+        .update(loanInstallments)
+        .set({ dueDate: daysAgo(days) })
+        .where(
+          and(
+            eq(loanInstallments.loanId, id),
+            eq(loanInstallments.number, number),
+          ),
+        );
+    }
+    const { body } = await get("owner", `/${id}`).expect(200);
+    // 162548 ? 0.12 ? 8 / 365 rounds to 428 poisha.
+    expect(body.installments[0]).toMatchObject({
+      status: "OVERDUE",
+      overdueInterestPoisha: "428",
+      amountDuePoisha: "172976",
+      payable: true,
+    });
+    expect(body.installments[1]).toMatchObject({
+      status: "IN_GRACE",
+      payable: false,
+    });
+    expect(BigInt(body.installments[1].overdueInterestPoisha)).toBeGreaterThan(
+      0n,
+    );
+    const repay = (number: number, expectedAmountPoisha?: string) =>
+      reviewAction("owner", id, `installments/${number}/repay`, {
+        accountId,
+        pin,
+        expectedAmountPoisha,
+      });
+    expect((await repay(2).expect(409)).body.error.code).toBe(
+      "INSTALLMENT_OUT_OF_ORDER",
+    );
+    expect((await repay(1, "172548").expect(409)).body.error.code).toBe(
+      "INSTALLMENT_AMOUNT_CHANGED",
+    );
+    const first = await repay(1, "172976").expect(200);
+    expect(first.body.amountPoisha).toBe("172976");
+    await db
+      .update(loanInstallments)
+      .set({ dueDate: daysAgo(10) })
+      .where(
+        and(eq(loanInstallments.loanId, id), eq(loanInstallments.number, 1)),
+      );
+    await repay(1, "172976").expect(200, first.body);
+    const detail = await get("owner", `/${id}`).expect(200);
+    expect(detail.body.loan).toMatchObject({
+      status: "ACTIVE",
+      remainingPrincipalPoisha: "837452",
+    });
+    expect(detail.body.installments[0]).toMatchObject({
+      status: "PAID",
+      overdueInterestPoisha: "428",
+      amountDuePoisha: null,
+      paidAmountPoisha: "172976",
+    });
+    expect(detail.body.installments[1].payable).toBe(true);
+    const postings = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.loanId, id),
+          eq(transactions.type, "LOAN_REPAYMENT"),
+        ),
+      );
+    expect(postings).toHaveLength(1);
+    expect(postings[0].amountPoisha).toBe(172_976n);
+    const [balance] = await db
+      .select({ amount: bankAccounts.balancePoisha })
+      .from(bankAccounts)
+      .where(account);
+    expect(balance.amount).toBe(827_024n);
+  } finally {
+    await db.update(bankAccounts).set({ balancePoisha: 0n }).where(account);
   }
 });

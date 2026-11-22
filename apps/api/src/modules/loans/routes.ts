@@ -180,7 +180,9 @@ loansRouter.post(
   requireRole("CUSTOMER"),
   async (request, response) => {
     const { id, number } = loanRepaymentParams.parse(request.params);
-    const { accountId, pin } = loanRepaymentInput.parse(request.body);
+    const { accountId, pin, expectedAmountPoisha } = loanRepaymentInput.parse(
+      request.body,
+    );
     response.json(
       await repayInstallment(
         currentIdentity(request),
@@ -188,6 +190,7 @@ loansRouter.post(
         number,
         accountId,
         pin,
+        expectedAmountPoisha,
       ),
     );
   },

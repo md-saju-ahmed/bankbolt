@@ -19,6 +19,9 @@ const actionErrors: Record<string, string> = {
   INSUFFICIENT_FUNDS: "The selected account cannot cover this installment.",
   INSTALLMENT_ALREADY_PAID:
     "This installment has already been paid. Check the repayment history.",
+  INSTALLMENT_OUT_OF_ORDER: "Pay the oldest unpaid installment first.",
+  INSTALLMENT_AMOUNT_CHANGED:
+    "The amount has changed. Review the updated payment total before confirming.",
   INSTALLMENT_NOT_DUE: "This installment is not due yet.",
   INVALID_PIN: "The transaction PIN is incorrect.",
   PIN_CHANGED: "The transaction PIN changed. Enter the current PIN.",

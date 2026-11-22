@@ -74,3 +74,24 @@ export function calculateLoanSchedule({
   });
   return { emiPoisha, installments };
 }
+
+export const installmentGraceDays = 7;
+
+export function installmentAccrual(
+  installment: { dueDate: string; principalPoisha: bigint },
+  annualRateBps: number,
+  asOf: string,
+) {
+  // The caller passes Dhaka calendar dates. UTC date-only arithmetic counts whole dates.
+  const daysLate = Math.max(
+    0,
+    (Date.parse(asOf) - Date.parse(installment.dueDate)) / 86_400_000,
+  );
+  return {
+    daysLate,
+    overdueInterestPoisha: roundPoisha(
+      installment.principalPoisha * BigInt(annualRateBps) * BigInt(daysLate),
+      365n * 10_000n,
+    ),
+  };
+}

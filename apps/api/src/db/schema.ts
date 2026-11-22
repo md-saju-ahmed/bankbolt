@@ -537,6 +537,11 @@ export const loanInstallments = pgTable(
     principalPoisha: bigint("principal_minor", { mode: "bigint" }).notNull(),
     interestPoisha: bigint("interest_minor", { mode: "bigint" }).notNull(),
     paidAmountPoisha: bigint("paid_amount_minor", { mode: "bigint" }),
+    paidOverdueInterestPoisha: bigint("paid_overdue_interest_minor", {
+      mode: "bigint",
+    })
+      .notNull()
+      .default(sql`0`),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     repaymentTransactionId: uuid("repayment_transaction_id").unique(),
   },
@@ -557,10 +562,11 @@ export const loanInstallments = pgTable(
     check(
       "loan_installments_payment_fields",
       sql`(
-    ${table.paidAt} is null and ${table.paidAmountPoisha} is null and ${table.repaymentTransactionId} is null
+    ${table.paidAt} is null and ${table.paidAmountPoisha} is null and ${table.repaymentTransactionId} is null and ${table.paidOverdueInterestPoisha} = 0
   ) or (
     ${table.paidAt} is not null and ${table.paidAmountPoisha} is not null and ${table.repaymentTransactionId} is not null
-    and ${table.paidAmountPoisha} = ${table.principalPoisha} + ${table.interestPoisha}
+    and ${table.paidOverdueInterestPoisha} >= 0
+    and ${table.paidAmountPoisha} = ${table.principalPoisha} + ${table.interestPoisha} + ${table.paidOverdueInterestPoisha}
   )`,
     ),
   ],

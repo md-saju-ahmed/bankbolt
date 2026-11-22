@@ -80,6 +80,8 @@ The authenticated loan catalog at `GET /api/v1/loans/catalog` lists Personal, Ed
 
 Customers can review an installment estimate and submit an application from **Loans**. The application appears as **Pending** in their loan history. `GET /api/v1/loans/estimate` uses the requested type, principal in poisha, and term. `POST /api/v1/loans` accepts those terms with the customer's active disbursement account, declared monthly income, employment status, and description.
 
+Installments must be paid in order. An unpaid installment is in grace on days one through seven and overdue on day eight. Simple overdue interest accrues from the day after the due date through payment using Dhaka calendar days, the loan's annual rate divided by 365, and only that installment's unpaid principal. Interest is rounded once per installment and posted with the scheduled payment.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

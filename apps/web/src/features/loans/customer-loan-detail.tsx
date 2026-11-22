@@ -115,6 +115,14 @@ function RepaymentFields() {
   );
 }
 
+const installmentLabels = {
+  PAID: "Paid",
+  OVERDUE: "Overdue",
+  IN_GRACE: "In grace period",
+  DUE: "Due",
+  SCHEDULED: "Scheduled",
+};
+
 function InstallmentPayment({
   id,
   entry,
@@ -125,12 +133,13 @@ function InstallmentPayment({
   onSuccessFocus: () => void;
 }) {
   const [repay] = useRepayLoanMutation();
+  const amount = entry.amountDuePoisha ?? entry.totalPoisha;
   return (
     <LoanActionDialog
       label={`Pay installment ${entry.number}`}
       title={`Pay installment ${entry.number}?`}
       confirmLabel="Confirm payment"
-      description={`Pay ${formatTaka(entry.totalPoisha)} including ${formatTaka(entry.principalPoisha)} principal and ${formatTaka(entry.interestPoisha)} interest.`}
+      description={`Pay ${formatTaka(amount)} including ${formatTaka(entry.principalPoisha)} principal, ${formatTaka(entry.interestPoisha)} scheduled interest, and ${formatTaka(entry.overdueInterestPoisha)} overdue interest.`}
       fields={<RepaymentFields />}
       onSuccessFocus={onSuccessFocus}
       onConfirm={async (data) => {
@@ -139,6 +148,7 @@ function InstallmentPayment({
           number: entry.number,
           accountId: String(data.get("accountId") ?? ""),
           pin: String(data.get("pin") ?? ""),
+          expectedAmountPoisha: amount,
         }).unwrap();
         return `Payment of ${formatTaka(receipt.amountPoisha)} posted. Reference ${receipt.reference}.`;
       }}
@@ -234,7 +244,7 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                   ? [
                       [
                         "Next unpaid installment",
-                        `${formatTaka(next.totalPoisha)} · ${dueDay(next.dueDate)}`,
+                        `${formatTaka(next.amountDuePoisha ?? next.totalPoisha)} · ${dueDay(next.dueDate)}`,
                       ] as [string, string],
                     ]
                   : []),
@@ -293,19 +303,38 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                         Installment {entry.number}
                       </h3>
                       <p className="text-sm font-medium">
-                        {entry.paidAt
-                          ? "Paid"
-                          : entry.payable
-                            ? "Due"
-                            : "Scheduled"}
+                        {installmentLabels[entry.status]}
                       </p>
                     </div>
                     <DetailFields
                       fields={[
                         ["Due date", dueDay(entry.dueDate)],
-                        ["Total installment", formatTaka(entry.totalPoisha)],
+                        [
+                          "Scheduled installment",
+                          formatTaka(entry.totalPoisha),
+                        ],
                         ["Principal", formatTaka(entry.principalPoisha)],
-                        ["Interest", formatTaka(entry.interestPoisha)],
+                        [
+                          "Scheduled interest",
+                          formatTaka(entry.interestPoisha),
+                        ],
+                        ...(entry.overdueInterestPoisha !== "0"
+                          ? [
+                              [
+                                "Overdue interest",
+                                formatTaka(entry.overdueInterestPoisha),
+                              ] as [string, string],
+                            ]
+                          : []),
+                        ...(entry.amountDuePoisha !== null &&
+                        entry.status !== "SCHEDULED"
+                          ? [
+                              [
+                                "Amount due",
+                                formatTaka(entry.amountDuePoisha),
+                              ] as [string, string],
+                            ]
+                          : []),
                       ]}
                     />
                     {entry.payable && pin.data?.configured && (

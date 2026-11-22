@@ -18,7 +18,11 @@ import {
   assertApplicantEligibility,
   assertLoanAffordability,
 } from "./eligibility.ts";
-import { calculateLoanSchedule } from "./calculations.ts";
+import {
+  calculateLoanSchedule,
+  installmentAccrual,
+  installmentGraceDays,
+} from "./calculations.ts";
 import { assertApplicationTerms, type applicationInput } from "./validation.ts";
 
 export type Loan = typeof loans.$inferSelect;
@@ -183,25 +187,52 @@ async function readLoanDetail(
         )
     : [];
   const today = dhakaDate(new Date());
+  const oldestUnpaid = installments.find(
+    ({ installment }) => !installment.paidAt,
+  );
   const detail = {
     loan: loanView(row.loan, identity),
     disbursementReference: disbursement?.reference ?? null,
-    installments: installments.map(({ installment, repaymentReference }) => ({
-      number: installment.number,
-      dueDate: installment.dueDate,
-      principalPoisha: installment.principalPoisha.toString(),
-      interestPoisha: installment.interestPoisha.toString(),
-      totalPoisha: (
-        installment.principalPoisha + installment.interestPoisha
-      ).toString(),
-      paidAmountPoisha: installment.paidAmountPoisha?.toString() ?? null,
-      paidAt: installment.paidAt,
-      repaymentReference,
-      payable:
-        row.loan.status === "ACTIVE" &&
-        !installment.paidAt &&
-        installment.dueDate <= today,
-    })),
+    installments: installments.map(({ installment, repaymentReference }) => {
+      const { daysLate, overdueInterestPoisha } = installmentAccrual(
+        installment,
+        row.loan.annualRateBps,
+        today,
+      );
+      const overdue = installment.paidAt
+        ? installment.paidOverdueInterestPoisha
+        : overdueInterestPoisha;
+      const scheduledTotal =
+        installment.principalPoisha + installment.interestPoisha;
+      const status = installment.paidAt
+        ? "PAID"
+        : daysLate > installmentGraceDays
+          ? "OVERDUE"
+          : daysLate > 0
+            ? "IN_GRACE"
+            : installment.dueDate === today
+              ? "DUE"
+              : "SCHEDULED";
+      return {
+        number: installment.number,
+        dueDate: installment.dueDate,
+        principalPoisha: installment.principalPoisha.toString(),
+        interestPoisha: installment.interestPoisha.toString(),
+        totalPoisha: scheduledTotal.toString(),
+        overdueInterestPoisha: overdue.toString(),
+        amountDuePoisha: installment.paidAt
+          ? null
+          : (scheduledTotal + overdue).toString(),
+        status,
+        paidAmountPoisha: installment.paidAmountPoisha?.toString() ?? null,
+        paidAt: installment.paidAt,
+        repaymentReference,
+        payable:
+          row.loan.status === "ACTIVE" &&
+          oldestUnpaid?.installment.id === installment.id &&
+          installment.dueDate <= today,
+      };
+    }),
   };
   if (identity.role === "CUSTOMER") return detail;
 
