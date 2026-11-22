@@ -751,3 +751,77 @@ it("links the Staff flag count to an own-only queue and keeps resolution reserve
     ]),
   );
 });
+
+it("exports owned PDF statements for empty and multi-page date ranges", async () => {
+  const [savings] = accountIds;
+  const download = (person?: Person, dates: object = period) => {
+    const req = request(app)
+      .get(`/api/v1/accounts/${savings}/statement.pdf`)
+      .query(dates);
+    return person ? req.set("Cookie", cookies.get(person)!) : req;
+  };
+  await download().expect(401);
+  await download("staff").expect(403);
+  await download("admin").expect(403);
+  await download("other").expect(404);
+  await download("owner", { from: period.to, to: period.from }).expect(400);
+  const empty = await download("owner", {
+    from: "2040-01-01",
+    to: "2040-01-01",
+  })
+    .expect(200)
+    .expect("Content-Type", /^application\/pdf/);
+  expect(
+    (empty.body as Buffer).toString("latin1").match(/\/Type \/Page\b/g),
+  ).toHaveLength(1);
+  const appended = await db
+    .insert(transactions)
+    .values(
+      Array.from({ length: 15 }, () => ({
+        type: "DEPOSIT" as const,
+        status: "COMPLETED" as const,
+        receiverAccountId: savings,
+        amountPoisha: 150n,
+        description: "\u09AC\u09BE\u0982\u09B2\u09BE deposit",
+        createdAt: start,
+      })),
+    )
+    .returning({ id: transactions.id });
+  try {
+    const response = await download("owner")
+      .expect(200)
+      .expect("Cache-Control", "no-store")
+      .expect("Content-Type", /^application\/pdf/)
+      .expect(
+        "Content-Disposition",
+        /attachment; filename="?bankbolt-statement-\d{4}-2041-12-31-to-2042-02-01\.pdf"?/,
+      );
+    const file = (response.body as Buffer).toString("latin1");
+    expect(file).toMatch(/^%PDF-/);
+    expect(file).toMatch(/%%EOF\s*$/);
+    expect(file.match(/\/Type \/Page\b/g)?.length).toBeGreaterThan(1);
+    const overflow = await db
+      .insert(transactions)
+      .values(
+        Array.from({ length: 1001 }, () => ({
+          type: "DEPOSIT" as const,
+          status: "COMPLETED" as const,
+          receiverAccountId: savings,
+          amountPoisha: 150n,
+          description: "Bounded PDF export fixture",
+          createdAt: start,
+        })),
+      )
+      .returning({ id: transactions.id });
+    appended.push(...overflow);
+    const limited = await download("owner").expect(413);
+    expect(limited.body.error.code).toBe("STATEMENT_TOO_LARGE");
+  } finally {
+    await db.delete(transactions).where(
+      inArray(
+        transactions.id,
+        appended.map(({ id }) => id),
+      ),
+    );
+  }
+});

@@ -86,6 +86,10 @@ Customers can settle an active loan in full from its details page. Settlement co
 
 Admins can open **Audit history** and search recorded management changes, cash decisions and cancellations, loan lifecycle events, transfer reversals, and flag activity by actor, action, or record ID. Category and Dhaka date filters narrow the results.
 
+### PDF downloads
+
+Use **Download PDF** on a transaction receipt or in the account statement form. Receipts follow the transaction's existing access rules. Statements use an owned account and an inclusive Dhaka date range. The statement PDF supports up to 1,000 postings per download. Printable receipts and CSV statements are available from the same screens.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

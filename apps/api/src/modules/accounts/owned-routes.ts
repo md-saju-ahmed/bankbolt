@@ -8,7 +8,11 @@ import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { accountView } from "../onboarding/service.ts";
 import { pages } from "../onboarding/validation.ts";
 import { financialRestriction } from "./eligibility.ts";
-import { createStatement, statementDates } from "./statement.ts";
+import {
+  createStatement,
+  createStatementPdf,
+  statementDates,
+} from "./statement.ts";
 
 export const ownedAccountsRouter = Router();
 ownedAccountsRouter.use((_request, response, next) => {
@@ -76,3 +80,17 @@ ownedAccountsRouter.get("/:accountId/statement", async (request, response) => {
   );
   response.attachment(filename).type("text/csv").send(csv);
 });
+
+ownedAccountsRouter.get(
+  "/:accountId/statement.pdf",
+  async (request, response) => {
+    const accountId = z.uuid().parse(request.params.accountId).toLowerCase();
+    const dates = statementDates.parse(request.query);
+    const { filename, pdf } = await createStatementPdf(
+      currentIdentity(request).id,
+      accountId,
+      dates,
+    );
+    response.attachment(filename).type("application/pdf").send(pdf);
+  },
+);

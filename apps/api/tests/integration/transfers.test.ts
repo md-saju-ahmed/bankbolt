@@ -908,3 +908,48 @@ it("rejects restricted or unfunded reversals and rolls back a failed posting", a
   await reverse(reference).expect(201);
   await expectBalances([30_000n, 30_000n, 30_000n]);
 });
+
+it("downloads PDF receipts only for posted transactions within the caller's scope", async () => {
+  const result = await post(payload()).expect(201);
+  const { reference } = result.body.transfer;
+  const pdf = `/${reference}/receipt.pdf`;
+  await request(app)
+    .get(historyPath + pdf)
+    .expect(401);
+  const pending = await db
+    .insert(transactions)
+    .values({
+      type: "DEPOSIT",
+      status: "PENDING",
+      receiverAccountId: source.id,
+      amountPoisha: 100n,
+      description: "Pending fixture",
+      initiatedBy: identities.get("admin"),
+    })
+    .returning({ reference: transactions.reference });
+  await historyRequest("owner", `/${pending[0].reference}/receipt.pdf`).expect(
+    404,
+  );
+  const own = (
+    await post(
+      payload({ recipientAccountNumber: ownedRecipient.accountNumber }),
+    ).expect(201)
+  ).body.transfer.reference;
+  await historyRequest("neighbor", `/${own}/receipt.pdf`).expect(404);
+  for (const role of ["owner", "neighbor", "staff", "admin"] as const) {
+    const response = await historyRequest(role, pdf)
+      .expect(200)
+      .expect("Cache-Control", "no-store")
+      .expect("Content-Type", /^application\/pdf/)
+      .expect(
+        "Content-Disposition",
+        new RegExp(
+          `attachment; filename="?bankbolt-receipt-${reference}\\.pdf"?`,
+        ),
+      );
+    const file = (response.body as Buffer).toString("latin1");
+    expect(file).toMatch(/^%PDF-/);
+    expect(file).toMatch(/%%EOF\s*$/);
+    expect(file.match(/\/Type \/Page\b/g)).toHaveLength(1);
+  }
+});

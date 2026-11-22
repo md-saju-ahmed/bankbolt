@@ -11,6 +11,13 @@ import {
   transactionStatus,
 } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
+import {
+  bankingPdf,
+  pdfField,
+  pdfPage,
+  pdfSection,
+} from "../../lib/banking-pdf.ts";
+import { formatBdtDecimal } from "../../lib/money.ts";
 import { dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
 import { requireWebOrigin } from "../auth/auth-config.ts";
 import { reverseTransfer, reversalInput } from "./reversal.ts";
@@ -218,4 +225,82 @@ transactionsRouter.get("/:reference/receipt", async (request, response) => {
       true,
     ),
   });
+});
+
+const receiptDate = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "medium",
+  timeZone: "Asia/Dhaka",
+});
+const receiptLabels = {
+  DEPOSIT: "Deposit",
+  WITHDRAWAL: "Withdrawal",
+  FUND_TRANSFER: "Fund transfer",
+  TRANSFER_REVERSAL: "Transfer reversal",
+  LOAN_DISBURSEMENT: "Loan disbursement",
+  LOAN_REPAYMENT: "Loan repayment",
+};
+
+transactionsRouter.get("/:reference/receipt.pdf", async (request, response) => {
+  const reference = z.uuid().parse(request.params.reference);
+  const transaction = await transactionDetail(
+    currentIdentity(request),
+    reference,
+    true,
+  );
+  const bdt = (poisha: string | bigint) =>
+    formatBdtDecimal(BigInt(poisha)) + " BDT";
+  const pdf = await bankingPdf("Transaction receipt", (doc) => {
+    pdfPage(
+      doc,
+      "Transaction receipt",
+      receiptDate.format(transaction.createdAt) + " | Asia/Dhaka",
+    );
+    pdfSection(doc, receiptLabels[transaction.type]);
+    pdfField(doc, "Reference", transaction.reference);
+    pdfField(
+      doc,
+      "Status",
+      transaction.status === "REVERSED" ? "Reversed" : "Completed",
+    );
+    if (transaction.senderNumber)
+      pdfField(doc, "Sender account", transaction.senderNumber);
+    if (transaction.receiverNumber)
+      pdfField(doc, "Receiver account", transaction.receiverNumber);
+    pdfField(doc, "Amount", bdt(transaction.amountPoisha));
+    pdfField(doc, "Transaction fee", bdt(transaction.feePoisha));
+    if (transaction.senderNumber && transaction.direction !== "INCOMING")
+      pdfField(
+        doc,
+        "Total debit",
+        bdt(BigInt(transaction.amountPoisha) + BigInt(transaction.feePoisha)),
+      );
+    if (
+      transaction.type === "TRANSFER_REVERSAL" &&
+      transaction.direction !== "OUTGOING"
+    ) {
+      pdfField(
+        doc,
+        "Original fee refunded",
+        bdt(transaction.refundedFeePoisha),
+      );
+      pdfField(
+        doc,
+        "Total credit",
+        bdt(
+          BigInt(transaction.amountPoisha) +
+            BigInt(transaction.refundedFeePoisha),
+        ),
+      );
+    }
+    if (transaction.originalReference)
+      pdfField(doc, "Original transfer", transaction.originalReference);
+    if (transaction.reversalReference)
+      pdfField(doc, "Reversal transaction", transaction.reversalReference);
+    pdfField(doc, "Description", transaction.description);
+  });
+  response
+    .attachment(`bankbolt-receipt-${transaction.reference}.pdf`)
+    .type("application/pdf")
+    .send(pdf);
 });

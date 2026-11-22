@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download, Printer } from "lucide-react";
 import Link from "next/link";
 import { TransferReversal } from "./transfer-reversal";
 import { TransactionFlagsPanel } from "./transaction-flags";
@@ -13,6 +13,7 @@ import {
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
+import { useDocumentDownload } from "@/lib/use-document-download";
 import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
 import {
   directions,
@@ -108,6 +109,38 @@ function RecordFields({
   );
 }
 
+function ReceiptActions({ reference }: { reference: string }) {
+  const { busy, error, status, download } = useDocumentDownload("receipt");
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <Button className={secondaryStyle} onClick={() => window.print()}>
+          <Printer aria-hidden size={17} />
+          Print receipt
+        </Button>
+        <Button
+          className={primaryStyle}
+          aria-disabled={busy}
+          onClick={() =>
+            void download(
+              `/api/v1/transactions/${encodeURIComponent(reference)}/receipt.pdf`,
+              `bankbolt-receipt-${reference}.pdf`,
+              "application/pdf",
+            )
+          }
+        >
+          <Download aria-hidden size={17} />
+          Download PDF
+        </Button>
+      </div>
+      <ErrorMessage message={error} />
+      <p role="status" className="text-sm text-muted-foreground empty:sr-only">
+        {busy ? "Preparing your receipt." : status}
+      </p>
+    </div>
+  );
+}
+
 export function TransactionDetail({
   root,
   reference,
@@ -139,10 +172,7 @@ export function TransactionDetail({
         </Link>
         {transaction &&
           (receipt ? (
-            <Button className={primaryStyle} onClick={() => window.print()}>
-              <Printer aria-hidden size={17} />
-              Print receipt
-            </Button>
+            <ReceiptActions key={reference} reference={reference} />
           ) : (
             (transaction.status === "COMPLETED" ||
               transaction.reversalReference) && (

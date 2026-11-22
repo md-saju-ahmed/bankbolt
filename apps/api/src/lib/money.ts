@@ -20,3 +20,8 @@ export function roundPoisha(numerator: bigint, denominator: bigint): bigint {
   if (remainder * 2n <= -denominator) return whole - 1n;
   return whole;
 }
+
+export function formatBdtDecimal(poisha: bigint) {
+  const absolute = poisha < 0n ? -poisha : poisha;
+  return `${poisha < 0n ? "-" : ""}${absolute / 100n}.${String(absolute % 100n).padStart(2, "0")}`;
+}
