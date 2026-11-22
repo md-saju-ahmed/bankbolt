@@ -1,0 +1,4 @@
+ALTER TABLE "transaction_flags" ALTER COLUMN "flagged_by" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "transaction_flags" ADD COLUMN "automated_rules" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "transaction_flags_automatic_transaction_unique" ON "transaction_flags" USING btree ("transaction_id") WHERE "transaction_flags"."flagged_by" is null;--> statement-breakpoint
+ALTER TABLE "transaction_flags" ADD CONSTRAINT "transaction_flags_source_fields" CHECK (("transaction_flags"."flagged_by" is null) = (cardinality("transaction_flags"."automated_rules") > 0));

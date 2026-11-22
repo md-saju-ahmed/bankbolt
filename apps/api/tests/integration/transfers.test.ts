@@ -13,6 +13,7 @@ import {
   authenticators,
   bankAccounts,
   customerProfiles,
+  transactionFlags,
   transactions,
   users,
 } from "../../src/db/schema.ts";
@@ -175,10 +176,20 @@ beforeAll(async () => {
   [source, ownedRecipient, otherRecipient] = accounts;
 }, 20_000);
 
-beforeEach(async () => {
+async function clearPostings() {
+  const scope = inArray(transactions.initiatedBy, [...identities.values()]);
+  const postingIds = db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(scope);
   await db
-    .delete(transactions)
-    .where(inArray(transactions.initiatedBy, [...identities.values()]));
+    .delete(transactionFlags)
+    .where(inArray(transactionFlags.transactionId, postingIds));
+  await db.delete(transactions).where(scope);
+}
+
+beforeEach(async () => {
+  await clearPostings();
   await db
     .delete(authAttempts)
     .where(inArray(authAttempts.subject, [...identities.values()]));
@@ -209,9 +220,7 @@ beforeEach(async () => {
 afterAll(async () => {
   try {
     if (identities.size) {
-      await db
-        .delete(transactions)
-        .where(inArray(transactions.initiatedBy, [...identities.values()]));
+      await clearPostings();
       await db.delete(bankAccounts).where(
         inArray(
           bankAccounts.id,
@@ -1052,3 +1061,93 @@ it("enrolls with password and a session-bound ticket, rejects replay, and recove
       .where(inArray(authAttempts.subject, subjects));
   }
 }, 25_000);
+
+it("automatically flags unusual external transfers once and keeps the Admin-only review trail", async () => {
+  await db
+    .update(bankAccounts)
+    .set({ balancePoisha: 10_000_000n })
+    .where(eq(bankAccounts.id, source.id));
+  const old = await post(payload({ amountPoisha: "1000" })).expect(201);
+  await db
+    .update(transactions)
+    .set({ createdAt: new Date(Date.now() - 11 * 60_000) })
+    .where(eq(transactions.reference, old.body.transfer.reference));
+  const internal = await post(
+    payload({
+      recipientAccountNumber: ownedRecipient.accountNumber,
+      amountPoisha: "2500000",
+    }),
+  ).expect(201);
+  const concurrent = await Promise.all([
+    post(payload({ amountPoisha: "1000" })).expect(201),
+    post(payload({ amountPoisha: "1000" })).expect(201),
+  ]);
+  for (const reference of [old, internal, ...concurrent].map(
+    (result) => result.body.transfer.reference,
+  )) {
+    await historyRequest("admin", `/${reference}/flags`).expect(200, {
+      flags: [],
+      hasNextPage: false,
+    });
+  }
+  const input = payload({ amountPoisha: "2500000" });
+  const large = await post(input).expect(201);
+  const reference = large.body.transfer.reference as string;
+  await post(input).expect(200);
+  await historyRequest("owner", `/${reference}/flags`).expect(403);
+  await historyRequest("staff", `/${reference}/flags`).expect(200, {
+    flags: [],
+    hasNextPage: false,
+  });
+  const alerts = await historyRequest("admin", `/${reference}/flags`).expect(
+    200,
+  );
+  expect(alerts.body.flags).toEqual([
+    expect.objectContaining({
+      reporterName: "Automated rules",
+      status: "OPEN",
+      automatedRules: ["LARGE_EXTERNAL_TRANSFER", "RAPID_EXTERNAL_TRANSFERS"],
+    }),
+  ]);
+  expect(
+    (
+      await request(app)
+        .get("/api/v1/transaction-flags")
+        .set("Cookie", cookies.get("admin")!)
+        .expect(200)
+    ).body.flags,
+  ).toContainEqual(
+    expect.objectContaining({ reference, reporterName: "Automated rules" }),
+  );
+  const flagId = alerts.body.flags[0].id;
+  await request(app)
+    .post(`/api/v1/transaction-flags/${flagId}/resolve`)
+    .set("Cookie", cookies.get("admin")!)
+    .set("Origin", origin)
+    .send({ note: "Checked simulated activity" })
+    .expect(200);
+  const audit = await request(app)
+    .get("/api/v1/audit")
+    .set("Cookie", cookies.get("admin")!)
+    .query({ category: "FLAG", search: reference })
+    .expect(200);
+  expect(audit.body.events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        action: "AUTO_FLAGGED",
+        actorId: null,
+        actorName: "Automated rules",
+      }),
+      expect.objectContaining({
+        action: "RESOLVED",
+        actorId: identities.get("admin"),
+      }),
+    ]),
+  );
+  await request(app)
+    .post(`${historyPath}/${reference}/flag`)
+    .set("Cookie", cookies.get("staff")!)
+    .set("Origin", origin)
+    .send({ reason: "Manual follow-up" })
+    .expect(201);
+}, 30_000);

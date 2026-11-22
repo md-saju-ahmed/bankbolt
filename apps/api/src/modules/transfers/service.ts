@@ -12,6 +12,7 @@ import { dhakaDate, dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
 import { maxPoisha } from "../../lib/money.ts";
 import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
 import { verifyTransactionPin } from "../auth/customer-scope.ts";
+import { flagExternalTransfer } from "../transaction-flags/detection.ts";
 import type { Identity } from "../auth/sessions.ts";
 import type { transferQuote, transferRequest } from "./validation.ts";
 
@@ -386,6 +387,9 @@ export async function createTransfer(identity: Identity, input: TransferInput) {
         createdAt: postedAt,
       })
       .returning();
+    if (source.customerId !== recipient.customerId) {
+      await flagExternalTransfer(tx, record, source.id, source.customerId);
+    }
     return {
       transfer: transferView(record, recipient.accountNumber),
       replayed: false,

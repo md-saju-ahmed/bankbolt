@@ -17,6 +17,7 @@ export type Transfer = Omit<Quote, "sourceAccountNumber"> &
 const affected = [
   "OwnedAccounts",
   "Transactions",
+  "TransactionFlags",
   "Management",
   "OnboardingAccounts",
 ] as const;

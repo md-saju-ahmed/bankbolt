@@ -113,6 +113,13 @@
       "when": 1795342656292,
       "tag": "0015_authenticator_step_up",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795343446315,
+      "tag": "0016_automated_transaction_flags",
+      "breakpoints": true
     }
   ]
 }

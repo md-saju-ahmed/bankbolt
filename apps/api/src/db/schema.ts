@@ -620,9 +620,11 @@ export const transactionFlags = pgTable(
     transactionId: uuid("transaction_id")
       .notNull()
       .references(() => transactions.id),
-    flaggedBy: uuid("flagged_by")
+    flaggedBy: uuid("flagged_by").references(() => users.id),
+    automatedRules: text("automated_rules")
+      .array()
       .notNull()
-      .references(() => users.id),
+      .default(sql`'{}'::text[]`),
     reason: text().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -635,6 +637,13 @@ export const transactionFlags = pgTable(
     uniqueIndex("transaction_flags_open_transaction_unique")
       .on(table.transactionId)
       .where(sql`${table.resolvedAt} is null`),
+    uniqueIndex("transaction_flags_automatic_transaction_unique")
+      .on(table.transactionId)
+      .where(sql`${table.flaggedBy} is null`),
+    check(
+      "transaction_flags_source_fields",
+      sql`(${table.flaggedBy} is null) = (cardinality(${table.automatedRules}) > 0)`,
+    ),
     index("transaction_flags_transaction_time_idx").on(
       table.transactionId,
       table.createdAt,

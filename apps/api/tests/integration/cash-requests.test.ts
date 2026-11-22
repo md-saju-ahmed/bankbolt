@@ -730,3 +730,32 @@ it("records one open flag, isolates Staff histories, and resolves once with an a
   expect(await postings(id)).toEqual([transaction]);
   await expectBalance(40_000n);
 });
+
+it("flags only posted cash that meets the review threshold", async () => {
+  const deposit = await submit({ type: "DEPOSIT", amountPoisha: "5000000" });
+  const declined = await submit({ type: "DEPOSIT", amountPoisha: "5000000" });
+  expect(await postings(deposit, declined)).toHaveLength(0);
+  await post("staff", `/${declined}/reject`, { reason: "Test decline" }).expect(
+    200,
+  );
+  await post("staff", `/${deposit}/approve`).expect(200);
+  const withdrawal = await submit({ amountPoisha: "5000000" });
+  await post("admin", `/${withdrawal}/approve`).expect(200);
+  await post("admin", `/${withdrawal}/approve`).expect(409);
+  const records = await postings(deposit, declined, withdrawal);
+  expect(records).toHaveLength(2);
+  for (const { reference } of records) {
+    const { body } = await flagGet(
+      "admin",
+      `${transactionPath(reference)}/flags`,
+    ).expect(200);
+    expect(body.flags).toEqual([
+      expect.objectContaining({
+        reporterName: "Automated rules",
+        automatedRules: ["LARGE_CASH_POSTING"],
+        status: "OPEN",
+      }),
+    ]);
+  }
+  await expectBalance(30_000n);
+});

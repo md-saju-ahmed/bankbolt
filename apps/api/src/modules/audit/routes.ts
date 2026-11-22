@@ -88,19 +88,19 @@ auditRouter.get("/", async (request, response) => {
       select 'FLAG', f.id, phase.action, t.reference, phase.actor_id, phase.occurred_at
       from transaction_flags f join transactions t on t.id = f.transaction_id
       cross join lateral (values
-        ('FLAGGED', f.flagged_by, f.created_at),
+        (case when f.flagged_by is null then 'AUTO_FLAGGED' else 'FLAGGED' end, f.flagged_by, f.created_at),
         ('RESOLVED', f.resolved_by, f.resolved_at)
       ) phase(action, actor_id, occurred_at)
       where phase.occurred_at is not null
     )
     select e.category, e.event_id as "eventId", e.action, e.subject_id as "subjectId",
-      e.actor_id as "actorId", u.full_name as "actorName", e.occurred_at as "occurredAt"
+      e.actor_id as "actorId", case when e.action = 'AUTO_FLAGGED' then 'Automated rules' else u.full_name end as "actorName", e.occurred_at as "occurredAt"
     from events e left join users u on u.id = e.actor_id
     where true
       ${category ? sql`and e.category = ${category}` : sql``}
       ${from ? sql`and e.occurred_at >= ${dhakaDayStart(from)}` : sql``}
       ${to ? sql`and e.occurred_at < ${dhakaDayEnd(to)}` : sql``}
-      ${search ? sql`and strpos(lower(concat_ws(' ', e.subject_id::text, e.actor_id::text, replace(e.action, '_', ' '), u.full_name)), lower(${search})) > 0` : sql``}
+      ${search ? sql`and strpos(lower(concat_ws(' ', e.subject_id::text, e.actor_id::text, replace(e.action, '_', ' '), case when e.action = 'AUTO_FLAGGED' then 'Automated rules' else u.full_name end)), lower(${search})) > 0` : sql``}
     order by e.occurred_at desc, e.category, e.event_id desc, e.action
     limit ${size + 1} offset ${(page - 1) * size}
   `);

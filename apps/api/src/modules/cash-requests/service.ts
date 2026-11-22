@@ -12,6 +12,7 @@ import {
 import { ApiError } from "../../errors.ts";
 import { maxPoisha } from "../../lib/money.ts";
 import { assertFinancialAccountEligible } from "../accounts/eligibility.ts";
+import { flagCashPosting } from "../transaction-flags/detection.ts";
 import type { Identity } from "../auth/sessions.ts";
 import type { cashRequestFilters, cashRequestInput } from "./validation.ts";
 
@@ -312,7 +313,12 @@ export function decideCashRequest(
           initiatedBy: reviewerId,
           cashRequestId: request.id,
         })
-        .returning({ reference: transactions.reference });
+        .returning({
+          id: transactions.id,
+          createdAt: transactions.createdAt,
+          reference: transactions.reference,
+        });
+      await flagCashPosting(tx, posting, request.amountPoisha);
       transactionReference = posting.reference;
     }
     const [updated] = await tx

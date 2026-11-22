@@ -25,6 +25,7 @@ export async function listTransactionFlags({
       reason: transactionFlags.reason,
       createdAt: transactionFlags.createdAt,
       reporterName: reporter.fullName,
+      automatedRules: transactionFlags.automatedRules,
       resolvedAt: transactionFlags.resolvedAt,
       resolverName: resolver.fullName,
       resolutionNote: transactionFlags.resolutionNote,
@@ -37,7 +38,7 @@ export async function listTransactionFlags({
       transactions,
       eq(transactions.id, transactionFlags.transactionId),
     )
-    .innerJoin(reporter, eq(reporter.id, transactionFlags.flaggedBy))
+    .leftJoin(reporter, eq(reporter.id, transactionFlags.flaggedBy))
     .leftJoin(resolver, eq(resolver.id, transactionFlags.resolvedBy))
     .where(
       and(
@@ -56,6 +57,7 @@ export async function listTransactionFlags({
   return {
     flags: rows.slice(0, pageSize).map((row) => ({
       ...row,
+      reporterName: row.reporterName ?? "Automated rules",
       amountPoisha: row.amountPoisha.toString(),
       status: row.resolvedAt ? "RESOLVED" : "OPEN",
     })),

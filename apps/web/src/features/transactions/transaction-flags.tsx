@@ -355,7 +355,7 @@ export function TransactionFlagsQueue({
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {workspace === "admin"
-            ? "Review transactions that Staff flagged for Admin."
+            ? "Review transactions flagged by Staff or automated rules."
             : "Track the flags you sent for Admin review."}
         </p>
       </header>

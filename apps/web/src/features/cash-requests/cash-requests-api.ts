@@ -114,6 +114,7 @@ const cashRequestsApi = baseApi.injectEndpoints({
               "Management",
               "OnboardingAccounts",
               "Transactions",
+              "TransactionFlags",
             ]
           : [
               "CashRequests",
