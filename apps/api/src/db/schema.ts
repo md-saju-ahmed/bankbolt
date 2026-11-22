@@ -572,6 +572,34 @@ export const loanInstallments = pgTable(
   ],
 );
 
+export const loanSettlements = pgTable(
+  "loan_settlements",
+  {
+    loanId: uuid("loan_id")
+      .primaryKey()
+      .references(() => loans.id),
+    transactionId: uuid("transaction_id").notNull().unique(),
+    principalPoisha: bigint("principal_minor", { mode: "bigint" }).notNull(),
+    scheduledInterestPoisha: bigint("scheduled_interest_minor", {
+      mode: "bigint",
+    }).notNull(),
+    overdueInterestPoisha: bigint("overdue_interest_minor", {
+      mode: "bigint",
+    }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.transactionId, table.loanId],
+      foreignColumns: [transactions.id, transactions.loanId],
+      name: "loan_settlements_transaction_loan_fk",
+    }),
+    check(
+      "loan_settlements_valid_amounts",
+      sql`${table.principalPoisha} > 0 and ${table.scheduledInterestPoisha} >= 0 and ${table.overdueInterestPoisha} >= 0`,
+    ),
+  ],
+);
+
 export const transactionFlags = pgTable(
   "transaction_flags",
   {

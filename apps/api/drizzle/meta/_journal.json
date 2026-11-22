@@ -99,6 +99,13 @@
       "when": 1795321705139,
       "tag": "0013_loan_overdue_interest",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795340738374,
+      "tag": "0014_loan_settlement",
+      "breakpoints": true
     }
   ]
 }

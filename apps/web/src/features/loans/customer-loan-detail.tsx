@@ -24,6 +24,8 @@ import {
   loanStatuses,
   useCustomerLoanDetailQuery,
   useRepayLoanMutation,
+  useSettleLoanMutation,
+  type SettlementQuote,
   type LoanInstallment,
 } from "./loans-api";
 
@@ -121,6 +123,7 @@ const installmentLabels = {
   IN_GRACE: "In grace period",
   DUE: "Due",
   SCHEDULED: "Scheduled",
+  CLOSED: "Closed by settlement",
 };
 
 function InstallmentPayment({
@@ -156,6 +159,37 @@ function InstallmentPayment({
   );
 }
 
+function SettlementPayment({
+  id,
+  quote,
+  onSuccessFocus,
+}: {
+  id: string;
+  quote: SettlementQuote;
+  onSuccessFocus: () => void;
+}) {
+  const [settle] = useSettleLoanMutation();
+  return (
+    <LoanActionDialog
+      label="Settle loan early"
+      title="Settle this loan in full?"
+      confirmLabel="Confirm settlement"
+      description={`Pay ${formatTaka(quote.amountPoisha)} to close the loan. This includes remaining principal and interest accrued through today (Dhaka).`}
+      fields={<RepaymentFields />}
+      onSuccessFocus={onSuccessFocus}
+      onConfirm={async (data) => {
+        const receipt = await settle({
+          id,
+          accountId: String(data.get("accountId") ?? ""),
+          pin: String(data.get("pin") ?? ""),
+          expectedAmountPoisha: quote.amountPoisha,
+        }).unwrap();
+        return `Settlement of ${formatTaka(receipt.amountPoisha)} posted. Reference ${receipt.reference}.`;
+      }}
+    />
+  );
+}
+
 export function CustomerLoanDetail({ id }: { id: string }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const query = useCustomerLoanDetailQuery(id, {
@@ -166,9 +200,14 @@ export function CustomerLoanDetail({ id }: { id: string }) {
   const installments = detail?.installments ?? [];
   const showRepaymentHistory =
     detail?.loan.status === "ACTIVE" || detail?.loan.status === "COMPLETED";
-  const next = installments.find((entry) => !entry.paidAt);
-  const hasDue = installments.some((entry) => entry.payable);
-  const pin = useTransactionPinStatusQuery(undefined, { skip: !hasDue });
+  const next =
+    detail?.loan.status === "ACTIVE"
+      ? installments.find((entry) => !entry.paidAt)
+      : undefined;
+  const hasPayment =
+    Boolean(detail?.settlementQuote) ||
+    installments.some((entry) => entry.payable);
+  const pin = useTransactionPinStatusQuery(undefined, { skip: !hasPayment });
 
   return (
     <section className="max-w-4xl space-y-5">
@@ -265,15 +304,47 @@ export function CustomerLoanDetail({ id }: { id: string }) {
             )}
           </Card>
           <LoanTimeline loan={detail.loan} />
+          {detail.settlementQuote && (
+            <Card className="gap-3 p-4 sm:p-5">
+              <h2 className="text-lg font-semibold">Early full settlement</h2>
+              <DetailFields
+                fields={[
+                  [
+                    "Remaining principal",
+                    formatTaka(detail.settlementQuote.principalPoisha),
+                  ],
+                  [
+                    "Accrued scheduled interest",
+                    formatTaka(detail.settlementQuote.scheduledInterestPoisha),
+                  ],
+                  [
+                    "Overdue interest",
+                    formatTaka(detail.settlementQuote.overdueInterestPoisha),
+                  ],
+                  [
+                    "Settlement total",
+                    formatTaka(detail.settlementQuote.amountPoisha),
+                  ],
+                ]}
+              />
+              {pin.data?.configured && (
+                <SettlementPayment
+                  id={id}
+                  quote={detail.settlementQuote}
+                  onSuccessFocus={() => heading.current?.focus()}
+                />
+              )}
+            </Card>
+          )}
           {installments.length > 0 && (
             <Card className="gap-3 p-4 sm:p-5">
               <h2 className="text-lg font-semibold">Repayment schedule</h2>
-              {hasDue && pin.isFetching && (
+              {hasPayment && pin.isFetching && (
                 <p role="status" className="text-sm text-muted-foreground">
                   Checking transaction PIN setup…
                 </p>
               )}
-              {hasDue && pin.isError && (
+              {hasPayment && pin.isError && (
                 <div className="space-y-2">
                   <ErrorMessage message="Could not check your transaction PIN setup." />
                   <Button
@@ -284,7 +355,7 @@ export function CustomerLoanDetail({ id }: { id: string }) {
                   </Button>
                 </div>
               )}
-              {hasDue && pin.data && !pin.data.configured && (
+              {hasPayment && pin.data && !pin.data.configured && (
                 <p className="text-sm">
                   <Link
                     href="/customer/transfer"
@@ -353,6 +424,7 @@ export function CustomerLoanDetail({ id }: { id: string }) {
             <LoanRepaymentHistory
               installments={installments}
               disbursementReference={detail.disbursementReference}
+              settlement={detail.settlement}
               workspace="customer"
             />
           )}

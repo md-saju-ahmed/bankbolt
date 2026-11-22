@@ -34,6 +34,10 @@ const actionErrors: Record<string, string> = {
   LOAN_APPLICANT_UNDERAGE: "The applicant must be at least 18 years old.",
   LOAN_AFFORDABILITY_LIMIT:
     "The requested loan and active loans exceed 40% of declared monthly income.",
+  LOAN_ALREADY_SETTLED:
+    "The loan was already settled. Open its settlement receipt.",
+  SETTLEMENT_AMOUNT_CHANGED:
+    "The settlement amount changed. Review the latest total before confirming.",
   LOAN_NOT_ACTIVE: "This loan must be active before a payment can be made.",
   SELF_REVIEW: "You cannot decide or disburse your own loan.",
 };

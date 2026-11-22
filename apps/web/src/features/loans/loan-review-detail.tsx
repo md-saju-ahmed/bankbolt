@@ -426,6 +426,7 @@ export function LoanReviewDetail({
               <LoanRepaymentHistory
                 installments={review.installments}
                 disbursementReference={review.disbursementReference}
+                settlement={review.settlement}
                 workspace="admin"
               />
             )}

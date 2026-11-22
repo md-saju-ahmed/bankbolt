@@ -86,3 +86,7 @@ export function assertApplicationTerms(terms: z.infer<typeof termsInput>) {
     );
   }
 }
+
+export const loanSettlementInput = loanRepaymentInput.required({
+  expectedAmountPoisha: true,
+});

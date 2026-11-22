@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ArrowLeftRight,
   CreditCard,
+  ClipboardList,
   Flag,
   LayoutDashboard,
   Landmark,
@@ -149,6 +150,14 @@ function WorkspaceLinks({
       label: role === "ADMIN" ? "Transaction flags" : "My transaction flags",
       icon: Flag,
       active: pathname === `${root}/transaction-flags`,
+    });
+  }
+  if (role === "ADMIN") {
+    links.push({
+      href: `${root}/audit`,
+      label: "Audit history",
+      icon: ClipboardList,
+      active: pathname === `${root}/audit`,
     });
   }
   return (

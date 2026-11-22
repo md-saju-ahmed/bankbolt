@@ -4,6 +4,7 @@ import {
   bankAccounts,
   customerProfiles,
   loanInstallments,
+  loanSettlements,
   loans,
   transactions,
   users,
@@ -26,7 +27,7 @@ import {
   assertApplicantEligibility,
   assertLoanAffordability,
 } from "./eligibility.ts";
-import { installmentAccrual } from "./calculations.ts";
+import { calculateLoanSettlement, installmentAccrual } from "./calculations.ts";
 import { assertApplicationTerms } from "./validation.ts";
 
 async function lockLoanOwner(
@@ -254,13 +255,15 @@ export function disburseLoan(identity: Identity, id: string) {
   });
 }
 
-export async function repayInstallment(
+async function withCustomerLoanPayment<T>(
   identity: Identity,
   id: string,
-  number: number,
-  accountId: string,
   pin: string,
-  expectedAmountPoisha?: bigint,
+  pay: (
+    tx: LoanTransaction,
+    loan: Loan,
+    owner: Awaited<ReturnType<typeof lockLoanOwner>>,
+  ) => Promise<T>,
 ) {
   const db = getDatabase();
   const [owned] = await db
@@ -292,6 +295,19 @@ export async function repayInstallment(
         "PIN_CHANGED",
         "The transaction PIN changed. Please try again.",
       );
+    return pay(tx, loan, owner);
+  });
+}
+
+export async function repayInstallment(
+  identity: Identity,
+  id: string,
+  number: number,
+  accountId: string,
+  pin: string,
+  expectedAmountPoisha?: bigint,
+) {
+  return withCustomerLoanPayment(identity, id, pin, async (tx, loan, owner) => {
     if (loan.status !== "ACTIVE" && loan.status !== "COMPLETED") {
       throw new ApiError(
         409,
@@ -340,6 +356,12 @@ export async function repayInstallment(
       };
     }
 
+    if (loan.status === "COMPLETED")
+      throw new ApiError(
+        409,
+        "LOAN_NOT_ACTIVE",
+        "This loan has already been completed.",
+      );
     const [oldestUnpaid] = await tx
       .select({ id: loanInstallments.id })
       .from(loanInstallments)
@@ -447,6 +469,128 @@ export async function repayInstallment(
         status: completed ? "COMPLETED" : "ACTIVE",
         remainingPrincipalPoisha: remaining,
         completedAt: completed ? now : null,
+        updatedAt: now,
+      })
+      .where(eq(loans.id, id));
+    return {
+      reference: posting.reference,
+      amountPoisha: amountPoisha.toString(),
+    };
+  });
+}
+
+export function settleLoan(
+  identity: Identity,
+  id: string,
+  accountId: string,
+  pin: string,
+  expectedAmountPoisha: bigint,
+) {
+  return withCustomerLoanPayment(identity, id, pin, async (tx, loan, owner) => {
+    const [previous] = await tx
+      .select({
+        reference: transactions.reference,
+        accountId: transactions.senderAccountId,
+        amountPoisha: transactions.amountPoisha,
+      })
+      .from(loanSettlements)
+      .innerJoin(
+        transactions,
+        eq(transactions.id, loanSettlements.transactionId),
+      )
+      .where(eq(loanSettlements.loanId, id));
+    if (previous) {
+      if (previous.accountId !== accountId)
+        throw new ApiError(
+          409,
+          "LOAN_ALREADY_SETTLED",
+          "The loan was already settled.",
+        );
+      return {
+        reference: previous.reference,
+        amountPoisha: previous.amountPoisha.toString(),
+      };
+    }
+    if (
+      loan.status !== "ACTIVE" ||
+      !loan.disbursedAt ||
+      loan.remainingPrincipalPoisha === null
+    )
+      throw new ApiError(
+        409,
+        "LOAN_NOT_ACTIVE",
+        "Only an active loan can be settled.",
+      );
+    const account = await eligibleLoanAccount(
+      tx,
+      loan.customerId,
+      accountId,
+      owner,
+      "no key update",
+    );
+    const schedule = await tx
+      .select()
+      .from(loanInstallments)
+      .where(eq(loanInstallments.loanId, id))
+      .orderBy(asc(loanInstallments.number));
+    const now = new Date();
+    const amounts = calculateLoanSettlement(
+      schedule,
+      dhakaDate(loan.disbursedAt),
+      loan.annualRateBps,
+      dhakaDate(now),
+    );
+    if (
+      amounts.principalPoisha <= 0n ||
+      amounts.principalPoisha !== loan.remainingPrincipalPoisha
+    )
+      throw ledgerMismatch();
+    if (amounts.amountPoisha !== expectedAmountPoisha)
+      throw new ApiError(
+        409,
+        "SETTLEMENT_AMOUNT_CHANGED",
+        "Review the latest settlement amount before confirming.",
+      );
+    if (
+      account.balancePoisha - account.heldBalancePoisha <
+      amounts.amountPoisha
+    )
+      throw new ApiError(
+        422,
+        "INSUFFICIENT_FUNDS",
+        "The account cannot cover the settlement.",
+      );
+
+    await tx
+      .update(bankAccounts)
+      .set({
+        balancePoisha: account.balancePoisha - amounts.amountPoisha,
+        updatedAt: now,
+      })
+      .where(eq(bankAccounts.id, account.id));
+    const [posting] = await tx
+      .insert(transactions)
+      .values({
+        type: "LOAN_REPAYMENT",
+        status: "COMPLETED",
+        loanId: id,
+        senderAccountId: account.id,
+        initiatedBy: identity.id,
+        amountPoisha: amounts.amountPoisha,
+        description: "Early loan settlement",
+        createdAt: now,
+      })
+      .returning({ id: transactions.id, reference: transactions.reference });
+    const { amountPoisha, ...allocation } = amounts;
+    await tx
+      .insert(loanSettlements)
+      .values({ loanId: id, transactionId: posting.id, ...allocation });
+    await tx
+      .update(loans)
+      .set({
+        status: "COMPLETED",
+        remainingPrincipalPoisha: 0n,
+        completedAt: now,
         updatedAt: now,
       })
       .where(eq(loans.id, id));

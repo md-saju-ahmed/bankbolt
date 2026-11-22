@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
@@ -14,7 +14,9 @@ import {
   customerProfiles,
   loanInstallments,
   loanReviewNotes,
+  loanSettlements,
   loans,
+  managementEvents,
   transactions,
   users,
 } from "../../src/db/schema.ts";
@@ -162,6 +164,7 @@ async function clearLoans() {
     .delete(loanInstallments)
     .where(inArray(loanInstallments.loanId, ids));
   await db.delete(loanReviewNotes).where(inArray(loanReviewNotes.loanId, ids));
+  await db.delete(loanSettlements).where(inArray(loanSettlements.loanId, ids));
   await db.delete(transactions).where(inArray(transactions.loanId, ids));
   await db.delete(loans).where(scope);
 }
@@ -1259,5 +1262,193 @@ it("tracks grace and overdue interest and posts only the oldest installment once
     expect(balance.amount).toBe(827_024n);
   } finally {
     await db.update(bankAccounts).set({ balancePoisha: 0n }).where(account);
+  }
+});
+
+it("settles an active loan once, preserves scheduled history and exposes the completion in Admin audit", async () => {
+  const id = await forwardedLoan();
+  const ownerAccount = accounts.get("owner")!;
+  const account = eq(bankAccounts.id, ownerAccount);
+  const audit = (person: Person) =>
+    request(app).get("/api/v1/audit").set("Cookie", cookies.get(person)!);
+  const settle = (
+    person: Person,
+    expectedAmountPoisha: string,
+    accountId = ownerAccount,
+  ) =>
+    reviewAction(person, id, "settle", {
+      accountId,
+      pin,
+      expectedAmountPoisha,
+    });
+  try {
+    await reviewAction("admin", id, "approve", decision).expect(200);
+    await reviewAction("admin", id, "disburse").expect(200);
+    const { body } = await get("owner", `/${id}`).expect(200);
+    expect(body.settlementQuote).toEqual({
+      principalPoisha: "1000000",
+      scheduledInterestPoisha: "0",
+      overdueInterestPoisha: "0",
+      amountPoisha: "1000000",
+    });
+    await settle("staff", "1000000").expect(403);
+    await settle("neighbor", "1000000").expect(404);
+    await settle("owner", "1000000", accounts.get("neighbor")).expect(404);
+    await settle("owner", "999999").expect(409);
+    await db.update(bankAccounts).set({ heldBalancePoisha: 1n }).where(account);
+    await settle("owner", "1000000").expect(422);
+    await db.update(bankAccounts).set({ heldBalancePoisha: 0n }).where(account);
+    await db.execute(
+      sql`alter table loan_settlements add constraint test_settlement_rollback check (principal_minor < 1000000) not valid`,
+    );
+    try {
+      await settle("owner", "1000000").expect(500);
+      const [unchanged] = await db
+        .select({ amount: bankAccounts.balancePoisha })
+        .from(bankAccounts)
+        .where(account);
+      expect(unchanged.amount).toBe(1_000_000n);
+      expect((await get("owner", `/${id}`).expect(200)).body.loan.status).toBe(
+        "ACTIVE",
+      );
+    } finally {
+      await db.execute(
+        sql`alter table loan_settlements drop constraint test_settlement_rollback`,
+      );
+    }
+    const [first, retry] = await Promise.all([
+      settle("owner", "1000000").expect(200),
+      settle("owner", "1000000").expect(200),
+    ]);
+    expect(retry.body).toEqual(first.body);
+    const [balance] = await db
+      .select({ amount: bankAccounts.balancePoisha })
+      .from(bankAccounts)
+      .where(account);
+    expect(balance.amount).toBe(0n);
+    const settled = await get("owner", `/${id}`).expect(200);
+    expect(settled.body.loan).toMatchObject({
+      status: "COMPLETED",
+      remainingPrincipalPoisha: "0",
+    });
+    expect(settled.body).not.toHaveProperty("settlementQuote");
+    expect(settled.body.settlement).toEqual({
+      ...body.settlementQuote,
+      reference: first.body.reference,
+    });
+    expect(settled.body.installments).toHaveLength(6);
+    for (const installment of settled.body.installments) {
+      expect(installment).toMatchObject({
+        status: "CLOSED",
+        payable: false,
+        paidAt: null,
+        amountDuePoisha: null,
+      });
+    }
+    await reviewAction("owner", id, "installments/1/repay", {
+      accountId: ownerAccount,
+      pin,
+    }).expect(409);
+    const repayment = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.loanId, id),
+          eq(transactions.type, "LOAN_REPAYMENT"),
+        ),
+      );
+    expect(repayment).toHaveLength(1);
+
+    await request(app).get("/api/v1/audit").expect(401);
+    await audit("owner").expect(403);
+    await audit("staff").expect(403);
+    await audit("admin")
+      .query({ from: "2026-02-28", to: "2026-02-01" })
+      .expect(400);
+    const trail = await audit("admin")
+      .query({ category: "LOAN", search: id })
+      .expect(200);
+    expect(
+      trail.body.events.map((event: { action: string }) => event.action).sort(),
+    ).toEqual([
+      "APPROVED",
+      "DISBURSED",
+      "FORWARDED",
+      "SETTLED",
+      "UNDER_REVIEW",
+    ]);
+    const completion = trail.body.events.find(
+      (event: { action: string }) => event.action === "SETTLED",
+    );
+    expect(completion).toMatchObject({
+      subjectId: id,
+      actorId: usersByPerson.get("owner"),
+    });
+    expect(completion).not.toHaveProperty("reason");
+    const byActor = await audit("admin")
+      .query({ category: "LOAN", search: usersByPerson.get("owner") })
+      .expect(200);
+    expect(byActor.body.events).toContainEqual(completion);
+    await audit("admin")
+      .query({ category: "FLAG", search: id })
+      .expect(200, { events: [], hasNextPage: false });
+  } finally {
+    await db
+      .update(bankAccounts)
+      .set({ balancePoisha: 0n, heldBalancePoisha: 0n })
+      .where(account);
+  }
+});
+
+it("paginates management audit events and filters by Dhaka calendar dates", async () => {
+  const customerId = profiles.get("neighbor")!;
+  const actorId = usersByPerson.get("admin")!;
+  const date = new Date("2043-05-03T18:00:00.000Z");
+  const filters = {
+    category: "MANAGEMENT",
+    search: customerId,
+    from: "2043-05-04",
+    to: "2043-05-04",
+  };
+  const audit = (changes: object = {}) =>
+    request(app)
+      .get("/api/v1/audit")
+      .set("Cookie", cookies.get("admin")!)
+      .query({ ...filters, ...changes });
+  try {
+    await db.insert(managementEvents).values(
+      Array.from({ length: 21 }, () => ({
+        customerId,
+        actorId,
+        action: "CUSTOMER_ACTIVATED" as const,
+        createdAt: date,
+      })),
+    );
+    const first = await audit().expect(200);
+    const second = await audit({ page: 2 }).expect(200);
+    expect(first.body.events).toHaveLength(20);
+    expect(first.body.hasNextPage).toBe(true);
+    expect(second.body.events).toHaveLength(1);
+    expect(second.body.hasNextPage).toBe(false);
+    expect(
+      first.body.events.every(
+        (entry: { eventId: string }) =>
+          entry.eventId !== second.body.events[0].eventId,
+      ),
+    ).toBe(true);
+    expect(second.body.events[0]).toMatchObject({
+      actorId,
+      subjectId: customerId,
+      action: "CUSTOMER_ACTIVATED",
+    });
+    await audit({ from: "2043-05-03", to: "2043-05-03" }).expect(200, {
+      events: [],
+      hasNextPage: false,
+    });
+  } finally {
+    await db
+      .delete(managementEvents)
+      .where(eq(managementEvents.customerId, customerId));
   }
 });

@@ -95,3 +95,58 @@ export function installmentAccrual(
     ),
   };
 }
+
+type SettlementInstallment = {
+  dueDate: string;
+  principalPoisha: bigint;
+  interestPoisha: bigint;
+  paidAt: Date | null;
+};
+
+export function calculateLoanSettlement(
+  schedule: SettlementInstallment[],
+  disbursementDay: string,
+  annualRateBps: number,
+  today: string,
+) {
+  let principalPoisha = 0n;
+  let scheduledInterestPoisha = 0n;
+  let overdueInterestPoisha = 0n;
+  let periodStart = disbursementDay;
+  let currentPeriodIncluded = false;
+
+  for (const entry of schedule) {
+    if (!entry.paidAt) {
+      principalPoisha += entry.principalPoisha;
+      if (entry.dueDate <= today) {
+        scheduledInterestPoisha += entry.interestPoisha;
+        overdueInterestPoisha += installmentAccrual(
+          entry,
+          annualRateBps,
+          today,
+        ).overdueInterestPoisha;
+      } else if (!currentPeriodIncluded) {
+        const elapsed = Math.max(
+          0,
+          Date.parse(today) - Date.parse(periodStart),
+        );
+        const duration = Date.parse(entry.dueDate) - Date.parse(periodStart);
+        if (duration > 0) {
+          scheduledInterestPoisha += roundPoisha(
+            entry.interestPoisha * BigInt(elapsed),
+            BigInt(duration),
+          );
+        }
+        currentPeriodIncluded = true;
+      }
+    }
+    periodStart = entry.dueDate;
+  }
+  return {
+    principalPoisha,
+    scheduledInterestPoisha,
+    overdueInterestPoisha,
+    amountPoisha:
+      principalPoisha + scheduledInterestPoisha + overdueInterestPoisha,
+  };
+}

@@ -82,6 +82,10 @@ Customers can review an installment estimate and submit an application from **Lo
 
 Installments must be paid in order. An unpaid installment is in grace on days one through seven and overdue on day eight. Simple overdue interest accrues from the day after the due date through payment using Dhaka calendar days, the loan's annual rate divided by 365, and only that installment's unpaid principal. Interest is rounded once per installment and posted with the scheduled payment.
 
+Customers can settle an active loan in full from its details page. Settlement covers remaining principal, unpaid scheduled interest already due, the accrued portion of the current period's scheduled interest, and overdue interest through the settlement day. The current-period portion is prorated by elapsed Dhaka calendar days. The settlement has a separate repayment receipt.
+
+Admins can open **Audit history** and search recorded management changes, cash decisions and cancellations, loan lifecycle events, transfer reversals, and flag activity by actor, action, or record ID. Category and Dhaka date filters narrow the results.
+
 ## PostgreSQL development setup
 
 Copy `apps/api/.env.example` to `apps/api/.env.local`. Set `DATABASE_URL` to the pooled connection string from a dedicated Neon development database or branch. Set `DATABASE_MIGRATION_URL` to its direct connection string. Keep both URLs in the API environment and retain Neon's TLS settings.

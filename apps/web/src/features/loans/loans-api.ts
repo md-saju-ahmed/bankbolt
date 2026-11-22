@@ -54,15 +54,25 @@ export type LoanInstallment = {
   totalPoisha: string;
   overdueInterestPoisha: string;
   amountDuePoisha: string | null;
-  status: "PAID" | "OVERDUE" | "IN_GRACE" | "DUE" | "SCHEDULED";
+  status: "PAID" | "OVERDUE" | "IN_GRACE" | "DUE" | "SCHEDULED" | "CLOSED";
   paidAmountPoisha: string | null;
   paidAt: string | null;
   repaymentReference: string | null;
   payable: boolean;
 };
+export type SettlementQuote = {
+  principalPoisha: string;
+  scheduledInterestPoisha: string;
+  overdueInterestPoisha: string;
+  amountPoisha: string;
+};
+export type LoanSettlement = SettlementQuote & { reference: string };
+
 type CustomerLoanDetail = {
   loan: LoanRecord;
   installments: LoanInstallment[];
+  settlementQuote?: SettlementQuote;
+  settlement?: LoanSettlement;
   disbursementReference: string | null;
 };
 type LoanReview = CustomerLoanDetail & {
@@ -180,6 +190,29 @@ const loansApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Loans", "OwnedAccounts", "Transactions"],
     }),
+    settleLoan: build.mutation<
+      LoanReceipt,
+      {
+        id: string;
+        accountId: string;
+        pin: string;
+        expectedAmountPoisha: string;
+      }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/loans/${id}/settle`,
+        method: "POST",
+        body,
+        timeout: 15_000,
+      }),
+      invalidatesTags: [
+        "Loans",
+        "OwnedAccounts",
+        "Management",
+        "OnboardingAccounts",
+        "Transactions",
+      ],
+    }),
     submitLoanApplication: build.mutation<
       { loan: LoanApplication },
       LoanApplicationInput
@@ -205,5 +238,6 @@ export const {
   useAdminLoanActionMutation,
   useCustomerLoanDetailQuery,
   useRepayLoanMutation,
+  useSettleLoanMutation,
   useSubmitLoanApplicationMutation,
 } = loansApi;

@@ -7,7 +7,12 @@ import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { pages } from "../onboarding/validation.ts";
 import { annualLoanRateBps, loanCatalog, loanTypes } from "./catalog.ts";
 import { calculateLoanEmi } from "./calculations.ts";
-import { decideLoan, disburseLoan, repayInstallment } from "./servicing.ts";
+import {
+  decideLoan,
+  disburseLoan,
+  repayInstallment,
+  settleLoan,
+} from "./servicing.ts";
 import {
   addLoanReviewNote,
   createLoanApplication,
@@ -23,6 +28,7 @@ import {
   loanDecisionInput,
   loanRepaymentInput,
   loanRepaymentParams,
+  loanSettlementInput,
   loanReviewActionInput,
   loanReviewNoteInput,
 } from "./validation.ts";
@@ -188,6 +194,27 @@ loansRouter.post(
         currentIdentity(request),
         id,
         number,
+        accountId,
+        pin,
+        expectedAmountPoisha,
+      ),
+    );
+  },
+);
+
+loansRouter.post(
+  "/:id/settle",
+  requireWebOrigin,
+  requireRole("CUSTOMER"),
+  async (request, response) => {
+    const id = z.uuid().parse(request.params.id);
+    const { accountId, pin, expectedAmountPoisha } = loanSettlementInput.parse(
+      request.body,
+    );
+    response.json(
+      await settleLoan(
+        currentIdentity(request),
+        id,
         accountId,
         pin,
         expectedAmountPoisha,

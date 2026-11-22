@@ -6,6 +6,7 @@ import {
   customerProfiles,
   loanInstallments,
   loanReviewNotes,
+  loanSettlements,
   loans,
   transactions,
   users,
@@ -20,6 +21,7 @@ import {
 } from "./eligibility.ts";
 import {
   calculateLoanSchedule,
+  calculateLoanSettlement,
   installmentAccrual,
   installmentGraceDays,
 } from "./calculations.ts";
@@ -186,13 +188,54 @@ async function readLoanDetail(
           ),
         )
     : [];
+  const [settlement] =
+    row.loan.status === "COMPLETED"
+      ? await db
+          .select({
+            principalPoisha: loanSettlements.principalPoisha,
+            scheduledInterestPoisha: loanSettlements.scheduledInterestPoisha,
+            overdueInterestPoisha: loanSettlements.overdueInterestPoisha,
+            amountPoisha: transactions.amountPoisha,
+            reference: transactions.reference,
+          })
+          .from(loanSettlements)
+          .innerJoin(
+            transactions,
+            eq(transactions.id, loanSettlements.transactionId),
+          )
+          .where(eq(loanSettlements.loanId, id))
+      : [];
   const today = dhakaDate(new Date());
+  const quote =
+    row.loan.status === "ACTIVE" &&
+    row.loan.disbursedAt &&
+    identity.role === "CUSTOMER"
+      ? calculateLoanSettlement(
+          installments.map(({ installment }) => installment),
+          dhakaDate(row.loan.disbursedAt),
+          row.loan.annualRateBps,
+          today,
+        )
+      : null;
   const oldestUnpaid = installments.find(
     ({ installment }) => !installment.paidAt,
   );
   const detail = {
     loan: loanView(row.loan, identity),
     disbursementReference: disbursement?.reference ?? null,
+    ...(settlement
+      ? {
+          settlement: {
+            ...settlementView(settlement),
+            reference: settlement.reference,
+          },
+        }
+      : {}),
+    ...(quote &&
+    quote.principalPoisha > 0n &&
+    quote.principalPoisha === row.loan.remainingPrincipalPoisha
+      ? { settlementQuote: settlementView(quote) }
+      : {}),
     installments: installments.map(({ installment, repaymentReference }) => {
       const { daysLate, overdueInterestPoisha } = installmentAccrual(
         installment,
@@ -201,18 +244,22 @@ async function readLoanDetail(
       );
       const overdue = installment.paidAt
         ? installment.paidOverdueInterestPoisha
-        : overdueInterestPoisha;
+        : settlement
+          ? 0n
+          : overdueInterestPoisha;
       const scheduledTotal =
         installment.principalPoisha + installment.interestPoisha;
       const status = installment.paidAt
         ? "PAID"
-        : daysLate > installmentGraceDays
-          ? "OVERDUE"
-          : daysLate > 0
-            ? "IN_GRACE"
-            : installment.dueDate === today
-              ? "DUE"
-              : "SCHEDULED";
+        : settlement
+          ? "CLOSED"
+          : daysLate > installmentGraceDays
+            ? "OVERDUE"
+            : daysLate > 0
+              ? "IN_GRACE"
+              : installment.dueDate === today
+                ? "DUE"
+                : "SCHEDULED";
       return {
         number: installment.number,
         dueDate: installment.dueDate,
@@ -220,9 +267,10 @@ async function readLoanDetail(
         interestPoisha: installment.interestPoisha.toString(),
         totalPoisha: scheduledTotal.toString(),
         overdueInterestPoisha: overdue.toString(),
-        amountDuePoisha: installment.paidAt
-          ? null
-          : (scheduledTotal + overdue).toString(),
+        amountDuePoisha:
+          installment.paidAt || settlement
+            ? null
+            : (scheduledTotal + overdue).toString(),
         status,
         paidAmountPoisha: installment.paidAmountPoisha?.toString() ?? null,
         paidAt: installment.paidAt,
@@ -419,4 +467,15 @@ export async function storeLoanSchedule(
       schedule.installments.map((installment) => ({ ...installment, loanId })),
     );
   return schedule;
+}
+
+export function settlementView(
+  amounts: ReturnType<typeof calculateLoanSettlement>,
+) {
+  return {
+    principalPoisha: amounts.principalPoisha.toString(),
+    scheduledInterestPoisha: amounts.scheduledInterestPoisha.toString(),
+    overdueInterestPoisha: amounts.overdueInterestPoisha.toString(),
+    amountPoisha: amounts.amountPoisha.toString(),
+  };
 }

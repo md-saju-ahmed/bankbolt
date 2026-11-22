@@ -8,6 +8,7 @@ import {
   loanStatuses,
   type LoanInstallment,
   type LoanRecord,
+  type LoanSettlement,
 } from "./loans-api";
 
 export function LoanTimeline({
@@ -58,10 +59,12 @@ export function LoanRepaymentHistory({
   installments,
   disbursementReference,
   workspace,
+  settlement,
 }: {
   installments: LoanInstallment[];
   disbursementReference: string | null;
   workspace: "customer" | "admin";
+  settlement?: LoanSettlement;
 }) {
   const payments = installments
     .flatMap((entry) =>
@@ -101,6 +104,24 @@ export function LoanRepaymentHistory({
           </Link>
         )}
       </div>
+      {settlement && (
+        <div className="space-y-1 border-b pb-3">
+          <h3 className="text-sm font-semibold">
+            Early full settlement ? {formatTaka(settlement.amountPoisha)}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Principal {formatTaka(settlement.principalPoisha)} ? Scheduled
+            interest {formatTaka(settlement.scheduledInterestPoisha)} ? Overdue
+            interest {formatTaka(settlement.overdueInterestPoisha)}
+          </p>
+          <Link
+            className={receiptLink}
+            href={`/${workspace}/transactions/${settlement.reference}/receipt`}
+          >
+            View settlement receipt
+          </Link>
+        </div>
+      )}
       {payments.length ? (
         <ul className="divide-y">
           {payments.map((payment) => (
@@ -139,9 +160,11 @@ export function LoanRepaymentHistory({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No repayments have been posted.
-        </p>
+        !settlement && (
+          <p className="text-sm text-muted-foreground">
+            No repayments have been posted.
+          </p>
+        )
       )}
     </Card>
   );
