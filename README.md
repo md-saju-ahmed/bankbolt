@@ -90,7 +90,11 @@ Generate a migration after changing the Drizzle schema. Review its SQL and metad
 
 ## Docker development
 
-Copy the root `.env.example` to `.env` and set `DATABASE_URL` to the pooled Neon development URL. Set `SESSION_SECRET` to the generated secret before using sign-in. Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
+Copy the root `.env.example` to `.env`. Set `DATABASE_URL` to the pooled URL for your dedicated development database and set `SESSION_SECRET` to a generated secret. For a fresh database, configure `apps/api/.env.local` for that same database, then run the [migration](#postgresql-development-setup) and [demo sign-in setup](#authentication-and-demo-access) commands from the host.
+
+Run `docker compose up --build`. Compose exposes the web app on port `3000` and the API on port `4000`. Open <http://localhost:3000/login> and use one of the seeded role emails with the password you configured. Check the API through <http://localhost:3000/api/v1/health>.
+
+Set `WEB_PORT` or `API_PORT` in the root `.env` if host ports are occupied. Compose derives the allowed web origin from `WEB_PORT` unless you set `WEB_ORIGIN` explicitly. Update the browser URL and any explicit `WEB_ORIGIN` to match. The web container forwards requests to `http://api:4000` over the Compose network. Run `docker compose down` to stop the services.
 
 ## Tests
 
