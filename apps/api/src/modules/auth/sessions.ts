@@ -25,7 +25,7 @@ function cookieName() {
   return isProduction() ? "__Host-bankbolt_session" : "bankbolt_session";
 }
 
-function presentedDigest(request: Request) {
+export function presentedDigest(request: Request) {
   const prefix = `${cookieName()}=`;
   const cookies = (request.get("Cookie") ?? "")
     .split(";")

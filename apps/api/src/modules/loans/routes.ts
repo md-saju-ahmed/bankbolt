@@ -3,6 +3,7 @@ import { z } from "zod";
 import { loanStatus } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 import { requireWebOrigin } from "../auth/auth-config.ts";
+import { requireAuthenticator } from "../auth/two-factor.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { pages } from "../onboarding/validation.ts";
 import { annualLoanRateBps, loanCatalog, loanTypes } from "./catalog.ts";
@@ -91,6 +92,7 @@ loansRouter.post(
   "/",
   requireWebOrigin,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     const loan = await createLoanApplication(
       currentIdentity(request),
@@ -147,6 +149,7 @@ loansRouter.post(
   "/:id/approve",
   requireWebOrigin,
   requireAdmin,
+  requireAuthenticator,
   async (request, response) => {
     const id = z.uuid().parse(request.params.id);
     const { reason } = loanDecisionInput.parse(request.body);
@@ -160,6 +163,7 @@ loansRouter.post(
   "/:id/reject",
   requireWebOrigin,
   requireAdmin,
+  requireAuthenticator,
   async (request, response) => {
     const id = z.uuid().parse(request.params.id);
     const { reason } = loanDecisionInput.parse(request.body);
@@ -173,6 +177,7 @@ loansRouter.post(
   "/:id/disburse",
   requireWebOrigin,
   requireAdmin,
+  requireAuthenticator,
   async (request, response) => {
     const id = z.uuid().parse(request.params.id);
     loanReviewActionInput.parse(request.body);
@@ -184,6 +189,7 @@ loansRouter.post(
   "/:id/installments/:number/repay",
   requireWebOrigin,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     const { id, number } = loanRepaymentParams.parse(request.params);
     const { accountId, pin, expectedAmountPoisha } = loanRepaymentInput.parse(
@@ -206,6 +212,7 @@ loansRouter.post(
   "/:id/settle",
   requireWebOrigin,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     const id = z.uuid().parse(request.params.id);
     const { accountId, pin, expectedAmountPoisha } = loanSettlementInput.parse(

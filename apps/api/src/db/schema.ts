@@ -25,7 +25,11 @@ export const verificationStatus = pgEnum("verification_status", [
   "VERIFIED",
   "REJECTED",
 ]);
-export const attemptPurpose = pgEnum("attempt_purpose", ["LOGIN", "PIN"]);
+export const attemptPurpose = pgEnum("attempt_purpose", [
+  "LOGIN",
+  "PIN",
+  "TOTP",
+]);
 
 export const users = pgTable(
   "users",
@@ -85,6 +89,15 @@ export const sessions = pgTable(
     index("sessions_expires_at_idx").on(table.expiresAt),
   ],
 );
+
+export const authenticators = pgTable("authenticators", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  secretCiphertext: text("secret_ciphertext").notNull(),
+  recoveryDigest: text("recovery_digest").notNull(),
+  lastTimeStep: bigint("last_time_step", { mode: "number" }).notNull(),
+});
 
 export const authAttempts = pgTable(
   "auth_attempts",

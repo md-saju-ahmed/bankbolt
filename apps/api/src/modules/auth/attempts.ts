@@ -3,7 +3,7 @@ import { getDatabase } from "../../db/client.ts";
 import { authAttempts } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 
-const limits = { LOGIN: 8, PIN: 5 };
+const limits = { LOGIN: 8, PIN: 5, TOTP: 5 };
 
 export async function reserveAttempt(
   purpose: keyof typeof limits,
@@ -35,7 +35,8 @@ export async function reserveAttempt(
   return result.window;
 }
 
-export async function releaseSuccessfulPinAttempt(
+export async function releaseSuccessfulAttempt(
+  purpose: "PIN" | "TOTP",
   subject: string,
   window: string,
 ) {
@@ -44,7 +45,7 @@ export async function releaseSuccessfulPinAttempt(
     .set({ attempts: sql`${authAttempts.attempts} - 1` })
     .where(
       and(
-        eq(authAttempts.purpose, "PIN"),
+        eq(authAttempts.purpose, purpose),
         eq(authAttempts.subject, subject),
         sql`${authAttempts.resetsAt} = ${window}::timestamptz and ${authAttempts.attempts} > 0`,
       ),

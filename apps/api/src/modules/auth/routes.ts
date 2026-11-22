@@ -13,7 +13,18 @@ import {
   createSession,
   deleteSession,
   publicIdentity,
+  presentedDigest,
 } from "./sessions.ts";
+import {
+  authenticatorStatus,
+  beginAuthenticatorSetup,
+  enableAuthenticator,
+  disableAuthenticator,
+  setupInput,
+  enableInput,
+  disableInput,
+  requireAuthenticator,
+} from "./two-factor.ts";
 import { changeTransactionPin, pinChange } from "./transaction-pin.ts";
 
 const loginBody = z.strictObject({
@@ -64,6 +75,7 @@ authRouter.put(
   requireWebOrigin,
   requireAuth,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     await changeTransactionPin(
       currentIdentity(request).id,
@@ -106,6 +118,68 @@ authRouter.post(
   async (request, response) => {
     await deleteSession(request);
     clearSessionCookie(response);
+    response.status(204).end();
+  },
+);
+
+authRouter.get("/two-factor", requireAuth, async (request, response) => {
+  response.json(await authenticatorStatus(currentIdentity(request).id));
+});
+
+authRouter.post(
+  "/two-factor/setup",
+  requireWebOrigin,
+  requireAuth,
+  async (request, response) => {
+    const { password } = setupInput.parse(request.body);
+    const session = presentedDigest(request);
+    if (!session)
+      throw new ApiError(401, "AUTH_REQUIRED", "Sign in to continue.");
+    response.json(
+      await beginAuthenticatorSetup(
+        currentIdentity(request).id,
+        session,
+        password,
+      ),
+    );
+  },
+);
+
+authRouter.post(
+  "/two-factor/enable",
+  requireWebOrigin,
+  requireAuth,
+  async (request, response) => {
+    const { ticket, code } = enableInput.parse(request.body);
+    const session = presentedDigest(request);
+    if (!session)
+      throw new ApiError(401, "AUTH_REQUIRED", "Sign in to continue.");
+    response.json(
+      await enableAuthenticator(
+        currentIdentity(request).id,
+        session,
+        ticket,
+        code,
+      ),
+    );
+  },
+);
+
+authRouter.post(
+  "/two-factor/disable",
+  requireWebOrigin,
+  requireAuth,
+  async (request, response) => {
+    const { password, code } = disableInput.parse(request.body);
+    const session = presentedDigest(request);
+    if (!session)
+      throw new ApiError(401, "AUTH_REQUIRED", "Sign in to continue.");
+    await disableAuthenticator(
+      currentIdentity(request).id,
+      session,
+      password,
+      code,
+    );
     response.status(204).end();
   },
 );

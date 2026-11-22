@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireWebOrigin } from "../auth/auth-config.ts";
+import { requireAuthenticator } from "../auth/two-factor.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import {
   activateAccount,
@@ -27,11 +28,16 @@ onboardingRouter.use((_request, response, next) => {
 });
 onboardingRouter.use(requireAuth, requireRole("ADMIN", "STAFF"));
 
-onboardingRouter.post("/", requireWebOrigin, async (request, response) => {
-  response.status(201).json({
-    customer: await registerCustomer(registration.parse(request.body)),
-  });
-});
+onboardingRouter.post(
+  "/",
+  requireWebOrigin,
+  requireAuthenticator,
+  async (request, response) => {
+    response.status(201).json({
+      customer: await registerCustomer(registration.parse(request.body)),
+    });
+  },
+);
 
 onboardingRouter.post(
   "/lookup",
@@ -45,6 +51,7 @@ onboardingRouter.post(
 onboardingRouter.patch(
   "/:customerId/verification",
   requireWebOrigin,
+  requireAuthenticator,
   async (request, response) => {
     const { customerId } = customerParams.parse(request.params);
     const { status } = review.parse(request.body);
@@ -67,6 +74,7 @@ onboardingRouter.get("/:customerId/accounts", async (request, response) => {
 onboardingRouter.post(
   "/:customerId/accounts",
   requireWebOrigin,
+  requireAuthenticator,
   async (request, response) => {
     const { customerId } = customerParams.parse(request.params);
     const { account, created } = await createAccount(
@@ -81,6 +89,7 @@ onboardingRouter.post(
 onboardingRouter.post(
   "/:customerId/accounts/:accountId/activate",
   requireWebOrigin,
+  requireAuthenticator,
   async (request, response) => {
     const { customerId, accountId } = accountParams.parse(request.params);
     response.json({

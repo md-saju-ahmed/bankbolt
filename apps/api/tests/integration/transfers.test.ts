@@ -3,12 +3,14 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { eq, inArray, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { generate } from "otplib";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import app from "../../src/app.ts";
 import { getDatabase } from "../../src/db/client.ts";
 import {
   authAttempts,
+  authenticators,
   bankAccounts,
   customerProfiles,
   transactions,
@@ -953,3 +955,100 @@ it("downloads PDF receipts only for posted transactions within the caller's scop
     expect(file.match(/\/Type \/Page\b/g)).toHaveLength(1);
   }
 });
+
+it("enrolls with password and a session-bound ticket, rejects replay, and recovers securely", async () => {
+  const userId = identities.get("owner")!;
+  const authPath = "/api/v1/auth/two-factor";
+  const authPost = (
+    path: string,
+    body: object,
+    cookie = cookies.get("owner")!,
+  ) =>
+    request(app)
+      .post(authPath + path)
+      .set("Origin", origin)
+      .set("Cookie", cookie)
+      .send(body);
+  const status = () =>
+    request(app).get(authPath).set("Cookie", cookies.get("owner")!);
+  const header = "X-BankBolt-Authenticator-Code";
+  const existingKey = process.env.TOTP_ENCRYPTION_KEY;
+  const subjects = ["password:", "code:"].map((purpose) =>
+    authDigest("totp", purpose + userId),
+  );
+  vi.stubEnv("TOTP_ENCRYPTION_KEY", "b7".repeat(32));
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    await status().expect(200, { available: true, enabled: false });
+    await authPost("/setup", { password: "Incorrect fixture password" }).expect(
+      403,
+    );
+    const setup = await authPost("/setup", { password })
+      .expect(200)
+      .expect("Cache-Control", "no-store");
+    const { secret, ticket } = setup.body;
+    const otherSession = await request(app)
+      .post("/api/v1/auth/login")
+      .set("Origin", origin)
+      .send({ email: address("owner"), password })
+      .expect(200);
+    const staleCookie = otherSession.headers["set-cookie"][0].split(";")[0];
+    const enrollmentCode = await generate({ secret });
+    await authPost(
+      "/enable",
+      { ticket, code: enrollmentCode },
+      staleCookie,
+    ).expect(409);
+    const enabled = await authPost("/enable", {
+      ticket,
+      code: enrollmentCode,
+    }).expect(200);
+    const recovery = enabled.body.recoveryCode as string;
+    expect(recovery).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    await status().expect(200, { available: true, enabled: true });
+    await request(app).get(authPath).set("Cookie", staleCookie).expect(401);
+    const [stored] = await db
+      .select()
+      .from(authenticators)
+      .where(eq(authenticators.userId, userId));
+    expect(stored.secretCiphertext).not.toContain(secret);
+    expect(stored.recoveryDigest).not.toBe(recovery);
+    await authPost("/setup", { password }).expect(409);
+
+    const input = payload({ amountPoisha: "1000" });
+    const required = await post(input).expect(403);
+    expect(required.body.error.code).toBe("AUTHENTICATOR_CODE_REQUIRED");
+    await post(input).set(header, enrollmentCode).expect(403);
+    await post(input).set(header, recovery).expect(403);
+    expect(await postings()).toHaveLength(0);
+    vi.setSystemTime(Date.now() + 30_000);
+    const code = await generate({ secret });
+    const outcomes = await Promise.all([
+      post(input).set(header, code),
+      post(input).set(header, code),
+    ]);
+    expect(outcomes.map(({ status }) => status).sort()).toEqual([201, 403]);
+    expect(await postings()).toHaveLength(1);
+    const reused = await post(payload()).set(header, code).expect(403);
+    expect(reused.body.error.code).toBe("INVALID_AUTHENTICATOR_CODE");
+    await post(payload()).set(header, code).expect(403);
+    const locked = await post(payload()).set(header, code).expect(429);
+    expect(locked.body.error.code).toBe("TOO_MANY_ATTEMPTS");
+    // The rate-limit window uses the database clock. Expire the isolated fixture window.
+    await db
+      .update(authAttempts)
+      .set({ resetsAt: new Date(0) })
+      .where(eq(authAttempts.subject, subjects[1]));
+    await authPost("/disable", { password, code: recovery }).expect(204);
+    await authPost("/disable", { password, code: recovery }).expect(409);
+    await status().expect(200, { available: true, enabled: false });
+    await post(payload({ amountPoisha: "1000" })).expect(201);
+  } finally {
+    vi.useRealTimers();
+    vi.stubEnv("TOTP_ENCRYPTION_KEY", existingKey);
+    await db.delete(authenticators).where(eq(authenticators.userId, userId));
+    await db
+      .delete(authAttempts)
+      .where(inArray(authAttempts.subject, subjects));
+  }
+}, 25_000);

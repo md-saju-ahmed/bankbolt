@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ReceiptText,
+  ShieldCheck,
   UserRoundPlus,
   UsersRound,
   Wallet,
@@ -160,6 +161,12 @@ function WorkspaceLinks({
       active: pathname === `${root}/audit`,
     });
   }
+  links.push({
+    href: `${root}/security`,
+    label: "Security",
+    icon: ShieldCheck,
+    active: pathname === `${root}/security`,
+  });
   return (
     <div className="space-y-2">
       {links.map(({ href, label, icon: Icon, active }) => {

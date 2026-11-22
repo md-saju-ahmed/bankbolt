@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getDatabase } from "../../db/client.ts";
 import { customerProfiles } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
-import { releaseSuccessfulPinAttempt, reserveAttempt } from "./attempts.ts";
+import { releaseSuccessfulAttempt, reserveAttempt } from "./attempts.ts";
 import { verifyCredential } from "./credentials.ts";
 import type { Identity } from "./sessions.ts";
 
@@ -41,6 +41,6 @@ export async function verifyTransactionPin(identity: Identity, pin: string) {
   if (!valid || !profile?.pinHash) {
     throw new ApiError(403, "INVALID_PIN", "The transaction PIN is incorrect.");
   }
-  await releaseSuccessfulPinAttempt(identity.id, window);
+  await releaseSuccessfulAttempt("PIN", identity.id, window);
   return profile.pinHash;
 }

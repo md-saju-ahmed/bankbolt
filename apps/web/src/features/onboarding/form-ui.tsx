@@ -34,6 +34,9 @@ export function ErrorMessage({ message }: { message: string }) {
 
 const messages: Record<string, string> = {
   AUTH_REQUIRED: "Your session ended. Sign in again.",
+  AUTHENTICATOR_CANCELLED: "Verification was cancelled.",
+  AUTHENTICATOR_UNAVAILABLE:
+    "Authenticator verification is temporarily unavailable.",
   ACCOUNT_BLOCKED: "Your account is blocked.",
   FORBIDDEN: "Your role cannot perform this action.",
   INVALID_ORIGIN: "Use the configured BankBolt web address.",

@@ -20,6 +20,7 @@ import {
 import { formatBdtDecimal } from "../../lib/money.ts";
 import { dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
 import { requireWebOrigin } from "../auth/auth-config.ts";
+import { requireAuthenticator } from "../auth/two-factor.ts";
 import { reverseTransfer, reversalInput } from "./reversal.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import type { Identity } from "../auth/sessions.ts";
@@ -198,6 +199,7 @@ transactionsRouter.post(
   "/:reference/reverse",
   requireWebOrigin,
   requireRole("ADMIN"),
+  requireAuthenticator,
   async (request, response) => {
     const reference = z.uuid().parse(request.params.reference);
     const { reason } = reversalInput.parse(request.body);

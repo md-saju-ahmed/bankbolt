@@ -8,6 +8,7 @@ services:
       PORT: "4000"
       DATABASE_URL: ${DATABASE_URL:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:${WEB_PORT:-3000}}
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"

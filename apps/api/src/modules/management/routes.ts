@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireWebOrigin } from "../auth/auth-config.ts";
+import { requireAuthenticator } from "../auth/two-factor.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { pages } from "../onboarding/validation.ts";
 import {
@@ -45,6 +46,7 @@ managementRouter.patch(
   "/customers/:id/access",
   requireWebOrigin,
   requireRole("ADMIN"),
+  requireAuthenticator,
   async (req, res) => {
     await changeAccess(
       z.uuid().parse(req.params.id),
@@ -73,6 +75,7 @@ managementRouter.patch(
   "/accounts/:id",
   requireWebOrigin,
   requireRole("ADMIN"),
+  requireAuthenticator,
   async (req, res) => {
     await updateAccount(
       z.uuid().parse(req.params.id),

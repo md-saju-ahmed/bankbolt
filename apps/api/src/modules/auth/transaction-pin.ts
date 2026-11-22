@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
 import { customerProfiles, users } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
-import { releaseSuccessfulPinAttempt, reserveAttempt } from "./attempts.ts";
+import { releaseSuccessfulAttempt, reserveAttempt } from "./attempts.ts";
 import { hashCredential, verifyCredential } from "./credentials.ts";
 
 export const transactionPin = z.string().regex(/^[0-9]{6}$/);
@@ -52,7 +52,7 @@ export async function changeTransactionPin(
   }
 
   const newHash = await hashCredential(newPin);
-  await releaseSuccessfulPinAttempt(userId, window);
+  await releaseSuccessfulAttempt("PIN", userId, window);
   await db.transaction(async (tx) => {
     const [current] = await tx
       .select({

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireWebOrigin } from "../auth/auth-config.ts";
+import { requireAuthenticator } from "../auth/two-factor.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import {
   createCashRequest,
@@ -42,6 +43,7 @@ cashRequestsRouter.post(
   "/",
   requireWebOrigin,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     const input = cashRequestInput.parse(request.body);
     response.status(201).json({
@@ -54,6 +56,7 @@ cashRequestsRouter.post(
   "/:id/cancel",
   requireWebOrigin,
   requireRole("CUSTOMER"),
+  requireAuthenticator,
   async (request, response) => {
     const { id } = cashRequestParams.parse(request.params);
     approvalInput.parse(request.body);
@@ -69,6 +72,7 @@ cashRequestsRouter.post(
   "/:id/approve",
   requireWebOrigin,
   requireRole("ADMIN", "STAFF"),
+  requireAuthenticator,
   async (request, response) => {
     const { id } = cashRequestParams.parse(request.params);
     approvalInput.parse(request.body);
@@ -84,6 +88,7 @@ cashRequestsRouter.post(
   "/:id/reject",
   requireWebOrigin,
   requireRole("ADMIN", "STAFF"),
+  requireAuthenticator,
   async (request, response) => {
     const { id } = cashRequestParams.parse(request.params);
     const { reason } = rejectionInput.parse(request.body);

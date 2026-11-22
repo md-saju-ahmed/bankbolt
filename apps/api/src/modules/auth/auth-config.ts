@@ -6,7 +6,10 @@ export function isProduction() {
   return process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 }
 
-export function authDigest(purpose: "session" | "login", value: string) {
+export function authDigest(
+  purpose: "session" | "login" | "totp",
+  value: string,
+) {
   const secret = process.env.SESSION_SECRET;
   if (!secret || Buffer.byteLength(secret) < 32) {
     throw new Error("SESSION_SECRET must contain at least 32 bytes.");

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+import { AuthenticatorPrompt } from "@/features/auth/authenticator-prompt";
 import { StoreProvider } from "@/lib/store/provider";
 import "@fontsource-variable/inter";
 import "./globals.css";
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          {children}
+          <AuthenticatorPrompt />
+        </StoreProvider>
         <Toaster position="top-right" />
       </body>
     </html>
