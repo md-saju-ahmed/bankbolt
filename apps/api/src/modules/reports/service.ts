@@ -110,6 +110,7 @@ function activityTotals(
     DEPOSIT: 0,
     WITHDRAWAL: 0,
     FUND_TRANSFER: 0,
+    TRANSFER_REVERSAL: 0,
     LOAN_DISBURSEMENT: 0,
     LOAN_REPAYMENT: 0,
   } satisfies Record<(typeof transactionType.enumValues)[number], number>;
@@ -122,6 +123,7 @@ function activityTotals(
         DEPOSIT: 0n,
         WITHDRAWAL: 0n,
         FUND_TRANSFER: 0n,
+        TRANSFER_REVERSAL: 0n,
         LOAN_DISBURSEMENT: 0n,
         LOAN_REPAYMENT: 0n,
         volume: 0n,

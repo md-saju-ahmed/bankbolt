@@ -30,6 +30,7 @@ const transactionTicks = {
   DEPOSIT: "Deposits",
   WITHDRAWAL: "Withdrawals",
   FUND_TRANSFER: "Transfers",
+  TRANSFER_REVERSAL: "Reversals",
   LOAN_DISBURSEMENT: "Loan payouts",
   LOAN_REPAYMENT: "Repayments",
 };

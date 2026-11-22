@@ -75,7 +75,10 @@ async function assertDailyLimit(
       and(
         eq(transactions.senderAccountId, source.id),
         eq(transactions.type, "FUND_TRANSFER"),
-        eq(transactions.status, "COMPLETED"),
+        or(
+          eq(transactions.status, "COMPLETED"),
+          eq(transactions.status, "REVERSED"),
+        ),
         gte(transactions.createdAt, dhakaDayStart(day)),
         lt(transactions.createdAt, dhakaDayEnd(day)),
       ),

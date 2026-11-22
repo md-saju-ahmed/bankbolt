@@ -250,7 +250,9 @@ function TransferSuccess({
             tabIndex={-1}
             className="text-xl font-semibold outline-none"
           >
-            Transfer completed
+            {transfer.status === "REVERSED"
+              ? "Transfer reversed"
+              : "Transfer completed"}
           </h2>
           <p className="mt-1 break-all text-sm text-muted-foreground">
             Reference {transfer.reference}

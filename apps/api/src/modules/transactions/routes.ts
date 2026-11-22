@@ -12,6 +12,8 @@ import {
 } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 import { dhakaDayEnd, dhakaDayStart } from "../../lib/dhaka-date.ts";
+import { requireWebOrigin } from "../auth/auth-config.ts";
+import { reverseTransfer, reversalInput } from "./reversal.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import type { Identity } from "../auth/sessions.ts";
 import { pages } from "../onboarding/validation.ts";
@@ -38,6 +40,8 @@ const search = pages
     status: z.enum(transactionStatus.enumValues).optional(),
   })
   .refine(({ from, to }) => !from || !to || from <= to);
+const original = alias(transactions, "original");
+const reversal = alias(transactions, "reversal");
 const sender = alias(bankAccounts, "sender");
 const receiver = alias(bankAccounts, "receiver");
 const senderOwner = alias(customerProfiles, "sender_owner");
@@ -54,12 +58,16 @@ function scopedTransactions(identity: Identity, condition?: SQL) {
   return getDatabase()
     .select({
       transaction: transactions,
+      originalReference: original.reference,
+      reversalReference: reversal.reference,
       senderNumber: sender.accountNumber,
       receiverNumber: receiver.accountNumber,
       senderUserId: senderOwner.userId,
       receiverUserId: receiverOwner.userId,
     })
     .from(transactions)
+    .leftJoin(original, eq(original.id, transactions.reversesTransactionId))
+    .leftJoin(reversal, eq(reversal.reversesTransactionId, transactions.id))
     .leftJoin(sender, eq(sender.id, transactions.senderAccountId))
     .leftJoin(receiver, eq(receiver.id, transactions.receiverAccountId))
     .leftJoin(senderOwner, eq(senderOwner.id, sender.customerId))
@@ -90,6 +98,12 @@ function transactionView(identity: Identity, row: TransactionRow) {
     amountPoisha: transaction.amountPoisha.toString(),
     feePoisha: transaction.feePoisha.toString(),
     description: transaction.description,
+    originalReference: row.originalReference,
+    reversalReference: row.reversalReference,
+    refundedFeePoisha: transaction.refundedFeePoisha.toString(),
+    ...(identity.role === "ADMIN" && transaction.reversalReason !== null
+      ? { reversalReason: transaction.reversalReason }
+      : {}),
     createdAt: transaction.createdAt,
     direction,
   };
@@ -152,7 +166,16 @@ async function transactionDetail(
     identity,
     and(
       eq(transactions.reference, reference),
-      receipt ? eq(transactions.status, "COMPLETED") : undefined,
+      receipt
+        ? or(
+            eq(transactions.status, "COMPLETED"),
+            and(
+              eq(transactions.status, "REVERSED"),
+              eq(transactions.type, "FUND_TRANSFER"),
+              sql`${reversal.id} is not null`,
+            ),
+          )
+        : undefined,
     ),
   );
   if (!row)
@@ -163,6 +186,21 @@ async function transactionDetail(
     );
   return transactionView(identity, row);
 }
+
+transactionsRouter.post(
+  "/:reference/reverse",
+  requireWebOrigin,
+  requireRole("ADMIN"),
+  async (request, response) => {
+    const reference = z.uuid().parse(request.params.reference);
+    const { reason } = reversalInput.parse(request.body);
+    response
+      .status(201)
+      .json(
+        await reverseTransfer(currentIdentity(request).id, reference, reason),
+      );
+  },
+);
 
 transactionsRouter.get("/:reference", async (request, response) => {
   const reference = z.uuid().parse(request.params.reference);

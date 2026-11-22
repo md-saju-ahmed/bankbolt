@@ -785,3 +785,126 @@ it("filters status, type, Dhaka dates and references with stable pagination", as
     .query({ from: "2026-06-03", to: "2026-06-02" })
     .expect(400);
 });
+
+function reverse(
+  reference: string,
+  person: Person = "admin",
+  reason = "Duplicate payment",
+) {
+  return request(app)
+    .post(`/api/v1/transactions/${reference}/reverse`)
+    .set("Cookie", cookies.get(person)!)
+    .set("Origin", origin)
+    .send({ reason });
+}
+
+it("reverses a transfer once and preserves linked receipts and both statement entries", async () => {
+  const input = payload();
+  const created = await post(input).expect(201);
+  const { reference } = created.body.transfer;
+  await reverse(reference, "staff").expect(403);
+  await reverse(reference, "owner").expect(403);
+  await reverse(reference).set("Origin", "https://example.invalid").expect(403);
+  await reverse(reference, "admin", "  ").expect(400);
+
+  const outcomes = await Promise.all([reverse(reference), reverse(reference)]);
+  expect(outcomes.map(({ status }) => status).sort()).toEqual([201, 409]);
+  const { reversalReference } = outcomes.find(
+    ({ status }) => status === 201,
+  )!.body;
+  await expectBalances([30_000n, 30_000n, 30_000n]);
+  const rows = await postings();
+  const original = rows.find((row) => row.reference === reference)!;
+  expect(original).toMatchObject({
+    status: "REVERSED",
+    amountPoisha: 10_000n,
+    feePoisha: 1_000n,
+    description: input.description,
+  });
+  expect(rows.find((row) => row.reference === reversalReference)).toMatchObject(
+    {
+      type: "TRANSFER_REVERSAL",
+      status: "COMPLETED",
+      reversesTransactionId: original.id,
+      senderAccountId: otherRecipient.id,
+      receiverAccountId: source.id,
+      amountPoisha: 10_000n,
+      feePoisha: 0n,
+      refundedFeePoisha: 1_000n,
+      reversalReason: "Duplicate payment",
+      initiatedBy: identities.get("admin"),
+    },
+  );
+  expect(rows).toHaveLength(2);
+  await reverse(reversalReference).expect(409);
+  const replay = await post(input).expect(200);
+  expect(replay.body.transfer.status).toBe("REVERSED");
+  await expectBalances([30_000n, 30_000n, 30_000n]);
+
+  const originalReceipt = await request(app)
+    .get(`/api/v1/transactions/${reference}/receipt`)
+    .set("Cookie", cookies.get("owner")!)
+    .expect(200);
+  expect(originalReceipt.body.transaction).toMatchObject({
+    status: "REVERSED",
+    reversalReference,
+  });
+  const reversalReceipt = await request(app)
+    .get(`/api/v1/transactions/${reversalReference}/receipt`)
+    .set("Cookie", cookies.get("owner")!)
+    .expect(200);
+  expect(reversalReceipt.body.transaction).toMatchObject({
+    originalReference: reference,
+    refundedFeePoisha: "1000",
+  });
+  expect(reversalReceipt.body.transaction).not.toHaveProperty("reversalReason");
+
+  const day = dhakaDate(new Date());
+  const statement = await request(app)
+    .get(`/api/v1/accounts/${source.id}/statement`)
+    .query({ from: day, to: day })
+    .set("Cookie", cookies.get("owner")!)
+    .expect(200);
+  expect(statement.text).toContain(
+    '"FUND_TRANSFER","Debit","100.00","10.00","110.00","0.00"',
+  );
+  expect(statement.text).toContain(
+    '"TRANSFER_REVERSAL","Credit","100.00","0.00","0.00","110.00"',
+  );
+});
+
+it("rejects restricted or unfunded reversals and rolls back a failed posting", async () => {
+  const completed = await post(payload()).expect(201);
+  const { reference } = completed.body.transfer;
+  const recipient = eq(bankAccounts.id, otherRecipient.id);
+  const sender = eq(bankAccounts.id, source.id);
+  await db.update(bankAccounts).set({ status: "FROZEN" }).where(recipient);
+  await reverse(reference).expect(409);
+  await db
+    .update(bankAccounts)
+    .set({ status: "ACTIVE", heldBalancePoisha: 35_000n })
+    .where(recipient);
+  const insufficient = await reverse(reference).expect(422);
+  expect(insufficient.body.error.code).toBe("INSUFFICIENT_FUNDS");
+  await db.update(bankAccounts).set({ heldBalancePoisha: 0n }).where(recipient);
+  await db.update(bankAccounts).set({ balancePoisha: maxPoisha }).where(sender);
+  const overflow = await reverse(reference).expect(422);
+  expect(overflow.body.error.code).toBe("ACCOUNT_BALANCE_LIMIT");
+  await db.update(bankAccounts).set({ balancePoisha: 19_000n }).where(sender);
+
+  await db.execute(sql`alter table transactions add constraint transfer_test_reject_reversal
+    check (reversal_reason is distinct from 'Forced reversal rollback')`);
+  try {
+    await reverse(reference, "admin", "Forced reversal rollback").expect(500);
+    await expectBalances([19_000n, 30_000n, 40_000n]);
+    expect(await postings()).toMatchObject([
+      { reference, status: "COMPLETED" },
+    ]);
+  } finally {
+    await db.execute(
+      sql`alter table transactions drop constraint transfer_test_reject_reversal`,
+    );
+  }
+  await reverse(reference).expect(201);
+  await expectBalances([30_000n, 30_000n, 30_000n]);
+});

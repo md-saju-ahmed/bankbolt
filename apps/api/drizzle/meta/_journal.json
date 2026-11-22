@@ -85,6 +85,13 @@
       "when": 1795320196002,
       "tag": "0011_withdrawal_holds_and_cancellation",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795320839561,
+      "tag": "0012_transfer_reversal",
+      "breakpoints": true
     }
   ]
 }

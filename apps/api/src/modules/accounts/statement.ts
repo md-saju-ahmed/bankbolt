@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { getDatabase } from "../../db/client.ts";
 import {
@@ -15,6 +16,8 @@ export const statementDates = z
     to: z.iso.date().refine((day) => !day.startsWith("0000-")),
   })
   .refine(({ from, to }) => from <= to, { path: ["to"] });
+
+const reversal = alias(transactions, "statement_reversal");
 
 const header = [
   "Reference",
@@ -78,12 +81,20 @@ export async function createStatement(
           senderAccountId: transactions.senderAccountId,
           amountPoisha: transactions.amountPoisha,
           feePoisha: transactions.feePoisha,
+          refundedFeePoisha: transactions.refundedFeePoisha,
           description: transactions.description,
         })
         .from(transactions)
+        .leftJoin(reversal, eq(reversal.reversesTransactionId, transactions.id))
         .where(
           and(
-            eq(transactions.status, "COMPLETED"),
+            or(
+              eq(transactions.status, "COMPLETED"),
+              and(
+                eq(transactions.status, "REVERSED"),
+                sql`${reversal.id} is not null`,
+              ),
+            ),
             or(
               eq(transactions.senderAccountId, accountId),
               eq(transactions.receiverAccountId, accountId),
@@ -109,7 +120,7 @@ export async function createStatement(
       bdt(row.amountPoisha),
       bdt(fee),
       bdt(debit ? row.amountPoisha + fee : 0n),
-      bdt(debit ? 0n : row.amountPoisha),
+      bdt(debit ? 0n : row.amountPoisha + row.refundedFeePoisha),
       row.description,
     ]);
   });

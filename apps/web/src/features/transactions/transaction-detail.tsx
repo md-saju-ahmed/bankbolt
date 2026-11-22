@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Printer } from "lucide-react";
 import Link from "next/link";
+import { TransferReversal } from "./transfer-reversal";
 import { TransactionFlagsPanel } from "./transaction-flags";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,7 +25,13 @@ import {
   type Transaction,
 } from "./transactions-api";
 
-function RecordFields({ transaction }: { transaction: Transaction }) {
+function RecordFields({
+  transaction,
+  root,
+}: {
+  transaction: Transaction;
+  root: string;
+}) {
   const fields = [
     ["Reference", transaction.reference],
     ["Date and time", formatDhakaFullTimestamp(transaction.createdAt)],
@@ -34,6 +41,26 @@ function RecordFields({ transaction }: { transaction: Transaction }) {
     ["Amount", formatTaka(transaction.amountPoisha)],
     ["Transaction fee", formatTaka(transaction.feePoisha)],
   ];
+  if (
+    transaction.type === "TRANSFER_REVERSAL" &&
+    transaction.direction !== "OUTGOING"
+  ) {
+    fields.push([
+      "Original fee refunded",
+      formatTaka(transaction.refundedFeePoisha),
+    ]);
+    fields.push([
+      "Total credit",
+      formatTaka(
+        (
+          BigInt(transaction.amountPoisha) +
+          BigInt(transaction.refundedFeePoisha)
+        ).toString(),
+      ),
+    ]);
+  }
+  if (transaction.reversalReason)
+    fields.push(["Reversal reason", transaction.reversalReason]);
   if (transaction.direction)
     fields.push(["Direction", directions[transaction.direction]]);
   if (transaction.senderNumber && transaction.direction !== "INCOMING") {
@@ -56,6 +83,21 @@ function RecordFields({ transaction }: { transaction: Transaction }) {
           </dd>
         </div>
       ))}
+      {(transaction.originalReference || transaction.reversalReference) && (
+        <div>
+          <dt className="text-sm text-muted-foreground">Related transaction</dt>
+          <dd>
+            <Link
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline"
+              href={`${root}/${transaction.originalReference ?? transaction.reversalReference}`}
+            >
+              {transaction.originalReference
+                ? "View original transfer"
+                : "View reversal"}
+            </Link>
+          </dd>
+        </div>
+      )}
       <div className="sm:col-span-2 print:col-span-2">
         <dt className="text-sm text-muted-foreground">Description</dt>
         <dd className="mt-1 break-words text-sm font-medium">
@@ -102,7 +144,8 @@ export function TransactionDetail({
               Print receipt
             </Button>
           ) : (
-            transaction.status === "COMPLETED" && (
+            (transaction.status === "COMPLETED" ||
+              transaction.reversalReference) && (
               <Link
                 className={`${historyLink} ${primaryStyle}`}
                 href={`${root}/${reference}/receipt`}
@@ -155,7 +198,13 @@ export function TransactionDetail({
               </div>
               <TransactionStatus status={transaction.status} />
             </header>
-            <RecordFields transaction={transaction} />
+            <RecordFields transaction={transaction} root={root} />
+            {!receipt &&
+              flagRole === "ADMIN" &&
+              transaction.type === "FUND_TRANSFER" &&
+              transaction.status === "COMPLETED" && (
+                <TransferReversal transaction={transaction} />
+              )}
           </Card>
         )
       )}

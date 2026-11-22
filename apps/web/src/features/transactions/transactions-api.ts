@@ -4,6 +4,7 @@ export const transactionTypes = {
   DEPOSIT: "Deposit",
   WITHDRAWAL: "Withdrawal",
   FUND_TRANSFER: "Fund transfer",
+  TRANSFER_REVERSAL: "Transfer reversal",
   LOAN_DISBURSEMENT: "Loan disbursement",
   LOAN_REPAYMENT: "Loan repayment",
 };
@@ -34,10 +35,31 @@ export type Transaction = {
   feePoisha: string;
   description: string;
   createdAt: string;
+  originalReference: string | null;
+  reversalReference: string | null;
+  reversalReason?: string | null;
+  refundedFeePoisha: string;
 };
 
 export const transactionsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
+    reverseTransfer: build.mutation<
+      { reversalReference: string },
+      { reference: string; reason: string }
+    >({
+      query: ({ reference, reason }) => ({
+        url: `/transactions/${encodeURIComponent(reference)}/reverse`,
+        method: "POST",
+        body: { reason },
+        timeout: 15_000,
+      }),
+      invalidatesTags: [
+        "Transactions",
+        "Management",
+        "OwnedAccounts",
+        "OnboardingAccounts",
+      ],
+    }),
     transactionHistory: build.query<
       { transactions: Transaction[]; hasNextPage: boolean },
       HistoryFilters & { customerId?: string }
@@ -60,5 +82,8 @@ export const transactionsApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useTransactionHistoryQuery, useTransactionDetailQuery } =
-  transactionsApi;
+export const {
+  useTransactionHistoryQuery,
+  useTransactionDetailQuery,
+  useReverseTransferMutation,
+} = transactionsApi;

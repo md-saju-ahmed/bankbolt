@@ -418,6 +418,7 @@ export const transactionType = pgEnum("transaction_type", [
   "DEPOSIT",
   "WITHDRAWAL",
   "FUND_TRANSFER",
+  "TRANSFER_REVERSAL",
   "LOAN_DISBURSEMENT",
   "LOAN_REPAYMENT",
 ]);
@@ -451,10 +452,33 @@ export const transactions = pgTable(
       .defaultNow(),
     initiatedBy: uuid("initiated_by").references(() => users.id),
     idempotencyKey: uuid("idempotency_key"),
+    reversesTransactionId: uuid("reverses_transaction_id"),
+    reversalReason: text("reversal_reason"),
+    refundedFeePoisha: bigint("refunded_fee_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
     cashRequestId: uuid("cash_request_id").references(() => cashRequests.id),
     loanId: uuid("loan_id").references(() => loans.id),
   },
   (table) => [
+    foreignKey({
+      columns: [table.reversesTransactionId],
+      foreignColumns: [table.id],
+      name: "transactions_reversal_fk",
+    }),
+    unique("transactions_reversal_unique").on(table.reversesTransactionId),
+    check(
+      "transactions_reversal_fields",
+      sql`case
+      when ${table.type}::text = 'TRANSFER_REVERSAL' then
+        ${table.reversesTransactionId} is not null and ${table.reversesTransactionId} <> ${table.id}
+        and ${table.initiatedBy} is not null and ${table.status} = 'COMPLETED'
+        and ${table.reversalReason} is not null and length(trim(${table.reversalReason})) between 1 and 300
+        and ${table.refundedFeePoisha} >= 0 and ${table.feePoisha} = 0
+        and ${table.idempotencyKey} is null
+      else ${table.reversesTransactionId} is null and ${table.reversalReason} is null and ${table.refundedFeePoisha} = 0
+      end`,
+    ),
     unique("transactions_cash_request_unique").on(table.cashRequestId),
     unique("transactions_id_loan_unique").on(table.id, table.loanId),
     uniqueIndex("transactions_loan_disbursement_unique")
@@ -485,7 +509,7 @@ export const transactions = pgTable(
     check(
       "transactions_account_direction",
       sql`case
-        when ${table.type} = 'FUND_TRANSFER' then
+        when ${table.type}::text in ('FUND_TRANSFER', 'TRANSFER_REVERSAL') then
           ${table.senderAccountId} is not null and ${table.receiverAccountId} is not null
           and ${table.senderAccountId} <> ${table.receiverAccountId}
         when ${table.type} in ('DEPOSIT', 'LOAN_DISBURSEMENT')

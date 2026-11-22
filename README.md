@@ -55,6 +55,8 @@ Customers can set their transaction PIN and send money from **Transfer funds**. 
 - `POST /api/v1/transfers` accepts `sourceAccountId`, `recipientAccountNumber`, a positive `amountPoisha` decimal string, `description`, `pin`, and a client-generated UUID `idempotencyKey`. The server calculates the fee and returns a receipt with HTTP 201. The PIN and transfer mutations require the configured web origin.
 - Keep the same key and payment details until the result is known. `GET /api/v1/transfers/by-key/{idempotencyKey}` returns the submitting customer's committed receipt. A 404 means no receipt is visible yet. Resubmit the same request with the same key if needed. A committed replay returns the same receipt with HTTP 200, and changing the source, recipient, amount, or description under a committed key returns HTTP 409.
 
+Admins can reverse a completed transfer once from its transaction details. The reversal requires a reason, debits the recipient's available principal, and credits the original sender with the principal and original fee. Both records remain linked in transaction history. Reversed transfers still count toward the original day's transfer limit.
+
 ### Simulated cash requests API
 
 Customers can use **Cash requests** to submit a simulated deposit or withdrawal and track its review status. Approved requests link to the posted transaction in the customer workspace.
