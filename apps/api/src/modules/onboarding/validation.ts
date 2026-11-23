@@ -4,6 +4,28 @@ import { dhakaDate } from "../../lib/dhaka-date.ts";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 
+export const externalPhotoUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .pipe(
+    z.url({
+      protocol: /^https$/,
+      hostname: z.regexes.domain,
+      normalize: true,
+    }),
+  )
+  .refine((value) => {
+    const url = URL.parse(value);
+    return (
+      url !== null &&
+      value.length <= 2048 &&
+      !url.username &&
+      !url.password &&
+      !/\.(?:localhost|local|internal)$/i.test(url.hostname)
+    );
+  }, "Use a public HTTPS image URL without credentials.");
+
 export const registration = z.strictObject({
   fullName: z.string().trim().min(1).max(120),
   email,
@@ -17,6 +39,7 @@ export const registration = z.strictObject({
   address: z.string().trim().min(1).max(300),
   identityReference: z.string().trim().toUpperCase().min(1).max(80),
   occupation: z.string().trim().min(1).max(100).optional(),
+  photoUrl: externalPhotoUrl.optional(),
   password: z.string().min(12).max(128),
 });
 

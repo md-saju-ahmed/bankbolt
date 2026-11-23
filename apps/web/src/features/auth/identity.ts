@@ -16,4 +16,5 @@ export type SessionUser = {
   email: string;
   fullName: string;
   role: Role;
+  photoUrl?: string | null;
 };

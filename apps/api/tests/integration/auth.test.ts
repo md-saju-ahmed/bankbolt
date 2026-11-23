@@ -159,9 +159,11 @@ describe("persistent role authentication", () => {
         "email",
         "fullName",
         "id",
+        "photoUrl",
         "role",
       ]);
       expect(login.body.user.role).toBe(role);
+      expect(login.body.user.photoUrl).toBeNull();
       const [header] = login.headers["set-cookie"];
       expect(header).toMatch(/; HttpOnly/);
       expect(header).toMatch(/; SameSite=Lax/);
@@ -297,6 +299,7 @@ describe("authorization and request security", () => {
       role: "CUSTOMER",
       email: email("neighbor"),
       fullName: "Fictional neighbor",
+      photoUrl: null,
     } as const;
     await Promise.all(
       Array.from({ length: 5 }, () =>

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { getDatabase } from "../../db/client.ts";
-import { sessions, users } from "../../db/schema.ts";
+import { customerProfiles, sessions, users } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
 import { authDigest, isProduction } from "./auth-config.ts";
 
@@ -14,12 +14,13 @@ export const publicIdentity = {
   email: users.email,
   fullName: users.fullName,
   role: users.role,
+  photoUrl: customerProfiles.photoUrl,
 };
 
 export type Identity = Pick<
   typeof users.$inferSelect,
-  keyof typeof publicIdentity
->;
+  "id" | "email" | "fullName" | "role"
+> & { photoUrl: string | null };
 
 function cookieName() {
   return isProduction() ? "__Host-bankbolt_session" : "bankbolt_session";
@@ -89,6 +90,7 @@ export async function loadSession(request: Request) {
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
+    .leftJoin(customerProfiles, eq(customerProfiles.userId, users.id))
     .where(
       and(
         eq(sessions.tokenDigest, tokenDigest),

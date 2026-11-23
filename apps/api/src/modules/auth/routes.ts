@@ -50,6 +50,7 @@ authRouter.post("/login", requireWebOrigin, async (request, response) => {
       active: users.accessActive,
     })
     .from(users)
+    .leftJoin(customerProfiles, eq(customerProfiles.userId, users.id))
     .where(eq(users.email, email))
     .limit(1);
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
 import { DetailSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
@@ -104,9 +105,16 @@ export function CustomerDetails({ id, admin }: { id: string; admin: boolean }) {
   return (
     <Card className="space-y-5 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="break-words text-xl font-semibold">
-          {customer.fullName}
-        </h2>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar
+            name={customer.fullName}
+            photoUrl={customer.photoUrl}
+            className="size-10"
+          />
+          <h2 className="min-w-0 break-words text-xl font-semibold">
+            {customer.fullName}
+          </h2>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Status
             value={customer.verificationStatus}

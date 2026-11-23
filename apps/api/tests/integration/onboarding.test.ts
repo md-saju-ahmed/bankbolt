@@ -142,12 +142,12 @@ afterAll(async () => {
   }
 });
 
-function register(key: string, cookie = staffCookie) {
+function register(key: string, cookie = staffCookie, photoUrl?: string) {
   return request(app)
     .post(customers)
     .set("Origin", origin)
     .set("Cookie", cookie)
-    .send(profile(key));
+    .send({ ...profile(key), photoUrl });
 }
 
 function review(customerId: string, status: string, cookie = staffCookie) {
@@ -196,18 +196,38 @@ describe("customer onboarding and bank account safeguards", () => {
       .expect(403);
   });
 
+  it("rejects non-public or non-HTTPS photo URLs during registration", async () => {
+    for (const photoUrl of [
+      "/avatar.jpg",
+      "data:image/png;base64,AA==",
+      "http://images.example.com/avatar.jpg",
+      "https://127.0.0.1/avatar.jpg",
+      "https://images.localhost/avatar.jpg",
+      "https://user:password@images.example.com/avatar.jpg",
+    ]) {
+      await register("duplicate", staffCookie, photoUrl).expect(400);
+    }
+  });
+
   it("registers, verifies and activates accounts with safe retry and ownership behavior", async () => {
-    const registered = await register("registered")
+    const photoUrl = "https://images.example.com/avatar.jpg";
+    const registered = await register("registered", staffCookie, photoUrl)
       .expect(201)
       .expect("Cache-Control", "no-store");
     const customerId: string = registered.body.customer.id;
     expect(registered.body.customer.verificationStatus).toBe("PENDING");
+    expect(registered.body.customer.photoUrl).toBe(photoUrl);
     expect(registered.body.customer.identityReference).toBe(
       `registered-${run}`.toUpperCase(),
     );
     expect(JSON.stringify(registered.body)).not.toContain(password);
     expect(registered.body.customer).not.toHaveProperty("passwordHash");
-    await signIn("registered");
+    const { cookie } = await signIn("registered");
+    const session = await request(app)
+      .get("/api/v1/auth/workspaces/customer")
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(session.body.user.photoUrl).toBe(photoUrl);
     await register("registered").expect(409);
     const duplicate = {
       ...profile("duplicate"),
@@ -238,6 +258,7 @@ describe("customer onboarding and bank account safeguards", () => {
       .send({ email: email("registered").toUpperCase() })
       .expect(200);
     expect(found.body.customer.id).toBe(customerId);
+    expect(found.body.customer.photoUrl).toBe(photoUrl);
 
     const input = { type: "SAVINGS", requestId: randomUUID() };
     await openAccount(customerId, input).expect(409);

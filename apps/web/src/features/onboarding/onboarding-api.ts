@@ -12,6 +12,7 @@ export type Customer = {
   address: string;
   identityReference: string;
   occupation: string | null;
+  photoUrl?: string | null;
   verificationStatus: VerificationStatus;
   verifiedBy: string | null;
   verifiedAt: string | null;
@@ -25,7 +26,7 @@ export type Registration = Pick<
   | "dateOfBirth"
   | "address"
   | "identityReference"
-> & { occupation?: string; password: string };
+> & { occupation?: string; photoUrl?: string; password: string };
 
 export type AccountType = "SAVINGS" | "CURRENT" | "BUSINESS";
 export type Account = {

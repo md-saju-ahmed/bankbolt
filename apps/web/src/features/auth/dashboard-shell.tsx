@@ -25,6 +25,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ThemeMenu } from "@/components/theme-menu";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DetailSkeleton, Skeleton } from "@/components/ui/skeleton";
@@ -206,14 +207,6 @@ function WorkspaceLinks({
 function AccountMenu({ user }: { user: SessionUser }) {
   const router = useRouter();
   const [logout, { isLoading }] = useLogoutMutation();
-  const initials = user.fullName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
   async function signOut() {
     try {
       await logout().unwrap();
@@ -236,12 +229,7 @@ function AccountMenu({ user }: { user: SessionUser }) {
           aria-label="Account menu"
           className="min-w-11 gap-2 px-1 hover:bg-muted sm:px-2"
         >
-          <span
-            aria-hidden
-            className="grid size-8 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-          >
-            {initials}
-          </span>
+          <Avatar name={user.fullName} photoUrl={user.photoUrl} />
           <span className="hidden max-w-40 truncate sm:inline">
             {user.fullName}
           </span>

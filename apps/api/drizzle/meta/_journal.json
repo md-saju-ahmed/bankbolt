@@ -120,6 +120,13 @@
       "when": 1795343446315,
       "tag": "0016_automated_transaction_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795418298118,
+      "tag": "0017_customer_profile_photo",
+      "breakpoints": true
     }
   ]
 }

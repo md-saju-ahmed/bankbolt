@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
@@ -61,6 +62,7 @@ function CustomerEntry({
               address: value("address"),
               identityReference: value("identityReference"),
               occupation: value("occupation").trim() || undefined,
+              photoUrl: value("photoUrl").trim() || undefined,
               password: value("password"),
             }).unwrap();
       form.reset();
@@ -145,6 +147,24 @@ function CustomerEntry({
                 name="occupation"
                 maxLength={100}
               />
+              <div className="space-y-1">
+                <Field
+                  label="Photo URL (optional)"
+                  name="photoUrl"
+                  type="url"
+                  maxLength={2048}
+                  pattern="[Hh][Tt][Tt][Pp][Ss]://.+"
+                  title="Enter a public HTTPS image URL"
+                  placeholder="https://example.com/avatar.jpg"
+                  aria-describedby="registration-photo-help"
+                />
+                <p
+                  id="registration-photo-help"
+                  className="text-sm text-muted-foreground"
+                >
+                  Use a public HTTPS image of the fictional customer.
+                </p>
+              </div>
               <Field
                 label="Temporary password"
                 name="password"
@@ -208,17 +228,24 @@ function CustomerReview({
   return (
     <Card className="space-y-5 p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="break-words text-lg font-semibold">
-            {customer.fullName}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {verificationLabels[customer.verificationStatus]}
-            {customer.blocked ? " · Access blocked" : ""}
-            {!customer.blocked && !customer.accessActive
-              ? " · Access inactive"
-              : ""}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar
+            name={customer.fullName}
+            photoUrl={customer.photoUrl}
+            className="size-10"
+          />
+          <div className="min-w-0">
+            <h2 className="break-words text-lg font-semibold">
+              {customer.fullName}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {verificationLabels[customer.verificationStatus]}
+              {customer.blocked ? " · Access blocked" : ""}
+              {!customer.blocked && !customer.accessActive
+                ? " · Access inactive"
+                : ""}
+            </p>
+          </div>
         </div>
         <Button className={secondaryStyle} onClick={onBack}>
           Change customer

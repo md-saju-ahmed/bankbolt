@@ -64,6 +64,7 @@ export const customerProfiles = pgTable("customer_profiles", {
   address: text().notNull(),
   identityReference: text("identity_reference").notNull().unique(),
   occupation: text(),
+  photoUrl: text("photo_url"),
   verificationStatus: verificationStatus("verification_status")
     .notNull()
     .default("PENDING"),

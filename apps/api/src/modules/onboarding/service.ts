@@ -30,6 +30,7 @@ async function findCustomer(db: Reader, condition: SQL) {
       address: customerProfiles.address,
       identityReference: customerProfiles.identityReference,
       occupation: customerProfiles.occupation,
+      photoUrl: customerProfiles.photoUrl,
       verificationStatus: customerProfiles.verificationStatus,
       verifiedBy: customerProfiles.verifiedBy,
       verifiedAt: customerProfiles.verifiedAt,
