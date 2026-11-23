@@ -94,6 +94,10 @@ const actions: Record<string, string> = {
   CUSTOMER_ACTIVATED: "Customer access restored",
   CUSTOMER_DEACTIVATED: "Customer access deactivated",
   CUSTOMER_BLOCKED: "Customer blocked",
+  PROFILE_UPDATED: "Profile details updated",
+  PROFILE_CHANGE_REQUESTED: "Profile change requested",
+  PROFILE_CHANGE_APPROVED: "Profile change approved",
+  PROFILE_CHANGE_REJECTED: "Profile change rejected",
   ACCOUNT_OPENED: "Account opened",
   ACCOUNT_ACTIVATED: "Account activated",
   ACCOUNT_FROZEN: "Account frozen",
@@ -108,14 +112,16 @@ export function Activity({
   history,
   page,
   onPage,
+  title = "Account and access history",
 }: {
   history: History;
   page: number;
   onPage: (page: number) => void;
+  title?: string;
 }) {
   return (
     <section className="space-y-4 border-t pt-5">
-      <h3 className="text-base font-semibold">Account and access history</h3>
+      <h3 className="text-base font-semibold">{title}</h3>
       {!history.events.length && (
         <p className="text-sm text-muted-foreground">No history recorded.</p>
       )}

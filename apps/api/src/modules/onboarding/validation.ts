@@ -2,7 +2,19 @@ import { z } from "zod";
 import { accountType, verificationStatus } from "../../db/schema.ts";
 import { dhakaDate } from "../../lib/dhaka-date.ts";
 
-const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
+export const customerEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .pipe(z.email());
+export const customerFullName = z.string().trim().min(1).max(120);
+export const customerPhone = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9][0-9 ().-]{5,23}$/);
+export const customerAddress = z.string().trim().min(1).max(300);
+export const customerOccupation = z.string().trim().min(1).max(100);
 
 export const externalPhotoUrl = z
   .string()
@@ -27,23 +39,20 @@ export const externalPhotoUrl = z
   }, "Use a public HTTPS image URL without credentials.");
 
 export const registration = z.strictObject({
-  fullName: z.string().trim().min(1).max(120),
-  email,
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9][0-9 ().-]{5,23}$/),
+  fullName: customerFullName,
+  email: customerEmail,
+  phone: customerPhone,
   dateOfBirth: z.iso
     .date()
     .refine((date) => date >= "0001-01-01" && date <= dhakaDate(new Date())),
-  address: z.string().trim().min(1).max(300),
+  address: customerAddress,
   identityReference: z.string().trim().toUpperCase().min(1).max(80),
-  occupation: z.string().trim().min(1).max(100).optional(),
+  occupation: customerOccupation.optional(),
   photoUrl: externalPhotoUrl.optional(),
   password: z.string().min(12).max(128),
 });
 
-export const lookup = z.strictObject({ email });
+export const lookup = z.strictObject({ email: customerEmail });
 export const review = z.strictObject({
   status: z.enum(verificationStatus.enumValues),
 });

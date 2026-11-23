@@ -14,6 +14,7 @@ import {
   findCustomerById,
   lockVerifiedCustomer,
 } from "../onboarding/service.ts";
+import { recentProfileRequests } from "../profiles/service.ts";
 import type {
   accountSearch,
   accountUpdate,
@@ -152,9 +153,14 @@ export async function customerDetails(
   admin: boolean,
 ) {
   const customer = await findCustomerById(customerId);
+  const [history, profileRequests] = await Promise.all([
+    activity(customerId, page, undefined, admin),
+    recentProfileRequests(customerId),
+  ]);
   return {
     customer,
-    history: await activity(customerId, page, undefined, admin),
+    history,
+    profileRequests,
   };
 }
 

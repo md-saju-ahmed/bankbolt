@@ -21,6 +21,7 @@ import {
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
 import { TransactionResults } from "@/features/transactions/history";
+import { ProfileEditor } from "@/features/profiles/profile-editor";
 import { Activity, ConfirmAction, DetailFields, Status } from "./management-ui";
 import {
   useChangeAccountMutation,
@@ -151,7 +152,23 @@ export function CustomerDetails({ id, admin }: { id: string; admin: boolean }) {
           ))}
         </div>
       )}
-      <Activity history={history} page={page} onPage={setPage} />
+      <section
+        className="space-y-4 border-t pt-5"
+        aria-label="Manage customer profile"
+      >
+        <ProfileEditor
+          profile={customer}
+          customerId={customer.id}
+          requests={data.profileRequests ?? []}
+          editable={status === "ACTIVE"}
+        />
+      </section>
+      <Activity
+        history={history}
+        page={page}
+        onPage={setPage}
+        title={admin ? "Account, access and profile history" : undefined}
+      />
       {admin && (
         <section
           className="space-y-3 border-t pt-5"

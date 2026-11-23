@@ -52,6 +52,10 @@ const { useAuditQuery } = baseApi.injectEndpoints({
 
 function relatedRecord(event: Event) {
   switch (event.category) {
+    case "MANAGEMENT":
+      return event.action.startsWith("PROFILE_")
+        ? `/admin/management/customers?id=${event.subjectId}`
+        : null;
     case "LOAN":
       return `/admin/loans/review/${event.subjectId}`;
     case "CASH_REQUEST":

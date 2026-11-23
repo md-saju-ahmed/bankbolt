@@ -4,8 +4,10 @@ import { Directory } from "@/features/management/directory";
 
 export default async function DirectoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspace: string; section: string }>;
+  searchParams: Promise<{ id?: string | string[] }>;
 }) {
   const { workspace, section } = await params;
   if (
@@ -14,9 +16,17 @@ export default async function DirectoryPage({
   )
     notFound();
   const admin = workspace === "admin";
+  const { id } = await searchParams;
+  const initialCustomerId =
+    section === "customers" && typeof id === "string" ? id : undefined;
   return (
     <DashboardShell role={admin ? "ADMIN" : "STAFF"}>
-      <Directory section={section} admin={admin} />
+      <Directory
+        key={initialCustomerId ?? section}
+        section={section}
+        admin={admin}
+        initialCustomerId={initialCustomerId}
+      />
     </DashboardShell>
   );
 }

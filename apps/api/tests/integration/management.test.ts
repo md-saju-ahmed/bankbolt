@@ -12,6 +12,7 @@ import {
   bankAccounts,
   customerProfiles,
   managementEvents,
+  profileChangeRequests,
   users,
 } from "../../src/db/schema.ts";
 import { assertFinancialAccountEligible } from "../../src/modules/accounts/eligibility.ts";
@@ -31,6 +32,8 @@ const cookies = new Map<Person, string>();
 const accounts: string[] = [];
 let database: ReturnType<typeof getDatabase> | undefined;
 const prefix = "/api/v1/management";
+const profileUrl = "/api/v1/profile";
+const updatedEmail = `updated-${run}@bankbolt.example`;
 
 function required(map: Map<Person, string>, key: Person) {
   const value = map.get(key);
@@ -126,6 +129,11 @@ afterAll(async () => {
   try {
     if (database) {
       await database
+        .delete(profileChangeRequests)
+        .where(
+          inArray(profileChangeRequests.customerId, [...customers.values()]),
+        );
+      await database
         .delete(managementEvents)
         .where(inArray(managementEvents.customerId, [...customers.values()]));
       await database
@@ -137,7 +145,9 @@ afterAll(async () => {
       await database.delete(authAttempts).where(
         inArray(
           authAttempts.subject,
-          people.map((person) => authDigest("login", address(person))),
+          [...people.map(address), updatedEmail].map((email) =>
+            authDigest("login", email),
+          ),
         ),
       );
       await database
@@ -342,4 +352,178 @@ it("revokes sessions on deactivation and blocking and preserves the actor and re
       (event: { action: string }) => !event.action.startsWith("CUSTOMER_"),
     ),
   ).toBe(true);
+});
+
+function changeProfile(
+  person: Person,
+  method: "patch" | "post",
+  path: string,
+  body: object,
+) {
+  const client = request(app);
+  return client[method](profileUrl + path)
+    .set("Origin", origin)
+    .set("Cookie", required(cookies, person))
+    .send(body);
+}
+
+it("scopes profile reads and limits immediate updates to photo and occupation", async () => {
+  const ownerId = required(customers, "owner");
+  const managed = `/customers/${ownerId}`;
+  await request(app).get(profileUrl).expect(401);
+  await get("staff", profileUrl).expect(403);
+  await changeProfile("owner", "patch", "", { email: updatedEmail }).expect(
+    400,
+  );
+  await changeProfile("neighbor", "patch", managed, {
+    occupation: "Wrong owner",
+  }).expect(403);
+  await changeProfile("owner", "patch", "", { occupation: "Fictional editor" })
+    .set("Origin", "https://untrusted.example")
+    .expect(403);
+
+  const photoUrl = "https://images.example.com/portrait.png";
+  await changeProfile("owner", "patch", "", { photoUrl }).expect(204);
+  await changeProfile("owner", "patch", "", { photoUrl }).expect(204);
+  await changeProfile("staff", "patch", managed, {
+    occupation: "Fictional editor",
+  }).expect(204);
+  await changeProfile("admin", "patch", managed, {
+    occupation: "Fictional analyst",
+  }).expect(204);
+  const updated = await get("owner", profileUrl).expect(200);
+  expect(updated.body.profile).toMatchObject({
+    photoUrl,
+    occupation: "Fictional analyst",
+  });
+  const other = await get("neighbor", profileUrl).expect(200);
+  expect(other.body.profile).toMatchObject({
+    photoUrl: null,
+    occupation: null,
+  });
+  const detail = await get("admin", prefix + managed).expect(200);
+  expect(
+    detail.body.history.events.filter(
+      ({ action }: { action: string }) => action === "PROFILE_UPDATED",
+    ),
+  ).toHaveLength(3);
+});
+
+it("reviews a contact change once, revokes old sessions, and records the review in audit history", async () => {
+  const body = {
+    changes: { email: updatedEmail, phone: "+8801700000000" },
+    reason: "Fictional updated contact information",
+  };
+  const submissions = await Promise.all([
+    changeProfile("owner", "post", "/requests", body),
+    changeProfile("owner", "post", "/requests", body),
+  ]);
+  expect(submissions.map(({ status }) => status).sort()).toEqual([201, 409]);
+  const pending = submissions.find(({ status }) => status === 201)?.body
+    .request;
+  expect(pending).toMatchObject({ status: "PENDING", ...body.changes });
+  const before = await get("owner", profileUrl).expect(200);
+  expect(before.body.profile.email).toBe(address("owner"));
+  expect(before.body.requests).toMatchObject([
+    { id: pending.id, status: "PENDING" },
+  ]);
+  await get("staff", profileUrl + "/review").expect(403);
+  await get("neighbor", profileUrl + "/review").expect(403);
+  const queue = await get("admin", profileUrl + "/review").expect(200);
+  expect(queue.body.requests).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: pending.id,
+        canReview: true,
+        customerId: required(customers, "owner"),
+      }),
+    ]),
+  );
+  const path = `/review/${pending.id}`;
+  const decision = {
+    status: "APPROVED",
+    reason: "Verified fictional identity and contact",
+  };
+  await changeProfile("staff", "patch", path, decision).expect(403);
+  const decisions = await Promise.all([
+    changeProfile("admin", "patch", path, decision),
+    changeProfile("admin", "patch", path, decision),
+  ]);
+  expect(decisions.map(({ status }) => status).sort()).toEqual([204, 409]);
+  await get("owner", "/api/v1/auth/me").expect(401);
+  await login("owner").expect(401);
+  const restored = await request(app)
+    .post("/api/v1/auth/login")
+    .set("Origin", origin)
+    .send({ email: updatedEmail, password })
+    .expect(200);
+  expect(restored.body.user.email).toBe(updatedEmail);
+  const detail = await get(
+    "admin",
+    `${prefix}/customers/${required(customers, "owner")}`,
+  ).expect(200);
+  expect(detail.body.customer).toMatchObject(body.changes);
+  expect(detail.body.profileRequests).toMatchObject([
+    { status: "APPROVED", reviewReason: decision.reason },
+  ]);
+  const audit = await get(
+    "admin",
+    `/api/v1/audit?category=MANAGEMENT&search=${required(customers, "owner")}`,
+  ).expect(200);
+  expect(audit.body.events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        action: "PROFILE_CHANGE_REQUESTED",
+        actorId: required(identities, "owner"),
+      }),
+      expect.objectContaining({
+        action: "PROFILE_CHANGE_APPROVED",
+        actorId: required(identities, "admin"),
+      }),
+    ]),
+  );
+  expect(JSON.stringify(audit.body)).not.toContain(updatedEmail);
+});
+
+it("keeps requests pending on an email conflict and rejects self-review", async () => {
+  const managed = `/customers/${required(customers, "neighbor")}/requests`;
+  const proposed = await changeProfile("staff", "post", managed, {
+    changes: { email: address("admin"), fullName: "Fictional replacement" },
+    reason: "Fictional update requested in branch",
+  }).expect(201);
+  const path = `/review/${proposed.body.request.id}`;
+  await changeProfile("admin", "patch", path, {
+    status: "APPROVED",
+    reason: "Identity reviewed",
+  })
+    .expect(409)
+    .expect(({ body }) => expect(body.error.code).toBe("EMAIL_IN_USE"));
+  const pending = await get("neighbor", profileUrl).expect(200);
+  expect(pending.body.profile).toMatchObject({
+    email: address("neighbor"),
+    fullName: "Fictional neighbor",
+  });
+  expect(pending.body.requests[0].status).toBe("PENDING");
+  await changeProfile("admin", "patch", path, {
+    status: "REJECTED",
+    reason: "Proposed email unavailable",
+  }).expect(204);
+  const initiated = await changeProfile("admin", "post", managed, {
+    changes: { address: "Another fictional address" },
+    reason: "Fictional branch request",
+  }).expect(201);
+  await changeProfile(
+    "admin",
+    "patch",
+    `/review/${initiated.body.request.id}`,
+    {
+      status: "APPROVED",
+      reason: "Fictional review",
+    },
+  ).expect(403);
+  const after = await get("neighbor", profileUrl).expect(200);
+  expect(after.body.profile.address).toBe("Fictional Dhaka address");
+  expect(
+    after.body.requests.map(({ status }: { status: string }) => status),
+  ).toEqual(["PENDING", "REJECTED"]);
 });

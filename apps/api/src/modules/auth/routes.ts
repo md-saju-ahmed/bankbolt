@@ -63,7 +63,7 @@ authRouter.post("/login", requireWebOrigin, async (request, response) => {
     );
   }
 
-  await createSession(request, response, user.identity.id);
+  await createSession(request, response, user.identity.id, email);
   response.json({ user: user.identity });
 });
 

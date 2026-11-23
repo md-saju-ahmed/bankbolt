@@ -20,6 +20,7 @@ import {
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
+import { historyLink } from "@/features/transactions/transaction-display";
 import { AccountDetails, CustomerDetails } from "./management-details";
 import {
   useAccountDirectoryQuery,
@@ -90,13 +91,15 @@ function Table({
 export function Directory({
   section,
   admin,
+  initialCustomerId,
 }: {
   section: Section;
   admin: boolean;
+  initialCustomerId?: string;
 }) {
   const customerMode = section === "customers";
   const pathname = admin ? "/admin" : "/staff";
-  const [selected, setSelected] = useState<string>();
+  const [selected, setSelected] = useState(initialCustomerId);
   const [filters, setFilters] = useState({
     q: "",
     first: "",
@@ -146,7 +149,14 @@ export function Directory({
               : "Find and review bank accounts."}
           </p>
         </div>
-        {selected ? (
+        {initialCustomerId ? (
+          <Link
+            href={`${pathname}/management/customers`}
+            className={`${historyLink} ${secondaryStyle}`}
+          >
+            Back to results
+          </Link>
+        ) : selected ? (
           <Button
             className={secondaryStyle}
             onClick={() => setSelected(undefined)}

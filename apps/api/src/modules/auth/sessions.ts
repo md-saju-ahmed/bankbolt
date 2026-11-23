@@ -42,6 +42,7 @@ export async function createSession(
   request: Request,
   response: Response,
   userId: string,
+  email: string,
 ) {
   const previous = presentedDigest(request);
   const token = randomBytes(32).toString("base64url");
@@ -52,7 +53,7 @@ export async function createSession(
     const [user] = await transaction
       .select({ blocked: users.blocked, active: users.accessActive })
       .from(users)
-      .where(eq(users.id, userId))
+      .where(and(eq(users.id, userId), eq(users.email, email)))
       .for("update");
     if (!user || user.blocked || !user.active) {
       throw new ApiError(

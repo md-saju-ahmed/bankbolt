@@ -44,6 +44,13 @@ const messages: Record<string, string> = {
     "This email is already registered. Use Find customer to reopen the record.",
   IDENTITY_IN_USE: "This identity reference is already registered.",
   VALIDATION_ERROR: "Check the details and try again.",
+  PROFILE_ACCESS_RESTRICTED:
+    "Restore customer access before changing this profile.",
+  PROFILE_UNCHANGED: "Enter at least one changed detail.",
+  PROFILE_CHANGE_PENDING: "A profile change is already awaiting review.",
+  PROFILE_CHANGE_DECIDED:
+    "Another administrator already reviewed this request.",
+  PROFILE_SELF_REVIEW: "A different administrator must review this request.",
   NOT_FOUND: "The requested record could not be found.",
   CUSTOMER_NOT_ELIGIBLE: "The customer must be verified with active access.",
   INVALID_CUSTOMER_STATUS:

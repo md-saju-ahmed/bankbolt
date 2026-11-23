@@ -127,6 +127,13 @@
       "when": 1795418298118,
       "tag": "0017_customer_profile_photo",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795419031384,
+      "tag": "0018_profile_change_requests",
+      "breakpoints": true
     }
   ]
 }

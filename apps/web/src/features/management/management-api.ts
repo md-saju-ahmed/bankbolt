@@ -1,5 +1,6 @@
 import { baseApi } from "@/lib/api/base-api";
 import type { Account, Customer } from "@/features/onboarding/onboarding-api";
+import type { ProfileRequest } from "@/features/profiles/profile-api";
 
 export type AccessStatus = "ACTIVE" | "INACTIVE" | "BLOCKED";
 export type Section = "customers" | "accounts";
@@ -79,7 +80,11 @@ export const managementApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 0,
     }),
     managedCustomer: b.query<
-      { customer: Customer; history: History },
+      {
+        customer: Customer;
+        history: History;
+        profileRequests: ProfileRequest[];
+      },
       DetailQuery
     >({
       query: ({ id, page }) => ({

@@ -15,6 +15,7 @@ import {
   PanelLeftOpen,
   ReceiptText,
   ShieldCheck,
+  UserRound,
   UserRoundPlus,
   UsersRound,
   Wallet,
@@ -163,6 +164,14 @@ function WorkspaceLinks({
       label: "Audit history",
       icon: ClipboardList,
       active: pathname === `${root}/audit`,
+    });
+  }
+  if (role === "ADMIN" || role === "CUSTOMER") {
+    links.push({
+      href: `${root}/profile`,
+      label: role === "CUSTOMER" ? "My profile" : "Profile change review",
+      icon: UserRound,
+      active: pathname === `${root}/profile`,
     });
   }
   links.push({

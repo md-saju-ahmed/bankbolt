@@ -199,6 +199,10 @@ export const managementAction = pgEnum("management_action", [
   "CUSTOMER_ACTIVATED",
   "CUSTOMER_DEACTIVATED",
   "CUSTOMER_BLOCKED",
+  "PROFILE_UPDATED",
+  "PROFILE_CHANGE_REQUESTED",
+  "PROFILE_CHANGE_APPROVED",
+  "PROFILE_CHANGE_REJECTED",
   "ACCOUNT_OPENED",
   "ACCOUNT_ACTIVATED",
   "ACCOUNT_FROZEN",
@@ -208,6 +212,56 @@ export const managementAction = pgEnum("management_action", [
   "ACCOUNT_METADATA_UPDATED",
   "ACCOUNT_LIMITS_UPDATED",
 ]);
+
+export const profileChangeStatus = pgEnum("profile_change_status", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+]);
+
+export const profileChangeRequests = pgTable(
+  "profile_change_requests",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customerProfiles.id),
+    submittedBy: uuid("submitted_by")
+      .notNull()
+      .references(() => users.id),
+    fullName: text("full_name"),
+    email: text(),
+    phone: text(),
+    address: text(),
+    reason: text().notNull(),
+    status: profileChangeStatus().notNull().default("PENDING"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+  },
+  (table) => [
+    uniqueIndex("profile_change_one_pending_per_customer")
+      .on(table.customerId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index("profile_change_customer_time_idx").on(
+      table.customerId,
+      table.createdAt,
+    ),
+    check(
+      "profile_change_has_fields",
+      sql`num_nonnulls(${table.fullName}, ${table.email}, ${table.phone}, ${table.address}) > 0`,
+    ),
+    check(
+      "profile_change_review_complete",
+      sql`(${table.status} = 'PENDING' and num_nonnulls(${table.reviewedBy}, ${table.reviewedAt}, ${table.reviewReason}) = 0)
+        or (${table.status} <> 'PENDING' and num_nonnulls(${table.reviewedBy}, ${table.reviewedAt}, ${table.reviewReason}) = 3
+          and ${table.reviewedBy} <> ${table.submittedBy})`,
+    ),
+  ],
+);
 
 export const managementEvents = pgTable(
   "management_events",

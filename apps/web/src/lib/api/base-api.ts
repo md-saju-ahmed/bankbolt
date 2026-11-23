@@ -74,6 +74,7 @@ export const baseApi = createApi({
     "Session",
     "OnboardingAccounts",
     "Management",
+    "Profile",
     "OwnedAccounts",
     "Transactions",
     "TransactionPin",

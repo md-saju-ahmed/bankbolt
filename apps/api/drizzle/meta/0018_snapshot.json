@@ -1,0 +1,2170 @@
+{
+  "id": "4ef4b8cd-4b53-48b8-a94c-a251ec370d4b",
+  "prevId": "a3b5ea4e-a01b-44da-87d4-dabe36f77576",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.auth_attempts": {
+      "name": "auth_attempts",
+      "schema": "",
+      "columns": {
+        "purpose": {
+          "name": "purpose",
+          "type": "attempt_purpose",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resets_at": {
+          "name": "resets_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "auth_attempts_purpose_subject_pk": {
+          "name": "auth_attempts_purpose_subject_pk",
+          "columns": ["purpose", "subject"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.authenticators": {
+      "name": "authenticators",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "secret_ciphertext": {
+          "name": "secret_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recovery_digest": {
+          "name": "recovery_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_time_step": {
+          "name": "last_time_step",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "authenticators_user_id_users_id_fk": {
+          "name": "authenticators_user_id_users_id_fk",
+          "tableFrom": "authenticators",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bank_accounts": {
+      "name": "bank_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "nextval('public.bank_account_number_seq')::text"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creation_key": {
+          "name": "creation_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "account_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "account_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "balance_poisha": {
+          "name": "balance_poisha",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "held_balance_poisha": {
+          "name": "held_balance_poisha",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "transfer_limit_poisha": {
+          "name": "transfer_limit_poisha",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "5000000"
+        },
+        "daily_transfer_limit_poisha": {
+          "name": "daily_transfer_limit_poisha",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "20000000"
+        },
+        "business_name": {
+          "name": "business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_registration_reference": {
+          "name": "business_registration_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "activated_at": {
+          "name": "activated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bank_accounts_customer_id_customer_profiles_id_fk": {
+          "name": "bank_accounts_customer_id_customer_profiles_id_fk",
+          "tableFrom": "bank_accounts",
+          "tableTo": "customer_profiles",
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "bank_accounts_account_number_unique": {
+          "name": "bank_accounts_account_number_unique",
+          "nullsNotDistinct": false,
+          "columns": ["account_number"]
+        },
+        "bank_accounts_customer_creation_key": {
+          "name": "bank_accounts_customer_creation_key",
+          "nullsNotDistinct": false,
+          "columns": ["customer_id", "creation_key"]
+        },
+        "bank_accounts_id_customer_unique": {
+          "name": "bank_accounts_id_customer_unique",
+          "nullsNotDistinct": false,
+          "columns": ["id", "customer_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "bank_accounts_number_format": {
+          "name": "bank_accounts_number_format",
+          "value": "\"bank_accounts\".\"account_number\" ~ '^[0-9]{12}$'"
+        },
+        "bank_accounts_nonnegative_balance": {
+          "name": "bank_accounts_nonnegative_balance",
+          "value": "\"bank_accounts\".\"balance_poisha\" >= 0"
+        },
+        "bank_accounts_valid_hold": {
+          "name": "bank_accounts_valid_hold",
+          "value": "\"bank_accounts\".\"held_balance_poisha\" between 0 and \"bank_accounts\".\"balance_poisha\""
+        },
+        "bank_accounts_nonnegative_limits": {
+          "name": "bank_accounts_nonnegative_limits",
+          "value": "\"bank_accounts\".\"transfer_limit_poisha\" >= 0 AND \"bank_accounts\".\"daily_transfer_limit_poisha\" >= 0"
+        },
+        "bank_accounts_business_metadata": {
+          "name": "bank_accounts_business_metadata",
+          "value": "\"bank_accounts\".\"type\" = 'BUSINESS' OR (\"bank_accounts\".\"business_name\" IS NULL AND \"bank_accounts\".\"business_registration_reference\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cash_requests": {
+      "name": "cash_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "cash_request_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "cash_request_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "funds_reserved": {
+          "name": "funds_reserved",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "cash_requests_customer_time_idx": {
+          "name": "cash_requests_customer_time_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cash_requests_status_time_idx": {
+          "name": "cash_requests_status_time_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cash_requests_account_id_bank_accounts_id_fk": {
+          "name": "cash_requests_account_id_bank_accounts_id_fk",
+          "tableFrom": "cash_requests",
+          "tableTo": "bank_accounts",
+          "columnsFrom": ["account_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cash_requests_customer_id_customer_profiles_id_fk": {
+          "name": "cash_requests_customer_id_customer_profiles_id_fk",
+          "tableFrom": "cash_requests",
+          "tableTo": "customer_profiles",
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cash_requests_reviewed_by_users_id_fk": {
+          "name": "cash_requests_reviewed_by_users_id_fk",
+          "tableFrom": "cash_requests",
+          "tableTo": "users",
+          "columnsFrom": ["reviewed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cash_requests_valid_reservation": {
+          "name": "cash_requests_valid_reservation",
+          "value": "not \"cash_requests\".\"funds_reserved\" or (\"cash_requests\".\"type\" = 'WITHDRAWAL' and \"cash_requests\".\"status\" = 'PENDING')"
+        },
+        "cash_requests_cancellation_time": {
+          "name": "cash_requests_cancellation_time",
+          "value": "(\"cash_requests\".\"status\"::text = 'CANCELLED') = (\"cash_requests\".\"cancelled_at\" is not null)"
+        },
+        "cash_requests_positive_amount": {
+          "name": "cash_requests_positive_amount",
+          "value": "\"cash_requests\".\"amount_minor\" > 0"
+        },
+        "cash_requests_review_fields": {
+          "name": "cash_requests_review_fields",
+          "value": "case\n      when \"cash_requests\".\"status\"::text in ('PENDING', 'CANCELLED') then\n        \"cash_requests\".\"reviewed_by\" is null and \"cash_requests\".\"reviewed_at\" is null and \"cash_requests\".\"rejection_reason\" is null\n      when \"cash_requests\".\"status\" = 'APPROVED' then\n        \"cash_requests\".\"reviewed_by\" is not null and \"cash_requests\".\"reviewed_at\" is not null and \"cash_requests\".\"rejection_reason\" is null\n      else \"cash_requests\".\"reviewed_by\" is not null and \"cash_requests\".\"reviewed_at\" is not null\n        and \"cash_requests\".\"rejection_reason\" is not null and length(trim(\"cash_requests\".\"rejection_reason\")) > 0\n      end"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.customer_profiles": {
+      "name": "customer_profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_of_birth": {
+          "name": "date_of_birth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identity_reference": {
+          "name": "identity_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occupation": {
+          "name": "occupation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_url": {
+          "name": "photo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verification_status": {
+          "name": "verification_status",
+          "type": "verification_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "verified_by": {
+          "name": "verified_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin_hash": {
+          "name": "pin_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "customer_profiles_user_id_users_id_fk": {
+          "name": "customer_profiles_user_id_users_id_fk",
+          "tableFrom": "customer_profiles",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "customer_profiles_verified_by_users_id_fk": {
+          "name": "customer_profiles_verified_by_users_id_fk",
+          "tableFrom": "customer_profiles",
+          "tableTo": "users",
+          "columnsFrom": ["verified_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "customer_profiles_user_id_unique": {
+          "name": "customer_profiles_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["user_id"]
+        },
+        "customer_profiles_identity_reference_unique": {
+          "name": "customer_profiles_identity_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": ["identity_reference"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.loan_installments": {
+      "name": "loan_installments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "loan_id": {
+          "name": "loan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installment_number": {
+          "name": "installment_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_minor": {
+          "name": "principal_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_minor": {
+          "name": "interest_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paid_amount_minor": {
+          "name": "paid_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_overdue_interest_minor": {
+          "name": "paid_overdue_interest_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repayment_transaction_id": {
+          "name": "repayment_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "loan_installments_loan_id_loans_id_fk": {
+          "name": "loan_installments_loan_id_loans_id_fk",
+          "tableFrom": "loan_installments",
+          "tableTo": "loans",
+          "columnsFrom": ["loan_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loan_installments_repayment_loan_fk": {
+          "name": "loan_installments_repayment_loan_fk",
+          "tableFrom": "loan_installments",
+          "tableTo": "transactions",
+          "columnsFrom": ["repayment_transaction_id", "loan_id"],
+          "columnsTo": ["id", "loan_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "loan_installments_repayment_transaction_id_unique": {
+          "name": "loan_installments_repayment_transaction_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["repayment_transaction_id"]
+        },
+        "loan_installments_loan_number_unique": {
+          "name": "loan_installments_loan_number_unique",
+          "nullsNotDistinct": false,
+          "columns": ["loan_id", "installment_number"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "loan_installments_schedule_fields": {
+          "name": "loan_installments_schedule_fields",
+          "value": "\"loan_installments\".\"installment_number\" > 0 and \"loan_installments\".\"principal_minor\" > 0 and \"loan_installments\".\"interest_minor\" >= 0"
+        },
+        "loan_installments_payment_fields": {
+          "name": "loan_installments_payment_fields",
+          "value": "(\n    \"loan_installments\".\"paid_at\" is null and \"loan_installments\".\"paid_amount_minor\" is null and \"loan_installments\".\"repayment_transaction_id\" is null and \"loan_installments\".\"paid_overdue_interest_minor\" = 0\n  ) or (\n    \"loan_installments\".\"paid_at\" is not null and \"loan_installments\".\"paid_amount_minor\" is not null and \"loan_installments\".\"repayment_transaction_id\" is not null\n    and \"loan_installments\".\"paid_overdue_interest_minor\" >= 0\n    and \"loan_installments\".\"paid_amount_minor\" = \"loan_installments\".\"principal_minor\" + \"loan_installments\".\"interest_minor\" + \"loan_installments\".\"paid_overdue_interest_minor\"\n  )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.loan_review_notes": {
+      "name": "loan_review_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "loan_id": {
+          "name": "loan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "loan_review_notes_loan_time_idx": {
+          "name": "loan_review_notes_loan_time_idx",
+          "columns": [
+            {
+              "expression": "loan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "loan_review_notes_loan_id_loans_id_fk": {
+          "name": "loan_review_notes_loan_id_loans_id_fk",
+          "tableFrom": "loan_review_notes",
+          "tableTo": "loans",
+          "columnsFrom": ["loan_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loan_review_notes_author_id_users_id_fk": {
+          "name": "loan_review_notes_author_id_users_id_fk",
+          "tableFrom": "loan_review_notes",
+          "tableTo": "users",
+          "columnsFrom": ["author_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "loan_review_notes_note_required": {
+          "name": "loan_review_notes_note_required",
+          "value": "length(trim(\"loan_review_notes\".\"note\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.loan_settlements": {
+      "name": "loan_settlements",
+      "schema": "",
+      "columns": {
+        "loan_id": {
+          "name": "loan_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_minor": {
+          "name": "principal_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_interest_minor": {
+          "name": "scheduled_interest_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "overdue_interest_minor": {
+          "name": "overdue_interest_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "loan_settlements_loan_id_loans_id_fk": {
+          "name": "loan_settlements_loan_id_loans_id_fk",
+          "tableFrom": "loan_settlements",
+          "tableTo": "loans",
+          "columnsFrom": ["loan_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loan_settlements_transaction_loan_fk": {
+          "name": "loan_settlements_transaction_loan_fk",
+          "tableFrom": "loan_settlements",
+          "tableTo": "transactions",
+          "columnsFrom": ["transaction_id", "loan_id"],
+          "columnsTo": ["id", "loan_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "loan_settlements_transaction_id_unique": {
+          "name": "loan_settlements_transaction_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["transaction_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "loan_settlements_valid_amounts": {
+          "name": "loan_settlements_valid_amounts",
+          "value": "\"loan_settlements\".\"principal_minor\" > 0 and \"loan_settlements\".\"scheduled_interest_minor\" >= 0 and \"loan_settlements\".\"overdue_interest_minor\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.loans": {
+      "name": "loans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disbursement_account_id": {
+          "name": "disbursement_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "loan_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "loan_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "requested_principal_minor": {
+          "name": "requested_principal_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approved_principal_minor": {
+          "name": "approved_principal_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remaining_principal_minor": {
+          "name": "remaining_principal_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annual_rate_bps": {
+          "name": "annual_rate_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1200
+        },
+        "term_months": {
+          "name": "term_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monthly_income_minor": {
+          "name": "monthly_income_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employment_status": {
+          "name": "employment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "review_started_at": {
+          "name": "review_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_started_by": {
+          "name": "review_started_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarded_at": {
+          "name": "forwarded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarded_by": {
+          "name": "forwarded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approval_reason": {
+          "name": "approval_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disbursed_at": {
+          "name": "disbursed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "loans_customer_time_idx": {
+          "name": "loans_customer_time_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "loans_status_time_idx": {
+          "name": "loans_status_time_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "loans_customer_id_customer_profiles_id_fk": {
+          "name": "loans_customer_id_customer_profiles_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "customer_profiles",
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_review_started_by_users_id_fk": {
+          "name": "loans_review_started_by_users_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "users",
+          "columnsFrom": ["review_started_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_forwarded_by_users_id_fk": {
+          "name": "loans_forwarded_by_users_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "users",
+          "columnsFrom": ["forwarded_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_decided_by_users_id_fk": {
+          "name": "loans_decided_by_users_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "users",
+          "columnsFrom": ["decided_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_owned_disbursement_account_fk": {
+          "name": "loans_owned_disbursement_account_fk",
+          "tableFrom": "loans",
+          "tableTo": "bank_accounts",
+          "columnsFrom": ["disbursement_account_id", "customer_id"],
+          "columnsTo": ["id", "customer_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "loans_baseline_terms": {
+          "name": "loans_baseline_terms",
+          "value": "\"loans\".\"requested_principal_minor\" > 0\n    and \"loans\".\"monthly_income_minor\" >= 0 and \"loans\".\"term_months\" between 6 and 60\n    and \"loans\".\"annual_rate_bps\" = 1200"
+        },
+        "loans_review_fields": {
+          "name": "loans_review_fields",
+          "value": "(\"loans\".\"forwarded_at\" is null) = (\"loans\".\"forwarded_by\" is null)\n    and (\"loans\".\"review_started_by\" is null or \"loans\".\"review_started_at\" is not null)\n    and (\"loans\".\"status\" <> 'PENDING' or (\"loans\".\"review_started_at\" is null and \"loans\".\"forwarded_at\" is null))"
+        },
+        "loans_decision_fields": {
+          "name": "loans_decision_fields",
+          "value": "case\n    when \"loans\".\"status\" in ('PENDING', 'UNDER_REVIEW') then\n      \"loans\".\"decided_at\" is null and \"loans\".\"decided_by\" is null and \"loans\".\"approved_principal_minor\" is null and \"loans\".\"rejection_reason\" is null\n    when \"loans\".\"status\" = 'REJECTED' then\n      \"loans\".\"decided_at\" is not null and \"loans\".\"decided_by\" is not null and \"loans\".\"approved_principal_minor\" is null\n      and \"loans\".\"rejection_reason\" is not null and length(trim(\"loans\".\"rejection_reason\")) > 0\n    else \"loans\".\"decided_at\" is not null and \"loans\".\"decided_by\" is not null and \"loans\".\"rejection_reason\" is null\n      and \"loans\".\"approved_principal_minor\" is not null and \"loans\".\"approved_principal_minor\" > 0\n  end"
+        },
+        "loans_approval_reason": {
+          "name": "loans_approval_reason",
+          "value": "\"loans\".\"approval_reason\" is null or (\"loans\".\"status\" in ('APPROVED', 'ACTIVE', 'COMPLETED') and length(trim(\"loans\".\"approval_reason\")) > 0)"
+        },
+        "loans_disbursement_fields": {
+          "name": "loans_disbursement_fields",
+          "value": "case\n    when \"loans\".\"status\" = 'ACTIVE' then \"loans\".\"disbursed_at\" is not null and \"loans\".\"completed_at\" is null\n      and \"loans\".\"remaining_principal_minor\" is not null and \"loans\".\"remaining_principal_minor\" > 0\n      and \"loans\".\"remaining_principal_minor\" <= \"loans\".\"approved_principal_minor\"\n    when \"loans\".\"status\" = 'COMPLETED' then \"loans\".\"disbursed_at\" is not null and \"loans\".\"completed_at\" is not null\n      and \"loans\".\"remaining_principal_minor\" is not null and \"loans\".\"remaining_principal_minor\" = 0\n    else \"loans\".\"disbursed_at\" is null and \"loans\".\"completed_at\" is null and \"loans\".\"remaining_principal_minor\" is null\n  end"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.management_events": {
+      "name": "management_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "management_action",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "management_events_customer_time_idx": {
+          "name": "management_events_customer_time_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "management_events_account_time_idx": {
+          "name": "management_events_account_time_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "management_events_customer_id_customer_profiles_id_fk": {
+          "name": "management_events_customer_id_customer_profiles_id_fk",
+          "tableFrom": "management_events",
+          "tableTo": "customer_profiles",
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "management_events_account_id_bank_accounts_id_fk": {
+          "name": "management_events_account_id_bank_accounts_id_fk",
+          "tableFrom": "management_events",
+          "tableTo": "bank_accounts",
+          "columnsFrom": ["account_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "management_events_actor_id_users_id_fk": {
+          "name": "management_events_actor_id_users_id_fk",
+          "tableFrom": "management_events",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profile_change_requests": {
+      "name": "profile_change_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_by": {
+          "name": "submitted_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "profile_change_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_reason": {
+          "name": "review_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "profile_change_one_pending_per_customer": {
+          "name": "profile_change_one_pending_per_customer",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"profile_change_requests\".\"status\" = 'PENDING'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "profile_change_customer_time_idx": {
+          "name": "profile_change_customer_time_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "profile_change_requests_customer_id_customer_profiles_id_fk": {
+          "name": "profile_change_requests_customer_id_customer_profiles_id_fk",
+          "tableFrom": "profile_change_requests",
+          "tableTo": "customer_profiles",
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "profile_change_requests_submitted_by_users_id_fk": {
+          "name": "profile_change_requests_submitted_by_users_id_fk",
+          "tableFrom": "profile_change_requests",
+          "tableTo": "users",
+          "columnsFrom": ["submitted_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "profile_change_requests_reviewed_by_users_id_fk": {
+          "name": "profile_change_requests_reviewed_by_users_id_fk",
+          "tableFrom": "profile_change_requests",
+          "tableTo": "users",
+          "columnsFrom": ["reviewed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "profile_change_has_fields": {
+          "name": "profile_change_has_fields",
+          "value": "num_nonnulls(\"profile_change_requests\".\"full_name\", \"profile_change_requests\".\"email\", \"profile_change_requests\".\"phone\", \"profile_change_requests\".\"address\") > 0"
+        },
+        "profile_change_review_complete": {
+          "name": "profile_change_review_complete",
+          "value": "(\"profile_change_requests\".\"status\" = 'PENDING' and num_nonnulls(\"profile_change_requests\".\"reviewed_by\", \"profile_change_requests\".\"reviewed_at\", \"profile_change_requests\".\"review_reason\") = 0)\n        or (\"profile_change_requests\".\"status\" <> 'PENDING' and num_nonnulls(\"profile_change_requests\".\"reviewed_by\", \"profile_change_requests\".\"reviewed_at\", \"profile_change_requests\".\"review_reason\") = 3\n          and \"profile_change_requests\".\"reviewed_by\" <> \"profile_change_requests\".\"submitted_by\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "token_digest": {
+          "name": "token_digest",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sessions_user_id_idx": {
+          "name": "sessions_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sessions_expires_at_idx": {
+          "name": "sessions_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transaction_flags": {
+      "name": "transaction_flags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "flagged_by": {
+          "name": "flagged_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "automated_rules": {
+          "name": "automated_rules",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_by": {
+          "name": "resolved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolution_note": {
+          "name": "resolution_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "transaction_flags_open_transaction_unique": {
+          "name": "transaction_flags_open_transaction_unique",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"transaction_flags\".\"resolved_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_flags_automatic_transaction_unique": {
+          "name": "transaction_flags_automatic_transaction_unique",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"transaction_flags\".\"flagged_by\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_flags_transaction_time_idx": {
+          "name": "transaction_flags_transaction_time_idx",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_flags_created_idx": {
+          "name": "transaction_flags_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transaction_flags_transaction_id_transactions_id_fk": {
+          "name": "transaction_flags_transaction_id_transactions_id_fk",
+          "tableFrom": "transaction_flags",
+          "tableTo": "transactions",
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transaction_flags_flagged_by_users_id_fk": {
+          "name": "transaction_flags_flagged_by_users_id_fk",
+          "tableFrom": "transaction_flags",
+          "tableTo": "users",
+          "columnsFrom": ["flagged_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transaction_flags_resolved_by_users_id_fk": {
+          "name": "transaction_flags_resolved_by_users_id_fk",
+          "tableFrom": "transaction_flags",
+          "tableTo": "users",
+          "columnsFrom": ["resolved_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "transaction_flags_source_fields": {
+          "name": "transaction_flags_source_fields",
+          "value": "(\"transaction_flags\".\"flagged_by\" is null) = (cardinality(\"transaction_flags\".\"automated_rules\") > 0)"
+        },
+        "transaction_flags_reason_required": {
+          "name": "transaction_flags_reason_required",
+          "value": "length(trim(\"transaction_flags\".\"reason\")) > 0"
+        },
+        "transaction_flags_resolution_fields": {
+          "name": "transaction_flags_resolution_fields",
+          "value": "(\n      \"transaction_flags\".\"resolved_at\" is null and \"transaction_flags\".\"resolved_by\" is null and \"transaction_flags\".\"resolution_note\" is null\n    ) or (\"transaction_flags\".\"resolved_at\" is not null and \"transaction_flags\".\"resolved_by\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.transactions": {
+      "name": "transactions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "reference": {
+          "name": "reference",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sender_account_id": {
+          "name": "sender_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receiver_account_id": {
+          "name": "receiver_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "transaction_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "transaction_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_minor": {
+          "name": "fee_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "initiated_by": {
+          "name": "initiated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reverses_transaction_id": {
+          "name": "reverses_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversal_reason": {
+          "name": "reversal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refunded_fee_minor": {
+          "name": "refunded_fee_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "cash_request_id": {
+          "name": "cash_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loan_id": {
+          "name": "loan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "transactions_loan_disbursement_unique": {
+          "name": "transactions_loan_disbursement_unique",
+          "columns": [
+            {
+              "expression": "loan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"transactions\".\"type\" = 'LOAN_DISBURSEMENT'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transactions_sender_time_idx": {
+          "name": "transactions_sender_time_idx",
+          "columns": [
+            {
+              "expression": "sender_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transactions_receiver_time_idx": {
+          "name": "transactions_receiver_time_idx",
+          "columns": [
+            {
+              "expression": "receiver_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transactions_sender_account_id_bank_accounts_id_fk": {
+          "name": "transactions_sender_account_id_bank_accounts_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "bank_accounts",
+          "columnsFrom": ["sender_account_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transactions_receiver_account_id_bank_accounts_id_fk": {
+          "name": "transactions_receiver_account_id_bank_accounts_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "bank_accounts",
+          "columnsFrom": ["receiver_account_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transactions_initiated_by_users_id_fk": {
+          "name": "transactions_initiated_by_users_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "users",
+          "columnsFrom": ["initiated_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transactions_cash_request_id_cash_requests_id_fk": {
+          "name": "transactions_cash_request_id_cash_requests_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "cash_requests",
+          "columnsFrom": ["cash_request_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transactions_loan_id_loans_id_fk": {
+          "name": "transactions_loan_id_loans_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "loans",
+          "columnsFrom": ["loan_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transactions_reversal_fk": {
+          "name": "transactions_reversal_fk",
+          "tableFrom": "transactions",
+          "tableTo": "transactions",
+          "columnsFrom": ["reverses_transaction_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "transactions_reference_unique": {
+          "name": "transactions_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": ["reference"]
+        },
+        "transactions_reversal_unique": {
+          "name": "transactions_reversal_unique",
+          "nullsNotDistinct": false,
+          "columns": ["reverses_transaction_id"]
+        },
+        "transactions_cash_request_unique": {
+          "name": "transactions_cash_request_unique",
+          "nullsNotDistinct": false,
+          "columns": ["cash_request_id"]
+        },
+        "transactions_id_loan_unique": {
+          "name": "transactions_id_loan_unique",
+          "nullsNotDistinct": false,
+          "columns": ["id", "loan_id"]
+        },
+        "transactions_initiator_idempotency_key": {
+          "name": "transactions_initiator_idempotency_key",
+          "nullsNotDistinct": false,
+          "columns": ["initiated_by", "idempotency_key"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "transactions_reversal_fields": {
+          "name": "transactions_reversal_fields",
+          "value": "case\n      when \"transactions\".\"type\"::text = 'TRANSFER_REVERSAL' then\n        \"transactions\".\"reverses_transaction_id\" is not null and \"transactions\".\"reverses_transaction_id\" <> \"transactions\".\"id\"\n        and \"transactions\".\"initiated_by\" is not null and \"transactions\".\"status\" = 'COMPLETED'\n        and \"transactions\".\"reversal_reason\" is not null and length(trim(\"transactions\".\"reversal_reason\")) between 1 and 300\n        and \"transactions\".\"refunded_fee_minor\" >= 0 and \"transactions\".\"fee_minor\" = 0\n        and \"transactions\".\"idempotency_key\" is null\n      else \"transactions\".\"reverses_transaction_id\" is null and \"transactions\".\"reversal_reason\" is null and \"transactions\".\"refunded_fee_minor\" = 0\n      end"
+        },
+        "transactions_positive_amount": {
+          "name": "transactions_positive_amount",
+          "value": "\"transactions\".\"amount_minor\" > 0"
+        },
+        "transactions_nonnegative_fee": {
+          "name": "transactions_nonnegative_fee",
+          "value": "\"transactions\".\"fee_minor\" >= 0"
+        },
+        "transactions_loan_type": {
+          "name": "transactions_loan_type",
+          "value": "\"transactions\".\"loan_id\" is null or \"transactions\".\"type\" in ('LOAN_DISBURSEMENT', 'LOAN_REPAYMENT')"
+        },
+        "transactions_cash_request_type": {
+          "name": "transactions_cash_request_type",
+          "value": "\"transactions\".\"cash_request_id\" is null or \"transactions\".\"type\" in ('DEPOSIT', 'WITHDRAWAL')"
+        },
+        "transactions_account_direction": {
+          "name": "transactions_account_direction",
+          "value": "case\n        when \"transactions\".\"type\"::text in ('FUND_TRANSFER', 'TRANSFER_REVERSAL') then\n          \"transactions\".\"sender_account_id\" is not null and \"transactions\".\"receiver_account_id\" is not null\n          and \"transactions\".\"sender_account_id\" <> \"transactions\".\"receiver_account_id\"\n        when \"transactions\".\"type\" in ('DEPOSIT', 'LOAN_DISBURSEMENT')\n          then \"transactions\".\"sender_account_id\" is null and \"transactions\".\"receiver_account_id\" is not null\n        else \"transactions\".\"sender_account_id\" is not null and \"transactions\".\"receiver_account_id\" is null\n      end"
+        },
+        "transactions_transfer_identity": {
+          "name": "transactions_transfer_identity",
+          "value": "(\"transactions\".\"idempotency_key\" is null or \"transactions\".\"initiated_by\" is not null)\n        and (\"transactions\".\"type\" <> 'FUND_TRANSFER' or \"transactions\".\"idempotency_key\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked": {
+          "name": "blocked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "access_active": {
+          "name": "access_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": ["email"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_email_normalized": {
+          "name": "users_email_normalized",
+          "value": "\"users\".\"email\" = lower(trim(\"users\".\"email\"))"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.account_status": {
+      "name": "account_status",
+      "schema": "public",
+      "values": ["PENDING", "ACTIVE", "FROZEN", "DEACTIVATED"]
+    },
+    "public.account_type": {
+      "name": "account_type",
+      "schema": "public",
+      "values": ["SAVINGS", "CURRENT", "BUSINESS"]
+    },
+    "public.attempt_purpose": {
+      "name": "attempt_purpose",
+      "schema": "public",
+      "values": ["LOGIN", "PIN", "TOTP"]
+    },
+    "public.cash_request_status": {
+      "name": "cash_request_status",
+      "schema": "public",
+      "values": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"]
+    },
+    "public.cash_request_type": {
+      "name": "cash_request_type",
+      "schema": "public",
+      "values": ["DEPOSIT", "WITHDRAWAL"]
+    },
+    "public.loan_status": {
+      "name": "loan_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "ACTIVE",
+        "COMPLETED"
+      ]
+    },
+    "public.loan_type": {
+      "name": "loan_type",
+      "schema": "public",
+      "values": ["PERSONAL", "EDUCATION", "BUSINESS"]
+    },
+    "public.management_action": {
+      "name": "management_action",
+      "schema": "public",
+      "values": [
+        "CUSTOMER_ACTIVATED",
+        "CUSTOMER_DEACTIVATED",
+        "CUSTOMER_BLOCKED",
+        "PROFILE_UPDATED",
+        "PROFILE_CHANGE_REQUESTED",
+        "PROFILE_CHANGE_APPROVED",
+        "PROFILE_CHANGE_REJECTED",
+        "ACCOUNT_OPENED",
+        "ACCOUNT_ACTIVATED",
+        "ACCOUNT_FROZEN",
+        "ACCOUNT_UNFROZEN",
+        "ACCOUNT_DEACTIVATED",
+        "ACCOUNT_REACTIVATED",
+        "ACCOUNT_METADATA_UPDATED",
+        "ACCOUNT_LIMITS_UPDATED"
+      ]
+    },
+    "public.profile_change_status": {
+      "name": "profile_change_status",
+      "schema": "public",
+      "values": ["PENDING", "APPROVED", "REJECTED"]
+    },
+    "public.transaction_status": {
+      "name": "transaction_status",
+      "schema": "public",
+      "values": ["PENDING", "COMPLETED", "FAILED", "REVERSED"]
+    },
+    "public.transaction_type": {
+      "name": "transaction_type",
+      "schema": "public",
+      "values": [
+        "DEPOSIT",
+        "WITHDRAWAL",
+        "FUND_TRANSFER",
+        "TRANSFER_REVERSAL",
+        "LOAN_DISBURSEMENT",
+        "LOAN_REPAYMENT"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": ["ADMIN", "STAFF", "CUSTOMER"]
+    },
+    "public.verification_status": {
+      "name": "verification_status",
+      "schema": "public",
+      "values": ["PENDING", "VERIFIED", "REJECTED"]
+    }
+  },
+  "schemas": {},
+  "sequences": {
+    "public.bank_account_number_seq": {
+      "name": "bank_account_number_seq",
+      "schema": "public",
+      "increment": "1",
+      "startWith": "100000000000",
+      "minValue": "100000000000",
+      "maxValue": "999999999999",
+      "cache": "1",
+      "cycle": false
+    }
+  },
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
