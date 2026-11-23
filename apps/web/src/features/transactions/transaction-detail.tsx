@@ -6,6 +6,7 @@ import { TransferReversal } from "./transfer-reversal";
 import { TransactionFlagsPanel } from "./transaction-flags";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { errorCode } from "@/features/auth/auth-api";
 import {
@@ -185,10 +186,10 @@ export function TransactionDetail({
             )
           ))}
       </div>
-      {query.isFetching && !transaction && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading {receipt ? "receipt" : "transaction"}…
-        </p>
+      {query.isFetching && !query.isError && !transaction && (
+        <DetailSkeleton
+          label={receipt ? "Loading receipt" : "Loading transaction"}
+        />
       )}
       {query.isError ? (
         <Card className="space-y-3 p-5">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import { useAppSelector } from "@/lib/store/provider";
 import { useOwnedAccountsQuery } from "@/features/management/management-api";
 import {
@@ -44,10 +45,25 @@ export function MyAccounts() {
         </p>
       </header>
       <Card className="space-y-5 p-5 sm:p-6">
-        {query.isFetching && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Checking accounts…
-          </p>
+        {query.isFetching && !query.isError && !data && (
+          <LoadingRegion label="Checking accounts">
+            <div className="space-y-5">
+              <div className="max-w-md space-y-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+              <div className="space-y-2 rounded-lg border bg-muted/50 p-4 sm:p-5">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-9 w-40" />
+                <Skeleton className="h-5 w-2/3 max-w-64" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Skeleton className="h-10 w-3/4 max-w-40" />
+                <Skeleton className="h-10 w-3/4 max-w-40" />
+              </div>
+            </div>
+          </LoadingRegion>
         )}
         {query.isError && (
           <div className="space-y-2">

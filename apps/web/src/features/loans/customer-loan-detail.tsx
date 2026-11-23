@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton, FieldSkeleton } from "@/components/ui/skeleton";
 import { accountTypes, formatTaka } from "@/features/accounts/account-display";
 import { useOwnedAccountsQuery } from "@/features/management/management-api";
 import { DetailFields, Pager } from "@/features/management/management-ui";
@@ -49,25 +50,27 @@ function RepaymentFields() {
     <div className="space-y-3">
       <label className="flex flex-col gap-2 text-sm font-medium">
         Pay from account
-        <select
-          name="accountId"
-          className={`${fieldStyle} min-w-0`}
-          required
-          value={selected?.id ?? ""}
-          onChange={(event) => setAccountId(event.target.value)}
-          aria-describedby={selected ? "loan-payment-balance" : undefined}
-        >
-          <option value="" disabled>
-            {query.isFetching
-              ? "Loading accounts…"
-              : "Choose an eligible account"}
-          </option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.accountNumber} · {accountTypes[account.type]}
+        {query.isFetching && !query.isError && !query.currentData ? (
+          <FieldSkeleton label="Loading accounts" />
+        ) : (
+          <select
+            name="accountId"
+            className={`${fieldStyle} min-w-0`}
+            required
+            value={selected?.id ?? ""}
+            onChange={(event) => setAccountId(event.target.value)}
+            aria-describedby={selected ? "loan-payment-balance" : undefined}
+          >
+            <option value="" disabled>
+              Choose an eligible account
             </option>
-          ))}
-        </select>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.accountNumber} · {accountTypes[account.type]}
+              </option>
+            ))}
+          </select>
+        )}
       </label>
       {selected && (
         <p id="loan-payment-balance" className="text-sm text-muted-foreground">
@@ -339,10 +342,8 @@ export function CustomerLoanDetail({ id }: { id: string }) {
           {installments.length > 0 && (
             <Card className="gap-3 p-4 sm:p-5">
               <h2 className="text-lg font-semibold">Repayment schedule</h2>
-              {hasPayment && pin.isFetching && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  Checking transaction PIN setup…
-                </p>
+              {hasPayment && pin.isFetching && !pin.currentData && (
+                <FieldSkeleton label="Checking transaction PIN setup" />
               )}
               {hasPayment && pin.isError && (
                 <div className="space-y-2">
@@ -430,9 +431,7 @@ export function CustomerLoanDetail({ id }: { id: string }) {
           )}
         </>
       ) : (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading loan details…
-        </p>
+        <DetailSkeleton label="Loading loan details" />
       )}
     </section>
   );

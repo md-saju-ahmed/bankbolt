@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
@@ -228,10 +229,10 @@ export function TransactionResults({
 
   return (
     <>
-      {query.isFetching && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading transactions…
-        </p>
+      {query.isFetching && !query.isError && !query.currentData && (
+        <Card className="overflow-hidden p-0">
+          <ListSkeleton label="Loading transactions" tableAt="lg" />
+        </Card>
       )}
       {query.isError && (
         <Card className="space-y-3 p-5">

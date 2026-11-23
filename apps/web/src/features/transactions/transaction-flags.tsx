@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { errorCode } from "@/features/auth/auth-api";
 import { Pager } from "@/features/management/management-ui";
@@ -276,10 +277,8 @@ export function TransactionFlagsPanel({
           {feedback}
         </p>
       )}
-      {query.isFetching && (
-        <p role="status" className="p-4 text-sm text-muted-foreground">
-          Loading flags…
-        </p>
+      {query.isFetching && !query.isError && !query.currentData && (
+        <ListSkeleton label="Loading flags" />
       )}
       {query.isError ? (
         <div className="space-y-2 p-4">
@@ -380,10 +379,8 @@ export function TransactionFlagsQueue({
             </select>
           </label>
         </div>
-        {query.isFetching && (
-          <p role="status" className="p-4 text-sm text-muted-foreground">
-            Loading flags…
-          </p>
+        {query.isFetching && !query.isError && !query.currentData && (
+          <ListSkeleton label="Loading flags" />
         )}
         {query.isError ? (
           <div className="space-y-2 p-4">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
   accountTypes,
@@ -200,10 +201,8 @@ export function Directory({
               Apply filters
             </Button>
           </form>
-          {state.isFetching && (
-            <p role="status" className="text-sm text-muted-foreground">
-              Loading results…
-            </p>
+          {state.isFetching && !state.isError && !state.currentData && (
+            <ListSkeleton label="Loading results" tableAt="always" />
           )}
           {state.isError && (
             <div className="space-y-3">

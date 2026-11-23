@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
   accountTypes,
@@ -39,12 +40,7 @@ function DetailLoading({
   error: unknown;
   retry: () => void;
 }) {
-  if (fetching)
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        Loading details…
-      </p>
-    );
+  if (fetching) return <DetailSkeleton label="Loading details" />;
   return (
     <div className="space-y-3">
       <ErrorMessage

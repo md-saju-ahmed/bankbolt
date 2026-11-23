@@ -8,6 +8,12 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  FieldSkeleton,
+  ListSkeleton,
+  LoadingRegion,
+  Skeleton,
+} from "@/components/ui/skeleton";
+import {
   accountStatuses,
   accountTypes,
   formatTaka,
@@ -34,6 +40,7 @@ import {
 import { transactionTypes } from "@/features/transactions/transactions-api";
 import { formatDhakaDay, formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { cn } from "@/lib/utils";
+import { ReportChartsSkeleton } from "./report-skeleton";
 import styles from "./customer-overview.module.css";
 import { useCustomerReportQuery, type CustomerReport } from "./reports-api";
 
@@ -45,15 +52,12 @@ const CustomerReportCharts = dynamic(
   {
     ssr: false,
     loading: () => (
-      <p role="status" className="text-sm text-muted-foreground">
-        Loading charts…
-      </p>
+      <ReportChartsSkeleton gridClassName={styles.chartGrid} customer />
     ),
   },
 );
 
 const accountOptions = {
-  refetchOnFocus: true,
   refetchOnMountOrArgChange: true,
 };
 const countFormat = new Intl.NumberFormat("en-BD");
@@ -328,28 +332,33 @@ export function CustomerOverview() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <label className="flex w-full max-w-sm min-w-0 flex-col gap-2 text-sm font-medium">
             Account
-            <select
-              className={fieldStyle}
-              value={selectedId || ""}
-              onChange={(event) => chooseAccount(event.target.value)}
-            >
-              <option value="">All accounts</option>
-              {selectedId &&
-                !pageAccounts.some((entry) => entry.id === selectedId) && (
-                  <option value={selectedId} disabled={!selectedAccount}>
-                    {selectedAccount
-                      ? accountLabel(selectedAccount)
-                      : selected.isFetching
-                        ? "Loading selected account…"
+            {(accounts.isFetching &&
+              !accounts.isError &&
+              !accounts.currentData) ||
+            (selected.isFetching && !selected.isError && !account) ? (
+              <FieldSkeleton label="Loading account choices" />
+            ) : (
+              <select
+                className={fieldStyle}
+                value={selectedId || ""}
+                onChange={(event) => chooseAccount(event.target.value)}
+              >
+                <option value="">All accounts</option>
+                {selectedId &&
+                  !pageAccounts.some((entry) => entry.id === selectedId) && (
+                    <option value={selectedId} disabled={!selectedAccount}>
+                      {selectedAccount
+                        ? accountLabel(selectedAccount)
                         : "Selected account unavailable"}
+                    </option>
+                  )}
+                {pageAccounts.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {accountLabel(entry)}
                   </option>
-                )}
-              {pageAccounts.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {accountLabel(entry)}
-                </option>
-              ))}
-            </select>
+                ))}
+              </select>
+            )}
           </label>
           <Link
             className={`${historyLink} ${secondaryStyle}`}
@@ -358,11 +367,7 @@ export function CustomerOverview() {
             Manage accounts
           </Link>
         </div>
-        {accounts.isFetching && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Loading account choices…
-          </p>
-        )}
+
         {accounts.isError && (
           <div className="space-y-2">
             <ErrorMessage message="Could not load account choices." />
@@ -382,13 +387,7 @@ export function CustomerOverview() {
           />
         )}
       </Card>
-      {busy && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {report
-            ? "Refreshing account activity…"
-            : "Loading account activity…"}
-        </p>
-      )}
+
       {query.isError && (
         <div className="space-y-2">
           <ErrorMessage
@@ -407,7 +406,7 @@ export function CustomerOverview() {
           )}
         </div>
       )}
-      <div className="space-y-5" aria-busy={busy}>
+      <div className="space-y-5" aria-busy={busy && !!report}>
         {report ? (
           <>
             <div className={styles.dashboardGrid}>
@@ -420,11 +419,38 @@ export function CustomerOverview() {
             <CustomerReportCharts report={report} scope={scope} />
           </>
         ) : (
+          !query.isError &&
           busy && (
-            <div className={styles.dashboardGrid} aria-hidden="true">
-              <div className="min-h-56 rounded-xl bg-muted" />
-              <div className="min-h-56 rounded-xl bg-muted" />
-            </div>
+            <>
+              <LoadingRegion label="Loading account activity">
+                <div className={styles.dashboardGrid}>
+                  <div className="space-y-4">
+                    <Card className="min-h-64 border-navy bg-navy p-4 sm:p-5">
+                      <Skeleton className="h-5 w-28 bg-white/15" />
+                      <Skeleton className="mt-5 h-4 w-24 bg-white/15" />
+                      <Skeleton className="mt-2 h-10 w-2/3 bg-white/15" />
+                      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-4">
+                        <Skeleton className="h-10 bg-white/15" />
+                        <Skeleton className="h-10 bg-white/15" />
+                      </div>
+                      <Skeleton className="mt-4 h-11 w-full bg-white/15" />
+                    </Card>
+                    <Card className="space-y-4 p-4 sm:p-5">
+                      <Skeleton className="h-5 w-24" />
+                      <Skeleton className="h-10 w-2/3" />
+                    </Card>
+                  </div>
+                  <Card>
+                    <div className="space-y-2 border-b p-4 sm:p-5">
+                      <Skeleton className="h-5 w-40" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    <ListSkeleton label="Loading recent transactions" />
+                  </Card>
+                </div>
+              </LoadingRegion>
+              <ReportChartsSkeleton gridClassName={styles.chartGrid} customer />
+            </>
           )
         )}
       </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { errorCode } from "@/features/auth/auth-api";
 import { DetailFields } from "@/features/management/management-ui";
@@ -150,10 +151,8 @@ export function CashReviewDetail({
           {feedback}
         </p>
       )}
-      {query.isFetching && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading request…
-        </p>
+      {query.isFetching && !query.isError && !record && (
+        <DetailSkeleton label="Loading request" />
       )}
       {query.isError ? (
         <Card className="space-y-3 p-5">

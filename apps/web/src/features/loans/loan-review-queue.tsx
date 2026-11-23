@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useDispatch } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
 import {
@@ -82,10 +83,8 @@ export function LoanReviewQueue({
             {query.isError ? "Try again" : "Refresh"}
           </Button>
         </div>
-        {query.isFetching && (
-          <p className="p-4 text-sm text-muted-foreground" role="status">
-            Loading applications…
-          </p>
+        {query.isFetching && !query.isError && !result && (
+          <ListSkeleton label="Loading applications" />
         )}
         {query.isError ? (
           <div className="p-4">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FieldSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
   accountTypes,
@@ -506,11 +507,6 @@ function TransferForm({ userId }: { userId: string }) {
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
             <Card className="space-y-4 p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Transfer details</h2>
-              {accounts.isLoading && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  Loading your accounts…
-                </p>
-              )}
               {accounts.isError && (
                 <div className="space-y-2">
                   <ErrorMessage message="Could not load your accounts." />
@@ -539,26 +535,33 @@ function TransferForm({ userId }: { userId: string }) {
                 >
                   <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
                     Source account
-                    <select
-                      className={fieldStyle}
-                      required
-                      value={sourceId}
-                      onChange={(event) => setSourceId(event.target.value)}
-                    >
-                      <option value="">Select an account</option>
-                      {rows.map((account) => (
-                        <option
-                          key={account.id}
-                          value={account.id}
-                          disabled={Boolean(account.restriction)}
-                        >
-                          {accountTypes[account.type]} · {account.accountNumber}
-                          {account.restriction
-                            ? ` · ${accountStatuses[account.status]}`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
+                    {accounts.isFetching &&
+                    !accounts.isError &&
+                    !accounts.currentData ? (
+                      <FieldSkeleton label="Loading your accounts" />
+                    ) : (
+                      <select
+                        className={fieldStyle}
+                        required
+                        value={sourceId}
+                        onChange={(event) => setSourceId(event.target.value)}
+                      >
+                        <option value="">Select an account</option>
+                        {rows.map((account) => (
+                          <option
+                            key={account.id}
+                            value={account.id}
+                            disabled={Boolean(account.restriction)}
+                          >
+                            {accountTypes[account.type]} ·{" "}
+                            {account.accountNumber}
+                            {account.restriction
+                              ? ` · ${accountStatuses[account.status]}`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </label>
                   {accounts.currentData && (
                     <Pager
@@ -663,9 +666,7 @@ function TransferForm({ userId }: { userId: string }) {
                     </Button>
                   </>
                 ) : (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    Checking PIN settings…
-                  </p>
+                  <FieldSkeleton label="Checking PIN settings" />
                 )}
               </Card>
             )}

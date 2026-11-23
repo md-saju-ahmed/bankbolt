@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  ListSkeleton,
+  LoadingRegion,
+  Skeleton,
+} from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import {
   ErrorMessage,
@@ -17,6 +22,7 @@ import {
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaDay } from "@/lib/dhaka-date";
 import { cn } from "@/lib/utils";
+import { ReportChartsSkeleton } from "./report-skeleton";
 import styles from "./admin-overview.module.css";
 import {
   type AdminReport,
@@ -30,11 +36,7 @@ const AdminReportCharts = dynamic(
     import("./admin-report-charts").then((module) => module.AdminReportCharts),
   {
     ssr: false,
-    loading: () => (
-      <p role="status" className="text-sm text-muted-foreground">
-        Loading charts…
-      </p>
-    ),
+    loading: () => <ReportChartsSkeleton gridClassName={styles.chartGrid} />,
   },
 );
 const emptyDates = { from: "", to: "" };
@@ -213,7 +215,6 @@ export function AdminOverview() {
   }>();
   const query = useAdminReportQuery(period, {
     refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
   });
   const report = query.isError ? undefined : query.currentData;
   const activeEdit = edit?.periodKey === periodKey ? edit : undefined;
@@ -323,11 +324,6 @@ export function AdminOverview() {
         )}
       </form>
 
-      {busy && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {report ? "Refreshing overview…" : "Loading overview…"}
-        </p>
-      )}
       {query.isError && (
         <ErrorMessage
           message={onboardingError(
@@ -336,7 +332,7 @@ export function AdminOverview() {
           )}
         />
       )}
-      <div className="space-y-5" aria-busy={busy}>
+      <div className="space-y-5" aria-busy={busy && !!report}>
         {report ? (
           <>
             <div className={styles.metricsGrid}>
@@ -347,11 +343,37 @@ export function AdminOverview() {
             <AdminReportCharts report={report} />
           </>
         ) : (
+          !query.isError &&
           busy && (
-            <div className={styles.metricsGrid} aria-hidden="true">
-              <div className="min-h-52 rounded-xl bg-muted" />
-              <div className="min-h-52 rounded-xl bg-muted" />
-            </div>
+            <>
+              <LoadingRegion label="Loading bank overview">
+                <div className={styles.metricsGrid}>
+                  <Card className="min-h-64 border-navy bg-navy p-4 sm:p-5">
+                    <Skeleton className="h-5 w-40 bg-white/15" />
+                    <Skeleton className="mt-5 h-4 w-28 bg-white/15" />
+                    <Skeleton className="mt-2 h-10 w-2/3 bg-white/15" />
+                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-4">
+                      <Skeleton className="h-14 bg-white/15" />
+                      <Skeleton className="h-14 bg-white/15" />
+                    </div>
+                  </Card>
+                  <Card className="min-h-64 space-y-3 p-4 sm:p-5">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-4 w-5/6 max-w-64" />
+                    <ListSkeleton
+                      label="Loading completed activity"
+                      rowClassName="px-0"
+                    />
+                  </Card>
+                </div>
+                <Skeleton className="mt-5 mb-3 h-7 w-36" />
+                <div className={styles.queueGrid}>
+                  <Skeleton className="min-h-28 rounded-xl" />
+                  <Skeleton className="min-h-28 rounded-xl" />
+                </div>
+              </LoadingRegion>
+              <ReportChartsSkeleton gridClassName={styles.chartGrid} />
+            </>
           )
         )}
       </div>

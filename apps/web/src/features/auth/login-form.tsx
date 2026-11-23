@@ -4,6 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import { useAppSelector } from "@/lib/store/provider";
 import { errorCode, useLoginMutation, useMeQuery } from "./auth-api";
 import { workspaces, type Role } from "./identity";
@@ -72,9 +73,30 @@ export function LoginForm({ demoPassword }: { demoPassword?: string }) {
 
   if (session.isLoading || (role && session.data && !session.isError)) {
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        Checking your session…
-      </p>
+      <LoadingRegion label="Checking your session">
+        <div className="space-y-5">
+          {demoPassword && (
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-5 w-72 max-w-full" />
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-11 w-[4.75rem]" />
+                <Skeleton className="h-11 w-16" />
+                <Skeleton className="h-11 w-24" />
+              </div>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </LoadingRegion>
     );
   }
 

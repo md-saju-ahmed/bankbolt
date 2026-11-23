@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import { errorCode } from "./auth-api";
 import {
   ErrorMessage,
@@ -141,9 +142,9 @@ export function AuthenticatorSettings() {
           </p>
         </div>
         {!status && !error && (
-          <p role="status" className="text-sm">
-            Loading Security settings…
-          </p>
+          <LoadingRegion label="Loading Security settings">
+            <Skeleton className="h-5 w-16" />
+          </LoadingRegion>
         )}
         {status && (
           <p className="text-sm font-medium">

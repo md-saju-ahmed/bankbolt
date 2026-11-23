@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
 import {
@@ -58,10 +59,8 @@ export function LoanApplicationHistory() {
             Refresh
           </Button>
         </div>
-        {query.isFetching && (
-          <p role="status" className="p-4 text-sm text-muted-foreground">
-            Loading loan applications…
-          </p>
+        {query.isFetching && !query.isError && !query.currentData && (
+          <ListSkeleton label="Loading loan applications" />
         )}
         {query.isError ? (
           <div className="space-y-2 p-4">

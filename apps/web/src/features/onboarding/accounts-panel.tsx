@@ -5,6 +5,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses as statuses,
   accountTypes as titles,
@@ -223,10 +224,8 @@ export function AccountsPanel({ customer }: { customer: Customer }) {
         <AccountCreation customer={customer} onCreated={() => setPage(1)} />
       )}
       <div className="space-y-3 border-t pt-4">
-        {query.isFetching && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Checking accounts…
-          </p>
+        {query.isFetching && !query.isError && !data && (
+          <ListSkeleton label="Checking accounts" rowClassName="px-0" />
         )}
         {query.isError && (
           <div className="space-y-2">

@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { ThemeMenu } from "@/components/theme-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton, Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetClose,
@@ -44,6 +45,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
         src="/brand/bankbolt-icon.svg"
         width={35}
         height={35}
+        loading="eager"
         alt={compact ? "BankBolt" : ""}
       />
       {!compact && (
@@ -446,6 +448,48 @@ function Workspace({
   );
 }
 
+function WorkspaceSkeleton() {
+  return (
+    <div className="flex min-h-svh">
+      <div className="hidden w-[4.5rem] shrink-0 bg-navy md:block lg:w-60">
+        <div className="flex min-h-20 items-center justify-center border-b border-white/10 px-4">
+          <div className="lg:hidden">
+            <Brand compact />
+          </div>
+          <div className="hidden w-full lg:block">
+            <Brand />
+          </div>
+        </div>
+        <div className="space-y-3 p-3">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-11 bg-white/10" />
+          ))}
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-h-20 items-center justify-between gap-3 border-b bg-card px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Skeleton className="size-11 md:hidden lg:block" />
+            <div className="md:hidden">
+              <Brand compact />
+            </div>
+            <Skeleton className="h-4 w-20 sm:w-36" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="size-9 rounded-full" />
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="hidden h-4 w-20 sm:block" />
+          </div>
+        </div>
+        <main className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
+          <Skeleton className="h-9 w-52 max-w-full" />
+          <DetailSkeleton label="Checking your session" />
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardShell({
   role,
   children,
@@ -471,11 +515,7 @@ export function DashboardShell({
     (session.isFetching && !session.currentData) ||
     code === "AUTH_REQUIRED"
   ) {
-    return (
-      <main role="status" className="p-6 text-sm text-muted-foreground">
-        Checking your session…
-      </main>
-    );
+    return <WorkspaceSkeleton />;
   }
   if (code === "ACCOUNT_BLOCKED") {
     return (

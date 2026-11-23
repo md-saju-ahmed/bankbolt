@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
 import {
@@ -168,10 +169,8 @@ export function CashRequestHistory() {
             </Button>
           </div>
         </div>
-        {query.isFetching && (
-          <p role="status" className="mx-4 mt-4 text-sm text-muted-foreground">
-            Loading requests…
-          </p>
+        {query.isFetching && !query.isError && !query.currentData && (
+          <ListSkeleton label="Loading requests" tableAt="lg" />
         )}
         {query.isError ? (
           <div className="space-y-3 p-4">

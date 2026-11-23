@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FieldSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
   accountTypes,
@@ -226,11 +227,6 @@ export function LoanApplicationForm() {
               </Link>
             </div>
           )}
-          {(catalog.isFetching || accounts.isFetching) && (
-            <p role="status" className="text-sm text-muted-foreground">
-              Loading application options…
-            </p>
-          )}
           {catalog.isError && (
             <div className="space-y-2">
               <ErrorMessage message="Could not load loan products." />
@@ -265,22 +261,28 @@ export function LoanApplicationForm() {
             >
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Loan type
-                <select
-                  className={fieldStyle}
-                  required
-                  value={type}
-                  onChange={(event) => {
-                    setType(event.target.value);
-                    setError("");
-                  }}
-                >
-                  <option value="">Select a loan type</option>
-                  {catalog.currentData?.products.map((item) => (
-                    <option key={item.type} value={item.type}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                {catalog.isFetching &&
+                !catalog.isError &&
+                !catalog.currentData ? (
+                  <FieldSkeleton label="Loading loan products" />
+                ) : (
+                  <select
+                    className={fieldStyle}
+                    required
+                    value={type}
+                    onChange={(event) => {
+                      setType(event.target.value);
+                      setError("");
+                    }}
+                  >
+                    <option value="">Select a loan type</option>
+                    {catalog.currentData?.products.map((item) => (
+                      <option key={item.type} value={item.type}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               {product && (
                 <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
@@ -327,26 +329,32 @@ export function LoanApplicationForm() {
               </div>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Disbursement account
-                <select
-                  className={fieldStyle}
-                  required
-                  value={accountId}
-                  onChange={(event) => setAccountId(event.target.value)}
-                >
-                  <option value="">Select an active account</option>
-                  {rows.map((item) => (
-                    <option
-                      key={item.id}
-                      value={item.id}
-                      disabled={Boolean(item.restriction)}
-                    >
-                      {accountTypes[item.type]} · {item.accountNumber}
-                      {item.restriction
-                        ? ` · ${accountStatuses[item.status]}`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
+                {accounts.isFetching &&
+                !accounts.isError &&
+                !accounts.currentData ? (
+                  <FieldSkeleton label="Loading accounts" />
+                ) : (
+                  <select
+                    className={fieldStyle}
+                    required
+                    value={accountId}
+                    onChange={(event) => setAccountId(event.target.value)}
+                  >
+                    <option value="">Select an active account</option>
+                    {rows.map((item) => (
+                      <option
+                        key={item.id}
+                        value={item.id}
+                        disabled={Boolean(item.restriction)}
+                      >
+                        {accountTypes[item.type]} · {item.accountNumber}
+                        {item.restriction
+                          ? ` · ${accountStatuses[item.status]}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               {accounts.currentData && (
                 <Pager

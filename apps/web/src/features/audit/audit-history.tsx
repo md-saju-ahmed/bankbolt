@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
@@ -127,10 +128,8 @@ export function AuditHistory() {
         </form>
       </Card>
       <Card className="p-4 sm:p-5">
-        {query.isFetching && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Loading audit history…
-          </p>
+        {query.isFetching && !query.isError && !query.currentData && (
+          <ListSkeleton label="Loading audit history" rowClassName="px-0" />
         )}
         {query.isError ? (
           <div className="space-y-2">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import {
   ErrorMessage,
   onboardingError,
@@ -103,7 +104,6 @@ function WorkQueues({ report }: { report: StaffReport }) {
 
 export function StaffOverview() {
   const query = useStaffReportQuery(undefined, {
-    refetchOnFocus: true,
     refetchOnMountOrArgChange: true,
   });
   const report = query.isError ? undefined : query.currentData;
@@ -140,14 +140,7 @@ export function StaffOverview() {
             {query.isError ? "Try again" : "Refresh queues"}
           </Button>
         </div>
-        {query.isFetching && (
-          <p
-            role="status"
-            className="px-4 pt-3 text-sm text-muted-foreground sm:px-5"
-          >
-            {report ? "Refreshing queues…" : "Loading queues…"}
-          </p>
-        )}
+
         {query.isError && (
           <div className="p-4 sm:p-5">
             <ErrorMessage
@@ -158,16 +151,29 @@ export function StaffOverview() {
             />
           </div>
         )}
-        <div aria-busy={query.isFetching}>
+        <div aria-busy={query.isFetching && !!report}>
           {report ? (
             <WorkQueues report={report} />
           ) : (
+            !query.isError &&
             query.isFetching && (
-              <div aria-hidden="true" className="space-y-4 p-4 sm:p-5">
-                <div className="h-14 rounded-md bg-muted" />
-                <div className="h-14 rounded-md bg-muted" />
-                <div className="h-14 rounded-md bg-muted" />
-              </div>
+              <LoadingRegion label="Loading work queues">
+                <div className="divide-y">
+                  {Array.from({ length: 3 }, (_, index) => (
+                    <div
+                      key={index}
+                      className={cn(styles.queueRow, "p-4 sm:p-5")}
+                    >
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-3/4 max-w-44" />
+                        <Skeleton className="h-7 w-12" />
+                      </div>
+                      <Skeleton className="h-4 w-5/6 max-w-56" />
+                      <Skeleton className="h-11 w-40" />
+                    </div>
+                  ))}
+                </div>
+              </LoadingRegion>
             )
           )}
         </div>

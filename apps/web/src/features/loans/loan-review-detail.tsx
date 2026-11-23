@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DetailSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { errorCode } from "@/features/auth/auth-api";
 import { DetailFields } from "@/features/management/management-ui";
@@ -437,9 +438,7 @@ export function LoanReviewDetail({
           )}
         </>
       ) : (
-        <p className="text-sm text-muted-foreground" role="status">
-          Loading application…
-        </p>
+        <DetailSkeleton label="Loading application" />
       )}
     </section>
   );

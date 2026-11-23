@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FieldSkeleton } from "@/components/ui/skeleton";
 import {
   accountStatuses,
   accountTypes,
@@ -196,11 +197,6 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
               </Link>
             </div>
           )}
-          {accounts.isFetching && (
-            <p role="status" className="text-sm text-muted-foreground">
-              Loading accounts…
-            </p>
-          )}
           {accounts.isError && (
             <div className="space-y-2">
               <ErrorMessage message="Could not load your accounts." />
@@ -224,26 +220,32 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
             >
               <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
                 Account
-                <select
-                  required
-                  value={accountId}
-                  onChange={(event) => setAccountId(event.target.value)}
-                  className={fieldStyle}
-                >
-                  <option value="">Select an active account</option>
-                  {rows.map((account) => (
-                    <option
-                      key={account.id}
-                      value={account.id}
-                      disabled={Boolean(account.restriction)}
-                    >
-                      {accountTypes[account.type]} · {account.accountNumber}
-                      {account.restriction
-                        ? ` · ${accountStatuses[account.status]}`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
+                {accounts.isFetching &&
+                !accounts.isError &&
+                !accounts.currentData ? (
+                  <FieldSkeleton label="Loading accounts" />
+                ) : (
+                  <select
+                    required
+                    value={accountId}
+                    onChange={(event) => setAccountId(event.target.value)}
+                    className={fieldStyle}
+                  >
+                    <option value="">Select an active account</option>
+                    {rows.map((account) => (
+                      <option
+                        key={account.id}
+                        value={account.id}
+                        disabled={Boolean(account.restriction)}
+                      >
+                        {accountTypes[account.type]} · {account.accountNumber}
+                        {account.restriction
+                          ? ` · ${accountStatuses[account.status]}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               {accounts.currentData && (
                 <Pager
