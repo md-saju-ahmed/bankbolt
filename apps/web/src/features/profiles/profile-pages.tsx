@@ -15,6 +15,7 @@ import {
 import {
   ErrorMessage,
   onboardingError,
+  primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
@@ -25,7 +26,7 @@ import {
 } from "./profile-api";
 import { ProfileEditor, ProposedChanges } from "./profile-editor";
 
-function ProfileLoadError({
+export function ProfileLoadError({
   error,
   retry,
 }: {
@@ -44,6 +45,40 @@ function ProfileLoadError({
         Try again
       </Button>
     </Card>
+  );
+}
+
+export function ProfileReviewNavigation({
+  staffPhotos,
+}: {
+  staffPhotos: boolean;
+}) {
+  return (
+    <nav
+      aria-label="Profile review categories"
+      className="flex flex-wrap gap-2"
+    >
+      <Link
+        href="/admin/profile"
+        aria-current={!staffPhotos ? "page" : undefined}
+        className={
+          "inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold " +
+          (!staffPhotos ? primaryStyle : secondaryStyle)
+        }
+      >
+        Customer profiles
+      </Link>
+      <Link
+        href="/admin/profile?view=staff-photos"
+        aria-current={staffPhotos ? "page" : undefined}
+        className={
+          "inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold " +
+          (staffPhotos ? primaryStyle : secondaryStyle)
+        }
+      >
+        Staff photos
+      </Link>
+    </nav>
   );
 }
 
@@ -107,6 +142,7 @@ export function ProfileReview({ workspace }: { workspace: "admin" | "staff" }) {
           Refresh
         </Button>
       </header>
+      {workspace === "admin" && <ProfileReviewNavigation staffPhotos={false} />}
       {query.isError ? (
         <ProfileLoadError
           error={query.error}

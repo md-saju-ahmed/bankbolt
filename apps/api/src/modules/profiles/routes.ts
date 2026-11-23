@@ -13,6 +13,7 @@ import {
   pendingProfileChanges,
   requestProfileChange,
 } from "./service.ts";
+import { operatorPhotosRouter } from "./operator-photos.ts";
 import { profileChange, profileDecision } from "./validation.ts";
 
 function reviewRequired() {
@@ -29,6 +30,7 @@ profilesRouter.use((_request, response, next) => {
   next();
 });
 profilesRouter.use(requireAuth);
+profilesRouter.use("/operator-photo", operatorPhotosRouter);
 
 profilesRouter.get("/", requireRole("CUSTOMER"), async (req, res) => {
   res.json(await ownProfile(currentIdentity(req).id));

@@ -40,6 +40,7 @@ export const users = pgTable(
     fullName: text("full_name").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: userRole().notNull(),
+    photoUrl: text("photo_url"),
     blocked: boolean().notNull().default(false),
     accessActive: boolean("access_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -219,6 +220,39 @@ export const profileChangeStatus = pgEnum("profile_change_status", [
   "APPROVED",
   "REJECTED",
 ]);
+
+export const staffPhotoRequests = pgTable(
+  "staff_photo_requests",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    staffId: uuid("staff_id")
+      .notNull()
+      .references(() => users.id),
+    photoUrl: text("photo_url"),
+    status: profileChangeStatus().notNull().default("PENDING"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+  },
+  (table) => [
+    uniqueIndex("staff_photo_one_pending")
+      .on(table.staffId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index("staff_photo_latest").on(table.staffId, table.createdAt),
+    check(
+      "staff_photo_review_complete",
+      sql`(
+      ${table.status} = 'PENDING' and num_nonnulls(${table.reviewedBy}, ${table.reviewedAt}, ${table.reviewReason}) = 0
+    ) or (
+      ${table.status} <> 'PENDING' and num_nonnulls(${table.reviewedBy}, ${table.reviewedAt}, ${table.reviewReason}) = 3
+      and ${table.reviewedBy} <> ${table.staffId}
+    )`,
+    ),
+  ],
+);
 
 export const profileChangeRequests = pgTable(
   "profile_change_requests",

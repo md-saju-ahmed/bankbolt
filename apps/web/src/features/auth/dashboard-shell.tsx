@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Landmark,
   LogOut,
+  ImagePlus,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -256,6 +257,14 @@ function AccountMenu({ user }: { user: SessionUser }) {
         <Dropdown.Label className={menuLabel}>
           {workspaces[user.role].label} account
         </Dropdown.Label>
+        {user.role !== "CUSTOMER" && (
+          <Dropdown.Item asChild className={cn(menuItem, "flex")}>
+            <Link href={workspaces[user.role].path + "/profile?view=photo"}>
+              <ImagePlus aria-hidden size={16} />
+              Profile picture
+            </Link>
+          </Dropdown.Item>
+        )}
         <Dropdown.Item
           disabled={isLoading}
           onSelect={() => void signOut()}

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -13,6 +13,7 @@ import {
   customerProfiles,
   managementEvents,
   profileChangeRequests,
+  staffPhotoRequests,
   users,
 } from "../../src/db/schema.ts";
 import { assertFinancialAccountEligible } from "../../src/modules/accounts/eligibility.ts";
@@ -23,7 +24,7 @@ import { isolatedDatabaseUrl } from "../support/test-database.ts";
 const origin = "http://localhost:3000";
 const password = "Isolated management fixture";
 const run = randomUUID();
-const people = ["admin", "staff", "owner", "neighbor"] as const;
+const people = ["admin", "second-admin", "staff", "owner", "neighbor"] as const;
 type Person = (typeof people)[number];
 const address = (person: Person) => `${person}-${run}@bankbolt.example`;
 const identities = new Map<Person, string>();
@@ -85,7 +86,11 @@ beforeAll(async () => {
   const hash = await hashCredential(password);
   for (const person of people) {
     const role =
-      person === "admin" ? "ADMIN" : person === "staff" ? "STAFF" : "CUSTOMER";
+      person === "admin" || person === "second-admin"
+        ? "ADMIN"
+        : person === "staff"
+          ? "STAFF"
+          : "CUSTOMER";
     const [user] = await database
       .insert(users)
       .values({
@@ -128,6 +133,9 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     if (database) {
+      await database
+        .delete(staffPhotoRequests)
+        .where(inArray(staffPhotoRequests.staffId, [...identities.values()]));
       await database
         .delete(profileChangeRequests)
         .where(
@@ -597,4 +605,107 @@ it("keeps requests pending on an email conflict and rejects self-review", async 
   expect(
     after.body.requests.map(({ status }: { status: string }) => status),
   ).toEqual(["PENDING", "REJECTED"]);
+});
+
+it("publishes operator photos according to role and records one Staff review decision", async () => {
+  const photo = profileUrl + "/operator-photo";
+  const me = "/api/v1/auth/me";
+  const first = "https://example.com/first.png";
+  const other = "https://example.com/other.png";
+  const mutate = (
+    person: Person,
+    method: "put" | "post" | "patch",
+    path: string,
+    body: object,
+    from = origin,
+  ) => {
+    const agent = request(app);
+    return agent[method](photo + path)
+      .set("Cookie", required(cookies, person))
+      .set("Origin", from)
+      .send(body);
+  };
+  const decide = (
+    person: Person,
+    id: string,
+    status: "APPROVED" | "REJECTED",
+  ) =>
+    mutate(person, "patch", "/review/" + id, {
+      status,
+      reason: "Test review decision",
+    });
+
+  await get("neighbor", photo).expect(403);
+  await get("staff", photo + "/review").expect(403);
+  await mutate("staff", "put", "", { photoUrl: first }).expect(403);
+  await mutate("admin", "post", "/requests", { photoUrl: first }).expect(403);
+  await mutate("admin", "put", "", {
+    photoUrl: "http://example.com/first.png",
+  }).expect(400);
+  await mutate(
+    "admin",
+    "put",
+    "",
+    { photoUrl: first },
+    "https://example.com",
+  ).expect(403);
+  await mutate("admin", "put", "", { photoUrl: first }).expect(204);
+  expect((await get("admin", me).expect(200)).body.user.photoUrl).toBe(first);
+  expect((await login("admin").expect(200)).body.user.photoUrl).toBe(first);
+  await mutate("admin", "put", "", { photoUrl: other }).expect(204);
+  expect((await get("admin", me).expect(200)).body.user.photoUrl).toBe(other);
+  await mutate("admin", "put", "", { photoUrl: null }).expect(204);
+  expect((await get("admin", me).expect(200)).body.user.photoUrl).toBeNull();
+
+  const submissions = await Promise.all([
+    mutate("staff", "post", "/requests", { photoUrl: first }),
+    mutate("staff", "post", "/requests", { photoUrl: first }),
+  ]);
+  expect(submissions.map((result) => result.status).sort()).toEqual([201, 409]);
+  const id = submissions.find((result) => result.status === 201)!.body.request
+    .id;
+  expect((await get("staff", me).expect(200)).body.user.photoUrl).toBeNull();
+  expect((await get("staff", photo).expect(200)).body.request.status).toBe(
+    "PENDING",
+  );
+  expect(
+    (await get("admin", photo + "/review").expect(200)).body.requests,
+  ).toContainEqual(
+    expect.objectContaining({ id, photoUrl: first, currentPhotoUrl: null }),
+  );
+  await decide("staff", id, "APPROVED").expect(403);
+
+  const decisions = await Promise.all([
+    decide("admin", id, "APPROVED"),
+    decide("second-admin", id, "APPROVED"),
+  ]);
+  expect(decisions.map((result) => result.status).sort()).toEqual([204, 409]);
+  expect((await get("staff", me).expect(200)).body.user.photoUrl).toBe(first);
+  expect((await login("staff").expect(200)).body.user.photoUrl).toBe(first);
+  const [review] = await database!
+    .select()
+    .from(staffPhotoRequests)
+    .where(eq(staffPhotoRequests.id, id));
+  expect([
+    required(identities, "admin"),
+    required(identities, "second-admin"),
+  ]).toContain(review.reviewedBy);
+  expect(review.reviewedAt).toBeInstanceOf(Date);
+
+  const rejected = (
+    await mutate("staff", "post", "/requests", { photoUrl: other }).expect(201)
+  ).body.request.id;
+  await decide("admin", rejected, "REJECTED").expect(204);
+  expect((await get("staff", photo).expect(200)).body.request).toMatchObject({
+    status: "REJECTED",
+    reviewReason: "Test review decision",
+  });
+  expect((await get("staff", me).expect(200)).body.user.photoUrl).toBe(first);
+
+  const removal = (
+    await mutate("staff", "post", "/requests", { photoUrl: null }).expect(201)
+  ).body.request.id;
+  expect((await get("staff", me).expect(200)).body.user.photoUrl).toBe(first);
+  await decide("admin", removal, "APPROVED").expect(204);
+  expect((await get("staff", me).expect(200)).body.user.photoUrl).toBeNull();
 });

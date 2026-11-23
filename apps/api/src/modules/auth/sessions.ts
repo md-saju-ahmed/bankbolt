@@ -14,7 +14,9 @@ export const publicIdentity = {
   email: users.email,
   fullName: users.fullName,
   role: users.role,
-  photoUrl: customerProfiles.photoUrl,
+  photoUrl: sql<
+    string | null
+  >`case when ${users.role} = 'CUSTOMER' then ${customerProfiles.photoUrl} else ${users.photoUrl} end`,
 };
 
 export type Identity = Pick<
