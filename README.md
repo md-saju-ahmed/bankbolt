@@ -19,6 +19,7 @@ On the sign-in page, choose a role under **Demo accounts** to fill the form, the
 - Manage Savings, Current, and Business accounts with customer verification, balance and status views, and account restrictions.
 - Transfer BDT with PIN confirmation, fees, and limits. Filter and page through transaction history, print receipts or download PDFs, and export CSV/PDF statements.
 - Staff and Admin review deposit and withdrawal requests. Staff forward loan applications to Admin for a decision. Customers can follow disbursement, schedules, and repayments.
+- Customers can request changes to their profile, including their photo, for Staff or Admin review. Staff can request a profile picture change from the account menu and keep their current photo or initials until an Admin approves it. Admins review those requests under **Profile change review → Staff photos** and can update their own photo immediately. Photos use public HTTPS image URLs.
 - Explore five Admin charts for transaction volume, deposits vs. withdrawals, account distribution, loan decisions, and monthly activity. Three Customer charts show spending, deposit history, and transaction distribution. All charts use API data.
 - Use responsive workspaces with light and dark themes. The app supports optional authenticator verification for sensitive actions and flags unusual posted activity for review.
 
@@ -41,6 +42,7 @@ See the [Drizzle schema](apps/api/src/db/schema.ts) and [migrations](apps/api/dr
 | Area     | Stored records                                                        |
 | -------- | --------------------------------------------------------------------- |
 | Identity | Users, customer profiles, sessions, authenticators, and auth attempts |
+| Profiles | Customer profile change requests and Staff photo review decisions     |
 | Banking  | Accounts, transactions, cash requests, and transaction flags          |
 | Lending  | Loan applications, review notes, installments, and settlements        |
 | Audit    | Management events and actor references on financial records           |
@@ -57,6 +59,8 @@ pnpm dev
 ```
 
 Open [localhost:3000](http://localhost:3000/). The API listens on port 4000 by default. Check the [proxied health endpoint](http://localhost:3000/api/v1/health) if the web app cannot reach it. For local quick-fill, copy [the web template](apps/web/.env.example) to `apps/web/.env.local` and set `NEXT_PUBLIC_DEMO_PASSWORD` to the password used to seed the local fictional accounts. To enable quick-fill in a local production build, also set `DEMO_LOGIN_ENABLED=true` before building.
+
+After pulling changes that add a migration, run `pnpm --filter @bankbolt/api db:migrate` against your development database before starting the API. The health endpoint can respond successfully while sign-in fails against an outdated schema. If sign-in returns HTTP 403, check that the browser URL matches `WEB_ORIGIN` exactly, including hostname and port. The local default is `http://localhost:3000`.
 
 ### Docker
 
@@ -86,6 +90,8 @@ Copy [the Compose template](.env.example) to `.env`. Set the same development `D
 3. Set `DATABASE_URL`, `SESSION_SECRET`, and `WEB_ORIGIN` on the API project. Set `API_ORIGIN` to the HTTPS API URL on the web project.
 4. In the **web** project's **Settings → Environment Variables**, select **Production** and set `DEMO_LOGIN_ENABLED` to `true` and `NEXT_PUBLIC_DEMO_PASSWORD` to the portfolio seed password for that isolated dataset. All three demo roles share this publicly visible password, so use it exclusively for the fictional accounts. Enable quick-fill in Preview only if it has its own isolated demo dataset.
 5. Build a new Production deployment of the web project so it picks up the settings. Check `/api/v1/health` through the deployed web URL, then use each quick-fill button on `/login` and sign in to verify the configured password matches the seeded accounts.
+
+For upgrades, apply pending migrations to the target database before the updated API serves traffic. Migration [0020](apps/api/drizzle/0020_operator_profile_photos.sql) adds the operator photo column used during sign-in and the Staff photo review table. If you use a restricted API role, verify it can read and update `users.photo_url` and read, insert, and update `staff_photo_requests`.
 
 ## Checks
 
