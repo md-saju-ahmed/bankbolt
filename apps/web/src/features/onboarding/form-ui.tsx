@@ -1,9 +1,9 @@
-import { useId, useState, type ComponentProps } from "react";
 import { errorCode } from "@/features/auth/auth-api";
 import { cn } from "@/lib/utils";
+import { useId, useState, type ComponentProps } from "react";
 
 export const fieldStyle =
-  "min-h-11 w-full min-w-0 rounded-md border border-input bg-card px-3 text-base placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary aria-invalid:border-destructive";
+  "min-h-11 w-full min-w-0 rounded-md border border-border bg-card px-3 text-base placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary aria-invalid:border-destructive";
 export const primaryStyle =
   "bg-primary text-primary-foreground hover:bg-primary/90";
 export const secondaryStyle = "border border-border bg-card hover:bg-muted";

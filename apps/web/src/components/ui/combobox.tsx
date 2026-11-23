@@ -1,9 +1,9 @@
 "use client";
 
-import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import { Check, ChevronDown, Search } from "lucide-react";
-import { useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Select as SelectPrimitive } from "@base-ui/react/select";
+import { Check, ChevronDown } from "lucide-react";
+import { useId, useRef, useState } from "react";
 
 type Option = {
   value: string;
@@ -44,11 +44,12 @@ export function Combobox({
   const selected =
     value === undefined
       ? undefined
-      : (options.find((option) => option.value === value) ?? null);
+      : (options.find((option) => option.value === value)?.value ?? null);
   const initial =
     defaultValue === undefined
-      ? (options.find((option) => !option.disabled) ?? null)
-      : (options.find((option) => option.value === defaultValue) ?? null);
+      ? (options.find((option) => !option.disabled)?.value ?? null)
+      : (options.find((option) => option.value === defaultValue)?.value ??
+        null);
 
   return (
     <div
@@ -68,26 +69,23 @@ export function Combobox({
           setMissing(true);
       }}
     >
-      <ComboboxPrimitive.Root
+      <SelectPrimitive.Root
         items={options}
         name={name}
         value={selected}
         defaultValue={value === undefined ? initial : undefined}
-        isItemEqualToValue={(item, selectedItem) =>
-          item.value === selectedItem.value
-        }
         onValueChange={(item) => {
-          if (item) setMissing(false);
-          onValueChange?.(item?.value ?? "");
+          if (item !== null) setMissing(false);
+          onValueChange?.(item ?? "");
         }}
         required={required}
         disabled={disabled}
         modal={false}
       >
-        <ComboboxPrimitive.Label className="text-sm font-medium">
+        <SelectPrimitive.Label className="text-sm font-medium">
           {label}
-        </ComboboxPrimitive.Label>
-        <ComboboxPrimitive.Trigger
+        </SelectPrimitive.Label>
+        <SelectPrimitive.Trigger
           data-slot="combobox-trigger"
           aria-describedby={
             missing
@@ -95,63 +93,55 @@ export function Combobox({
               : describedBy
           }
           aria-invalid={missing || undefined}
-          className="flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md bg-muted px-3 text-start text-base text-foreground ring-1 ring-input ring-inset hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:ring-destructive data-popup-open:ring-ring"
+          className="flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-start text-base text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive data-popup-open:border-ring aria-invalid:data-popup-open:border-destructive"
         >
           <span className="min-w-0 truncate">
-            <ComboboxPrimitive.Value placeholder={placeholder} />
+            <SelectPrimitive.Value placeholder={placeholder} />
           </span>
           <ChevronDown
             aria-hidden="true"
             className="size-4 shrink-0 text-muted-foreground"
           />
-        </ComboboxPrimitive.Trigger>
-        <ComboboxPrimitive.Portal container={dialog}>
-          <ComboboxPrimitive.Positioner
+        </SelectPrimitive.Trigger>
+        <SelectPrimitive.Portal container={dialog}>
+          <SelectPrimitive.Positioner
             align="start"
+            alignItemWithTrigger={false}
             sideOffset={6}
             collisionPadding={8}
             className="z-[65] w-[var(--anchor-width)] min-w-[min(15rem,var(--available-width))] max-w-[var(--available-width)]"
           >
-            <ComboboxPrimitive.Popup
+            <SelectPrimitive.Popup
               data-slot="combobox-popup"
               aria-label={label}
               className="flex max-h-[min(20rem,var(--available-height))] min-h-0 flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
             >
-              <div className="relative shrink-0 border-b p-2">
-                <Search
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <ComboboxPrimitive.Input
-                  aria-label={`Search ${label.toLowerCase()}`}
-                  placeholder="Search options"
-                  className="h-11 w-full rounded-md bg-muted pr-3 pl-9 text-base placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                />
-              </div>
-              <ComboboxPrimitive.Empty className="px-3 py-2 text-sm text-muted-foreground empty:hidden">
-                No matching options.
-              </ComboboxPrimitive.Empty>
-              <ComboboxPrimitive.List className="min-h-0 overflow-y-auto overscroll-contain p-1 empty:hidden">
-                {(option: Option) => (
-                  <ComboboxPrimitive.Item
+              {options.length === 0 && (
+                <p className="px-3 py-2 text-sm text-muted-foreground">
+                  No options available.
+                </p>
+              )}
+              <SelectPrimitive.List className="min-h-0 overflow-y-auto overscroll-contain p-1 empty:hidden">
+                {options.map((option) => (
+                  <SelectPrimitive.Item
                     key={option.value}
-                    value={option}
+                    value={option.value}
                     disabled={option.disabled}
-                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm data-highlighted:bg-muted data-highlighted:outline-2 data-highlighted:-outline-offset-2 data-highlighted:outline-ring data-disabled:cursor-not-allowed data-disabled:opacity-60"
+                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm data-highlighted:bg-muted data-disabled:cursor-not-allowed data-disabled:opacity-60"
                   >
-                    <span className="min-w-0 flex-1 break-words">
+                    <SelectPrimitive.ItemText className="min-w-0 flex-1 break-words">
                       {option.label}
-                    </span>
-                    <ComboboxPrimitive.ItemIndicator className="shrink-0 text-primary">
+                    </SelectPrimitive.ItemText>
+                    <SelectPrimitive.ItemIndicator className="shrink-0 text-primary">
                       <Check aria-hidden="true" className="size-4" />
-                    </ComboboxPrimitive.ItemIndicator>
-                  </ComboboxPrimitive.Item>
-                )}
-              </ComboboxPrimitive.List>
-            </ComboboxPrimitive.Popup>
-          </ComboboxPrimitive.Positioner>
-        </ComboboxPrimitive.Portal>
-      </ComboboxPrimitive.Root>
+                    </SelectPrimitive.ItemIndicator>
+                  </SelectPrimitive.Item>
+                ))}
+              </SelectPrimitive.List>
+            </SelectPrimitive.Popup>
+          </SelectPrimitive.Positioner>
+        </SelectPrimitive.Portal>
+      </SelectPrimitive.Root>
       {missing && (
         <p id={errorId} className="text-sm text-danger-ink">
           Select a value for {label.toLowerCase()}.
