@@ -56,7 +56,7 @@ pnpm --filter @bankbolt/api db:seed:demo
 pnpm dev
 ```
 
-Open [localhost:3000](http://localhost:3000/). The API listens on port 4000 by default. Check the [proxied health endpoint](http://localhost:3000/api/v1/health) if the web app cannot reach it. For local quick-fill, copy [the web template](apps/web/.env.example) to `apps/web/.env.local` and set `NEXT_PUBLIC_DEMO_PASSWORD` to the password used to seed the local fictional accounts.
+Open [localhost:3000](http://localhost:3000/). The API listens on port 4000 by default. Check the [proxied health endpoint](http://localhost:3000/api/v1/health) if the web app cannot reach it. For local quick-fill, copy [the web template](apps/web/.env.example) to `apps/web/.env.local` and set `NEXT_PUBLIC_DEMO_PASSWORD` to the password used to seed the local fictional accounts. To enable quick-fill in a local production build, also set `DEMO_LOGIN_ENABLED=true` before building.
 
 ### Docker
 
@@ -75,7 +75,8 @@ Copy [the Compose template](.env.example) to `.env`. Set the same development `D
 | `DEMO_PASSWORD`             | Seed tooling      | Shared 12–128 character password for fictional users.                                     |
 | `DEMO_PIN`                  | Portfolio seed    | Six-digit customer PIN for the portfolio fixtures.                                        |
 | `API_ORIGIN`                | Web               | Express origin. Defaults to `http://localhost:4000` locally and requires HTTPS on Vercel. |
-| `NEXT_PUBLIC_DEMO_PASSWORD` | Web build         | Optional public quick-fill password for the isolated demo.                                |
+| `DEMO_LOGIN_ENABLED`        | Web build         | Set to `true` to enable quick-fill on an isolated demo deployment.                        |
+| `NEXT_PUBLIC_DEMO_PASSWORD` | Web build         | Public quick-fill password for the three seeded fictional accounts.                       |
 | `TEST_DATABASE_URL`         | Integration tests | Connection URL for a disposable test database.                                            |
 
 ## Deployment
@@ -83,8 +84,8 @@ Copy [the Compose template](.env.example) to `.env`. Set the same development `D
 1. Create two Vercel projects from this repository. Use `apps/api` for Express and `apps/web` for Next.js.
 2. Provision an isolated Neon database. Apply the Drizzle migrations with its direct connection. Use [the portfolio seed template](apps/api/.env.demo.example) for the fictional demo dataset, then run `pnpm --filter @bankbolt/api db:seed:portfolio` explicitly against that database.
 3. Set `DATABASE_URL`, `SESSION_SECRET`, and `WEB_ORIGIN` on the API project. Set `API_ORIGIN` to the HTTPS API URL on the web project.
-4. To enable quick-fill on the public demo, set `NEXT_PUBLIC_DEMO_PASSWORD` to the password seeded for that isolated dataset before building the web project. That value is visible in the browser.
-5. Check `/api/v1/health` through the deployed web URL and sign in with each role.
+4. In the **web** project's **Settings → Environment Variables**, select **Production** and set `DEMO_LOGIN_ENABLED` to `true` and `NEXT_PUBLIC_DEMO_PASSWORD` to the portfolio seed password for that isolated dataset. All three demo roles share this publicly visible password, so use it exclusively for the fictional accounts. Enable quick-fill in Preview only if it has its own isolated demo dataset.
+5. Build a new Production deployment of the web project so it picks up the settings. Check `/api/v1/health` through the deployed web URL, then use each quick-fill button on `/login` and sign in to verify the configured password matches the seeded accounts.
 
 ## Checks
 

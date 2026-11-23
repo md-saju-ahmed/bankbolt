@@ -3,13 +3,22 @@ import Image from "next/image";
 import { LoginForm } from "@/features/auth/login-form";
 
 export default function LoginPage() {
+  const demoSetting = process.env.DEMO_LOGIN_ENABLED;
+  const demoEnabled =
+    demoSetting === "true" ||
+    (demoSetting === undefined && process.env.NODE_ENV === "development");
   const configuredPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
-  const demoPassword =
+  const validPassword =
     configuredPassword &&
     configuredPassword.length >= 12 &&
-    configuredPassword.length <= 128
-      ? configuredPassword
-      : undefined;
+    configuredPassword.length <= 128;
+  if (demoSetting === "true" && !validPassword) {
+    throw new Error(
+      "Demo login is enabled. Set NEXT_PUBLIC_DEMO_PASSWORD to the 12–128 character password for the isolated demo accounts.",
+    );
+  }
+  const demoPassword =
+    demoEnabled && validPassword ? configuredPassword : undefined;
 
   return (
     <main className="grid min-h-svh bg-card lg:grid-cols-[minmax(22rem,0.9fr)_minmax(25rem,1.1fr)]">

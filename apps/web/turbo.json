@@ -2,11 +2,21 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "env": ["API_ORIGIN", "VERCEL"],
+      "env": [
+        "API_ORIGIN",
+        "DEMO_LOGIN_ENABLED",
+        "NEXT_PUBLIC_DEMO_PASSWORD",
+        "VERCEL"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
     "dev": {
-      "passThroughEnv": ["API_ORIGIN", "VERCEL"]
+      "passThroughEnv": [
+        "API_ORIGIN",
+        "DEMO_LOGIN_ENABLED",
+        "NEXT_PUBLIC_DEMO_PASSWORD",
+        "VERCEL"
+      ]
     }
   }
 }
