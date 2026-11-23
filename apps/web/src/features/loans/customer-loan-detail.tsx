@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DetailSkeleton, FieldSkeleton } from "@/components/ui/skeleton";
@@ -48,29 +48,29 @@ function RepaymentFields() {
   const selected = accounts.find((account) => account.id === accountId);
   return (
     <div className="space-y-3">
-      <label className="flex flex-col gap-2 text-sm font-medium">
-        Pay from account
+      <>
         {query.isFetching && !query.isError && !query.currentData ? (
-          <FieldSkeleton label="Loading accounts" />
+          <div className="flex flex-col gap-2 text-sm font-medium">
+            <span>Pay from account</span>
+            <FieldSkeleton label="Loading accounts" />
+          </div>
         ) : (
-          <Select
+          <Combobox
+            label="Pay from account"
+            className="flex flex-col gap-2 text-sm font-medium"
             name="accountId"
             required
             value={selected?.id ?? ""}
-            onChange={(event) => setAccountId(event.target.value)}
+            onValueChange={(selectedValue) => setAccountId(selectedValue)}
             aria-describedby={selected ? "loan-payment-balance" : undefined}
-          >
-            <option value="" disabled>
-              Choose an eligible account
-            </option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.accountNumber} · {accountTypes[account.type]}
-              </option>
-            ))}
-          </Select>
+            placeholder="Choose an eligible account"
+            options={accounts.map((account) => ({
+              value: account.id,
+              label: `${account.accountNumber} · ${accountTypes[account.type]}`,
+            }))}
+          />
         )}
-      </label>
+      </>
       {selected && (
         <p id="loan-payment-balance" className="text-sm text-muted-foreground">
           Available balance {formatTaka(selected.availableBalancePoisha)}

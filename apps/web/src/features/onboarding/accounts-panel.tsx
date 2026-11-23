@@ -3,7 +3,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -154,28 +154,25 @@ function AccountCreation({
   return (
     <form method="post" onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm font-medium">
-          Account type
-          <Select
-            name="type"
-            value={type}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (
-                value === "SAVINGS" ||
-                value === "CURRENT" ||
-                value === "BUSINESS"
-              )
-                setType(value);
-            }}
-          >
-            {Object.entries(titles).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </label>
+        <Combobox
+          label="Account type"
+          className="flex flex-col gap-2 text-sm font-medium"
+          name="type"
+          value={type}
+          onValueChange={(selectedValue) => {
+            const value = selectedValue;
+            if (
+              value === "SAVINGS" ||
+              value === "CURRENT" ||
+              value === "BUSINESS"
+            )
+              setType(value);
+          }}
+          options={Object.entries(titles).map(([value, label]) => ({
+            value: value,
+            label: label,
+          }))}
+        />
         {type === "BUSINESS" && (
           <>
             <Field

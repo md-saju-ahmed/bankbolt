@@ -3,7 +3,7 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import Link from "next/link";
 import { useState } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -142,23 +142,22 @@ export function CashRequestHistory() {
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-36 flex-col gap-1 text-sm font-medium">
-              Status
-              <Select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All statuses</option>
-                {Object.entries(cashRequestStatuses).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <Combobox
+              label="Status"
+              className="flex min-w-36 flex-col gap-1 text-sm font-medium"
+              value={status}
+              onValueChange={(selectedValue) => {
+                setStatus(selectedValue);
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All statuses" },
+                ...Object.entries(cashRequestStatuses).map(([code, label]) => ({
+                  value: code,
+                  label: label,
+                })),
+              ]}
+            />
             <Button
               className={secondaryStyle}
               disabled={query.isFetching}

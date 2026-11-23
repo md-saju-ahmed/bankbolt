@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -330,35 +330,43 @@ export function CustomerOverview() {
       </header>
       <Card className="space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <label className="flex w-full max-w-sm min-w-0 flex-col gap-2 text-sm font-medium">
-            Account
+          <>
             {(accounts.isFetching &&
               !accounts.isError &&
               !accounts.currentData) ||
             (selected.isFetching && !selected.isError && !account) ? (
-              <FieldSkeleton label="Loading account choices" />
+              <div className="flex w-full max-w-sm min-w-0 flex-col gap-2 text-sm font-medium">
+                <span>Account</span>
+                <FieldSkeleton label="Loading account choices" />
+              </div>
             ) : (
-              <Select
+              <Combobox
+                label="Account"
+                className="flex w-full max-w-sm min-w-0 flex-col gap-2 text-sm font-medium"
                 value={selectedId || ""}
-                onChange={(event) => chooseAccount(event.target.value)}
-              >
-                <option value="">All accounts</option>
-                {selectedId &&
-                  !pageAccounts.some((entry) => entry.id === selectedId) && (
-                    <option value={selectedId} disabled={!selectedAccount}>
-                      {selectedAccount
-                        ? accountLabel(selectedAccount)
-                        : "Selected account unavailable"}
-                    </option>
-                  )}
-                {pageAccounts.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {accountLabel(entry)}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={(selectedValue) => chooseAccount(selectedValue)}
+                options={[
+                  { value: "", label: "All accounts" },
+                  ...(selectedId &&
+                  !pageAccounts.some((entry) => entry.id === selectedId)
+                    ? [
+                        {
+                          value: selectedId,
+                          label: selectedAccount
+                            ? accountLabel(selectedAccount)
+                            : "Selected account unavailable",
+                          disabled: !selectedAccount,
+                        },
+                      ]
+                    : []),
+                  ...pageAccounts.map((entry) => ({
+                    value: entry.id,
+                    label: accountLabel(entry),
+                  })),
+                ]}
+              />
             )}
-          </label>
+          </>
           <Link
             className={`${historyLink} ${secondaryStyle}`}
             href="/customer/accounts"

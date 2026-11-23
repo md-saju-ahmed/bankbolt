@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -114,17 +114,18 @@ export function AuditHistory() {
             placeholder="Search audit events"
             maxLength={120}
           />
-          <label className="grid min-w-0 gap-2 text-sm font-medium">
-            Category
-            <Select name="category">
-              <option value="">All categories</option>
-              {Object.entries(categories).map(([code, label]) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
+          <Combobox
+            label="Category"
+            className="grid min-w-0 gap-2 text-sm font-medium"
+            name="category"
+            options={[
+              { value: "", label: "All categories" },
+              ...Object.entries(categories).map(([code, label]) => ({
+                value: code,
+                label: label,
+              })),
+            ]}
+          />
           <Field
             name="from"
             label="From (Dhaka)"

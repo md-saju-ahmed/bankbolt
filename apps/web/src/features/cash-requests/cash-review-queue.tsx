@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -89,40 +89,38 @@ export function CashReviewQueue({ root }: { root: string }) {
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-32 flex-col gap-1 text-sm font-medium">
-              Status
-              <Select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All statuses</option>
-                {Object.entries(cashRequestStatuses).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex min-w-32 flex-col gap-1 text-sm font-medium">
-              Type
-              <Select
-                value={type}
-                onChange={(event) => {
-                  setType(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All types</option>
-                {Object.entries(cashRequestTypes).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <Combobox
+              label="Status"
+              className="flex min-w-32 flex-col gap-1 text-sm font-medium"
+              value={status}
+              onValueChange={(selectedValue) => {
+                setStatus(selectedValue);
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All statuses" },
+                ...Object.entries(cashRequestStatuses).map(([code, label]) => ({
+                  value: code,
+                  label: label,
+                })),
+              ]}
+            />
+            <Combobox
+              label="Type"
+              className="flex min-w-32 flex-col gap-1 text-sm font-medium"
+              value={type}
+              onValueChange={(selectedValue) => {
+                setType(selectedValue);
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All types" },
+                ...Object.entries(cashRequestTypes).map(([code, label]) => ({
+                  value: code,
+                  label: label,
+                })),
+              ]}
+            />
             <Button
               className={secondaryStyle}
               disabled={query.isFetching}

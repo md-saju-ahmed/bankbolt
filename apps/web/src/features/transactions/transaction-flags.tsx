@@ -4,7 +4,7 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { Flag as FlagIcon } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -365,20 +365,20 @@ export function TransactionFlagsQueue({
           <h2 className="text-lg font-semibold">
             {workspace === "admin" ? "Flag review queue" : "Submitted flags"}
           </h2>
-          <label className="flex min-w-36 flex-col gap-1 text-sm font-medium">
-            Status
-            <Select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as FlagStatus | "");
-                setPage(1);
-              }}
-            >
-              <option value="OPEN">Open</option>
-              <option value="RESOLVED">Resolved</option>
-              <option value="">All statuses</option>
-            </Select>
-          </label>
+          <Combobox
+            label="Status"
+            className="flex min-w-36 flex-col gap-1 text-sm font-medium"
+            value={status}
+            onValueChange={(selectedValue) => {
+              setStatus(selectedValue as FlagStatus | "");
+              setPage(1);
+            }}
+            options={[
+              { value: "OPEN", label: "Open" },
+              { value: "RESOLVED", label: "Resolved" },
+              { value: "", label: "All statuses" },
+            ]}
+          />
         </div>
         {query.isFetching && !query.isError && !query.currentData && (
           <ListSkeleton label="Loading flags" />

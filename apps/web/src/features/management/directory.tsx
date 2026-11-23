@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -41,17 +41,19 @@ function Filter({
   selected: string;
 }) {
   return (
-    <label className="flex flex-col gap-2 text-sm font-medium">
-      {label}
-      <Select name={name} defaultValue={selected}>
-        <option value="">All</option>
-        {Object.entries(values).map(([value, text]) => (
-          <option key={value} value={value}>
-            {text}
-          </option>
-        ))}
-      </Select>
-    </label>
+    <Combobox
+      label={label}
+      className="flex flex-col gap-2 text-sm font-medium"
+      name={name}
+      defaultValue={selected}
+      options={[
+        { value: "", label: "All" },
+        ...Object.entries(values).map(([value, text]) => ({
+          value: value,
+          label: text,
+        })),
+      ]}
+    />
   );
 }
 

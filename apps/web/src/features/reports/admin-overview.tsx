@@ -1,9 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -22,12 +18,16 @@ import {
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaDay } from "@/lib/dhaka-date";
 import { cn } from "@/lib/utils";
-import { ReportChartsSkeleton } from "./report-skeleton";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition, type FormEvent } from "react";
 import styles from "./admin-overview.module.css";
+import { ReportChartsSkeleton } from "./report-skeleton";
 import {
+  useAdminReportQuery,
   type AdminReport,
   type ReportDates,
-  useAdminReportQuery,
 } from "./reports-api";
 
 const countFormat = new Intl.NumberFormat("en-BD");
@@ -267,10 +267,10 @@ export function AdminOverview() {
         className="space-y-3 rounded-xl border bg-card p-4 sm:p-5"
         onSubmit={applyPeriod}
       >
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="space-y-1">
           <h2 className="text-base font-semibold">Reporting period</h2>
-          <p id="report-timezone" className="text-sm text-muted-foreground">
-            Dates use Asia/Dhaka.
+          <p id="report-timezone" className="text-xs text-muted-foreground">
+            Dates use Dhaka time.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">

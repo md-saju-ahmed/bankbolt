@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
@@ -88,24 +88,20 @@ export function MyAccounts() {
         )}
         {!query.isError && account && (
           <>
-            <label className="flex max-w-md flex-col gap-2 text-sm font-medium">
-              Select account
-              <Select
-                value={account.id}
-                onChange={(event) =>
-                  dispatch(
-                    accountsSlice.actions.selectAccount(event.target.value),
-                  )
-                }
-              >
-                {data?.accounts.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {accountTypes[entry.type]} ••••{" "}
-                    {entry.accountNumber.slice(-4)}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <Combobox
+              label="Select account"
+              className="flex max-w-md flex-col gap-2 text-sm font-medium"
+              value={account.id}
+              onValueChange={(selectedValue) =>
+                dispatch(accountsSlice.actions.selectAccount(selectedValue))
+              }
+              options={
+                data?.accounts.map((entry) => ({
+                  value: entry.id,
+                  label: `${accountTypes[entry.type]} •••• ${entry.accountNumber.slice(-4)}`,
+                })) ?? []
+              }
+            />
             <div className="rounded-lg border bg-muted p-4 sm:p-5">
               <p className="text-sm text-muted-foreground">Available balance</p>
               <p className="mt-1 break-all text-3xl font-semibold tabular-nums">

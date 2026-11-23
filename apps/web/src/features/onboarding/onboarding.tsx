@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
@@ -278,20 +278,16 @@ function CustomerReview({
       </dl>
       <form method="post" onSubmit={submit} className="space-y-3 border-t pt-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex w-full max-w-64 flex-col gap-2 text-sm font-medium">
-            Verification decision
-            <Select
-              name="status"
-              key={customer.verifiedAt}
-              defaultValue={customer.verificationStatus}
-            >
-              {Object.entries(verificationLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
+          <Combobox
+            label="Verification decision"
+            className="flex w-full max-w-64 flex-col gap-2 text-sm font-medium"
+            name="status"
+            key={customer.verifiedAt}
+            defaultValue={customer.verificationStatus}
+            options={Object.entries(verificationLabels).map(
+              ([value, label]) => ({ value: value, label: label }),
+            )}
+          />
           <Button type="submit" className={primaryStyle} disabled={isLoading}>
             {isLoading ? "Saving…" : "Save verification"}
           </Button>

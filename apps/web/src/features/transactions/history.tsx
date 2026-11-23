@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { Pager } from "@/features/management/management-ui";
 import {
@@ -16,6 +13,9 @@ import {
 } from "@/features/onboarding/form-ui";
 import { formatDhakaDay } from "@/lib/dhaka-date";
 import type { RootState } from "@/lib/store/store";
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   directions,
   TransactionAmount,
@@ -111,6 +111,15 @@ export function TransactionHistory({ root }: { root: string }) {
       </header>
       <Card className="p-4 sm:p-5">
         <form onSubmit={apply} className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Filters</h2>
+            <p
+              id="transaction-filter-timezone"
+              className="text-xs text-muted-foreground"
+            >
+              Dates use Dhaka time.
+            </p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Field
               label="Reference"
@@ -125,6 +134,7 @@ export function TransactionHistory({ root }: { root: string }) {
             />
             <Field
               label="From date"
+              aria-describedby="transaction-filter-timezone"
               type="date"
               min="0001-01-01"
               max="9999-12-31"
@@ -135,6 +145,7 @@ export function TransactionHistory({ root }: { root: string }) {
             />
             <Field
               label="To date"
+              aria-describedby="transaction-filter-timezone"
               type="date"
               min="0001-01-01"
               max="9999-12-31"
@@ -143,41 +154,38 @@ export function TransactionHistory({ root }: { root: string }) {
                 setDraft({ ...draft, to: event.target.value || undefined })
               }
             />
-            <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
-              Type
-              <Select
-                value={draft.type ?? ""}
-                onChange={(event) =>
-                  setDraft({ ...draft, type: event.target.value || undefined })
-                }
-              >
-                <option value="">All types</option>
-                {Object.entries(transactionTypes).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
-              Status
-              <Select
-                value={draft.status ?? ""}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    status: event.target.value || undefined,
-                  })
-                }
-              >
-                <option value="">All statuses</option>
-                {Object.entries(transactionStatuses).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <Combobox
+              label="Type"
+              className="flex min-w-0 flex-col gap-2 text-sm font-medium"
+              value={draft.type ?? ""}
+              onValueChange={(selectedValue) =>
+                setDraft({ ...draft, type: selectedValue || undefined })
+              }
+              options={[
+                { value: "", label: "All types" },
+                ...Object.entries(transactionTypes).map(([value, label]) => ({
+                  value: value,
+                  label: label,
+                })),
+              ]}
+            />
+            <Combobox
+              label="Status"
+              className="flex min-w-0 flex-col gap-2 text-sm font-medium"
+              value={draft.status ?? ""}
+              onValueChange={(selectedValue) =>
+                setDraft({
+                  ...draft,
+                  status: selectedValue || undefined,
+                })
+              }
+              options={[
+                { value: "", label: "All statuses" },
+                ...Object.entries(transactionStatuses).map(
+                  ([value, label]) => ({ value: value, label: label }),
+                ),
+              ]}
+            />
           </div>
           <ErrorMessage message={error} />
           <div className="flex flex-wrap items-center gap-2">
@@ -194,9 +202,6 @@ export function TransactionHistory({ root }: { root: string }) {
             >
               Clear filters
             </Button>
-            <span className="text-xs text-muted-foreground">
-              Dates use Asia/Dhaka.
-            </span>
           </div>
         </form>
       </Card>

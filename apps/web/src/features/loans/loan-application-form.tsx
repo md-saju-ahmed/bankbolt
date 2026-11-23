@@ -3,7 +3,7 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldSkeleton } from "@/components/ui/skeleton";
@@ -260,30 +260,34 @@ export function LoanApplicationForm() {
               disabled={unknown || estimating || submitting}
               className="min-w-0 space-y-4"
             >
-              <label className="flex flex-col gap-2 text-sm font-medium">
-                Loan type
+              <>
                 {catalog.isFetching &&
                 !catalog.isError &&
                 !catalog.currentData ? (
-                  <FieldSkeleton label="Loading loan products" />
+                  <div className="flex flex-col gap-2 text-sm font-medium">
+                    <span>Loan type</span>
+                    <FieldSkeleton label="Loading loan products" />
+                  </div>
                 ) : (
-                  <Select
+                  <Combobox
+                    label="Loan type"
+                    className="flex flex-col gap-2 text-sm font-medium"
                     required
                     value={type}
-                    onChange={(event) => {
-                      setType(event.target.value);
+                    onValueChange={(selectedValue) => {
+                      setType(selectedValue);
                       setError("");
                     }}
-                  >
-                    <option value="">Select a loan type</option>
-                    {catalog.currentData?.products.map((item) => (
-                      <option key={item.type} value={item.type}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="Select a loan type"
+                    options={(catalog.currentData?.products ?? []).map(
+                      (item) => ({
+                        value: item.type,
+                        label: item.label,
+                      }),
+                    )}
+                  />
                 )}
-              </label>
+              </>
               {product && (
                 <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
                   <p>
@@ -331,34 +335,36 @@ export function LoanApplicationForm() {
                   maxLength={120}
                 />
               </div>
-              <label className="flex flex-col gap-2 text-sm font-medium">
-                Disbursement account
+              <>
                 {accounts.isFetching &&
                 !accounts.isError &&
                 !accounts.currentData ? (
-                  <FieldSkeleton label="Loading accounts" />
+                  <div className="flex flex-col gap-2 text-sm font-medium">
+                    <span>Disbursement account</span>
+                    <FieldSkeleton label="Loading accounts" />
+                  </div>
                 ) : (
-                  <Select
+                  <Combobox
+                    label="Disbursement account"
+                    className="flex flex-col gap-2 text-sm font-medium"
                     required
                     value={accountId}
-                    onChange={(event) => setAccountId(event.target.value)}
-                  >
-                    <option value="">Select an active account</option>
-                    {rows.map((item) => (
-                      <option
-                        key={item.id}
-                        value={item.id}
-                        disabled={Boolean(item.restriction)}
-                      >
-                        {accountTypes[item.type]} · {item.accountNumber}
-                        {item.restriction
+                    onValueChange={(selectedValue) =>
+                      setAccountId(selectedValue)
+                    }
+                    placeholder="Select an active account"
+                    options={rows.map((item) => ({
+                      value: item.id,
+                      label: `${accountTypes[item.type]} · ${item.accountNumber}${
+                        item.restriction
                           ? ` · ${accountStatuses[item.status]}`
-                          : ""}
-                      </option>
-                    ))}
-                  </Select>
+                          : ""
+                      }`,
+                      disabled: Boolean(item.restriction),
+                    }))}
+                  />
                 )}
-              </label>
+              </>
               {accounts.currentData && (
                 <Pager
                   page={page}

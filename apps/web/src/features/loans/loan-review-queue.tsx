@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useDispatch } from "react-redux";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -52,25 +52,27 @@ export function LoanReviewQueue({
       <h1 className="text-3xl font-semibold tracking-tight">Loan review</h1>
       <Card className="gap-0 overflow-hidden p-0">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b p-4">
-          <label className="flex min-w-44 flex-col gap-1 text-sm font-medium">
-            Review queue
-            <Select
-              value={queue}
-              onChange={(event) => select(event.target.value as LoanQueue, 1)}
-            >
-              <option value="pending">Pending</option>
-              <option value="reviewing">Under review</option>
-              <option value="forwarded">Forwarded to Admin</option>
-              {workspace === "admin" && (
-                <>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                </>
-              )}
-            </Select>
-          </label>
+          <Combobox
+            label="Review queue"
+            className="flex min-w-44 flex-col gap-1 text-sm font-medium"
+            value={queue}
+            onValueChange={(selectedValue) =>
+              select(selectedValue as LoanQueue, 1)
+            }
+            options={[
+              { value: "pending", label: "Pending" },
+              { value: "reviewing", label: "Under review" },
+              { value: "forwarded", label: "Forwarded to Admin" },
+              ...(workspace === "admin"
+                ? [
+                    { value: "approved", label: "Approved" },
+                    { value: "rejected", label: "Rejected" },
+                    { value: "active", label: "Active" },
+                    { value: "completed", label: "Completed" },
+                  ]
+                : []),
+            ]}
+          />
           <Button
             className={secondaryStyle}
             disabled={query.isFetching}

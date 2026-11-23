@@ -4,7 +4,7 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { ArrowRight, CircleCheck, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldSkeleton } from "@/components/ui/skeleton";
@@ -541,35 +541,36 @@ function TransferForm({ userId }: { userId: string }) {
                   disabled={busy || Boolean(pending && !checked)}
                   className="min-w-0 space-y-4"
                 >
-                  <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
-                    Source account
+                  <>
                     {accounts.isFetching &&
                     !accounts.isError &&
                     !accounts.currentData ? (
-                      <FieldSkeleton label="Loading your accounts" />
+                      <div className="flex min-w-0 flex-col gap-2 text-sm font-medium">
+                        <span>Source account</span>
+                        <FieldSkeleton label="Loading your accounts" />
+                      </div>
                     ) : (
-                      <Select
+                      <Combobox
+                        label="Source account"
+                        className="flex min-w-0 flex-col gap-2 text-sm font-medium"
                         required
                         value={sourceId}
-                        onChange={(event) => setSourceId(event.target.value)}
-                      >
-                        <option value="">Select an account</option>
-                        {rows.map((account) => (
-                          <option
-                            key={account.id}
-                            value={account.id}
-                            disabled={Boolean(account.restriction)}
-                          >
-                            {accountTypes[account.type]} ·{" "}
-                            {account.accountNumber}
-                            {account.restriction
+                        onValueChange={(selectedValue) =>
+                          setSourceId(selectedValue)
+                        }
+                        placeholder="Select an account"
+                        options={rows.map((account) => ({
+                          value: account.id,
+                          label: `${accountTypes[account.type]} · ${account.accountNumber}${
+                            account.restriction
                               ? ` · ${accountStatuses[account.status]}`
-                              : ""}
-                          </option>
-                        ))}
-                      </Select>
+                              : ""
+                          }`,
+                          disabled: Boolean(account.restriction),
+                        }))}
+                      />
                     )}
-                  </label>
+                  </>
                   {accounts.currentData && (
                     <Pager
                       page={page}

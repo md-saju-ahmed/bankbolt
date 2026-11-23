@@ -1,16 +1,16 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
-import { errorCode } from "./auth-api";
 import {
   ErrorMessage,
   Field,
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { errorCode } from "./auth-api";
 
 type Status = { enabled: boolean; available: boolean };
 type Setup = { secret: string; ticket: string };
@@ -175,7 +175,7 @@ export function AuthenticatorSettings() {
                 aria-label="Two-factor verification"
                 aria-describedby="authenticator-unavailable"
                 disabled
-                className="inline-flex h-7 w-12 shrink-0 cursor-not-allowed items-center rounded-full border border-input bg-muted px-1"
+                className="inline-flex h-7 w-12 shrink-0 cursor-not-allowed items-center rounded-full bg-muted px-1"
               >
                 <span
                   aria-hidden="true"

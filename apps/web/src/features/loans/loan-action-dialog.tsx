@@ -121,6 +121,15 @@ export function LoanActionDialog({
         <AlertDialog.Overlay className="fixed inset-0 z-40 bg-scrim/60" />
         <AlertDialog.Content
           className="fixed top-1/2 left-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-md -translate-1/2 space-y-4 overflow-y-auto rounded-xl border bg-card p-5 shadow-lg"
+          onEscapeKeyDown={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest(
+                '[data-slot="combobox-popup"], [data-slot="combobox-trigger"][aria-expanded="true"]',
+              )
+            )
+              event.preventDefault();
+          }}
           onCloseAutoFocus={(event) => {
             if (succeeded.current && onSuccessFocus) {
               event.preventDefault();
