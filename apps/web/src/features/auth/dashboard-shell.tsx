@@ -171,14 +171,12 @@ function WorkspaceLinks({
       active: pathname === `${root}/audit`,
     });
   }
-  if (role === "ADMIN" || role === "CUSTOMER") {
-    links.push({
-      href: `${root}/profile`,
-      label: role === "CUSTOMER" ? "My profile" : "Profile change review",
-      icon: UserRound,
-      active: pathname === `${root}/profile`,
-    });
-  }
+  links.push({
+    href: `${root}/profile`,
+    label: role === "CUSTOMER" ? "My profile" : "Profile change review",
+    icon: UserRound,
+    active: pathname === `${root}/profile`,
+  });
   links.push({
     href: `${root}/security`,
     label: "Security",

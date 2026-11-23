@@ -75,6 +75,7 @@ export function CustomerProfile() {
               ["Current email", data.profile.email],
               ["Current phone", data.profile.phone],
               ["Current address", data.profile.address],
+              ["Current occupation", data.profile.occupation],
             ]}
           />
           <ProfileEditor profile={data.profile} requests={data.requests} />
@@ -86,7 +87,7 @@ export function CustomerProfile() {
   );
 }
 
-export function ProfileReview() {
+export function ProfileReview({ workspace }: { workspace: "admin" | "staff" }) {
   const [page, setPage] = useState(1);
   const query = useProfileReviewQuery(page, { refetchOnFocus: true });
   const [decide] = useDecideProfileChangeMutation();
@@ -126,7 +127,7 @@ export function ProfileReview() {
                       {request.customerName}
                     </h2>
                     <Link
-                      href={`/admin/management/customers?id=${request.customerId}`}
+                      href={`/${workspace}/management/customers?id=${request.customerId}`}
                       className="text-sm font-medium text-primary underline underline-offset-4"
                     >
                       Open customer
@@ -135,7 +136,10 @@ export function ProfileReview() {
                   <p className="text-sm text-muted-foreground">
                     {formatDhakaTimestamp(request.createdAt)} Dhaka
                   </p>
-                  <ProposedChanges request={request} />
+                  <ProposedChanges
+                    request={request}
+                    current={request.currentProfile}
+                  />
                   <p className="break-words text-sm text-muted-foreground">
                     Request reason: {request.reason}
                   </p>
@@ -175,8 +179,8 @@ export function ProfileReview() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Another administrator must review the request you
-                      submitted.
+                      A different staff member or administrator must review the
+                      request you submitted.
                     </p>
                   )}
                 </li>

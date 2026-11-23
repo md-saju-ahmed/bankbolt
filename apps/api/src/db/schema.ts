@@ -7,6 +7,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgSequence,
   pgTable,
@@ -233,6 +234,10 @@ export const profileChangeRequests = pgTable(
     email: text(),
     phone: text(),
     address: text(),
+    personalChanges: jsonb("personal_changes")
+      .$type<{ occupation?: string | null; photoUrl?: string | null }>()
+      .notNull()
+      .default({}),
     reason: text().notNull(),
     status: profileChangeStatus().notNull().default("PENDING"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -252,7 +257,9 @@ export const profileChangeRequests = pgTable(
     ),
     check(
       "profile_change_has_fields",
-      sql`num_nonnulls(${table.fullName}, ${table.email}, ${table.phone}, ${table.address}) > 0`,
+      sql`jsonb_typeof(${table.personalChanges}) = 'object' and
+        (num_nonnulls(${table.fullName}, ${table.email}, ${table.phone}, ${table.address}) > 0
+          or ${table.personalChanges} <> '{}'::jsonb)`,
     ),
     check(
       "profile_change_review_complete",

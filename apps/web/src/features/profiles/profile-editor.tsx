@@ -13,8 +13,7 @@ import {
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import {
   useRequestProfileChangeMutation,
-  useUpdateProfileMutation,
-  type ContactChanges,
+  type ProfileChanges,
   type Profile,
   type ProfileRequest,
 } from "./profile-api";
@@ -32,82 +31,38 @@ const statuses = {
   REJECTED: "Rejected",
 };
 
-export function ProposedChanges({ request }: { request: ProfileRequest }) {
-  return (
-    <DetailFields
-      fields={contactFields.flatMap(({ name, label }) =>
-        request[name] === null ? [] : [[label, request[name]]],
-      )}
-    />
-  );
-}
-
-function PersonalForm({
-  profile,
-  customerId,
+export function ProposedChanges({
+  request,
+  current,
 }: {
-  profile: Profile;
-  customerId?: string;
+  request: ProfileRequest;
+  current?: Profile;
 }) {
-  const [update, { isLoading }] = useUpdateProfileMutation();
-  const [message, setMessage] = useState("");
-
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const occupation = String(data.get("occupation") ?? "").trim() || null;
-    const photoUrl = String(data.get("photoUrl") ?? "").trim() || null;
-    const changes = {
-      occupation: occupation === profile.occupation ? undefined : occupation,
-      photoUrl: photoUrl === (profile.photoUrl ?? null) ? undefined : photoUrl,
-    };
-    if (changes.occupation === undefined && changes.photoUrl === undefined) {
-      setMessage("Change a detail before saving.");
-      return;
-    }
-    setMessage("");
-    try {
-      await update({ customerId, changes }).unwrap();
-      toast.success("Profile details saved.");
-    } catch (error) {
-      setMessage(onboardingError(error, "Could not save profile details."));
-    }
-  }
-
-  return (
-    <form method="post" onSubmit={save} className="space-y-3">
-      <h3 className="text-base font-semibold">Photo and occupation</h3>
-      <fieldset
-        disabled={isLoading}
-        className="grid min-w-0 gap-4 sm:grid-cols-2"
-      >
-        <Field
-          placeholder="For example, designer"
-          label="Occupation (optional)"
-          name="occupation"
-          defaultValue={profile.occupation ?? ""}
-          maxLength={100}
-        />
-        <Field
-          label="Photo URL (optional)"
-          name="photoUrl"
-          type="url"
-          pattern="[Hh][Tt][Tt][Pp][Ss]://.+"
-          title="Enter a public HTTPS image URL"
-          maxLength={2048}
-          defaultValue={profile.photoUrl ?? ""}
-          placeholder="https://example.com/avatar.jpg"
-        />
-      </fieldset>
-      <ErrorMessage message={message} />
-      <Button type="submit" disabled={isLoading} className={primaryStyle}>
-        {isLoading ? "Saving…" : "Save photo and occupation"}
-      </Button>
-    </form>
+  const fields = contactFields.flatMap(
+    ({ name, label }): [string, string | null][] => {
+      const proposed = request[name];
+      if (proposed === null) return [];
+      return current
+        ? [
+            [`Current ${label.toLowerCase()}`, current[name]],
+            [`Proposed ${label.toLowerCase()}`, proposed],
+          ]
+        : [[label, proposed]];
+    },
   );
+  for (const [name, label] of [
+    ["occupation", "occupation"],
+    ["photoUrl", "photo URL"],
+  ] as const) {
+    const proposed = request.personalChanges?.[name];
+    if (proposed === undefined) continue;
+    if (current) fields.push([`Current ${label}`, current[name] ?? null]);
+    fields.push([`Proposed ${label}`, proposed ?? "Remove"]);
+  }
+  return <DetailFields fields={fields} />;
 }
 
-function ContactForm({
+function ProfileChangeForm({
   profile,
   customerId,
 }: {
@@ -121,10 +76,14 @@ function ContactForm({
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const changes: ContactChanges = {};
+    const changes: ProfileChanges = {};
     for (const { name } of contactFields) {
       const value = String(data.get(name) ?? "").trim();
       if (value !== profile[name]) changes[name] = value;
+    }
+    for (const name of ["occupation", "photoUrl"] as const) {
+      const value = String(data.get(name) ?? "").trim() || null;
+      if (value !== (profile[name] ?? null)) changes[name] = value;
     }
     if (!Object.keys(changes).length) {
       setMessage("Change at least one detail before submitting.");
@@ -147,10 +106,10 @@ function ContactForm({
 
   return (
     <form method="post" onSubmit={requestChange} className="space-y-3">
-      <h3 className="text-base font-semibold">Identity and contact details</h3>
+      <h3 className="text-base font-semibold">Request a profile change</h3>
       <p className="text-sm text-muted-foreground">
-        The current details stay in effect until an administrator who did not
-        submit the request approves it.
+        The current details stay in effect until a staff member or administrator
+        approves the request.
       </p>
       <fieldset
         disabled={isLoading}
@@ -166,6 +125,23 @@ function ContactForm({
             required
           />
         ))}
+        <Field
+          placeholder="For example, designer"
+          label="Occupation (optional)"
+          name="occupation"
+          defaultValue={profile.occupation ?? ""}
+          maxLength={100}
+        />
+        <Field
+          label="Photo URL (optional)"
+          name="photoUrl"
+          type="url"
+          pattern="[Hh][Tt][Tt][Pp][Ss]://.+"
+          title="Enter a public HTTPS image URL"
+          maxLength={2048}
+          defaultValue={profile.photoUrl ?? ""}
+          placeholder="https://example.com/avatar.jpg"
+        />
         <div className="sm:col-span-2">
           <Field
             label="Reason for the change"
@@ -200,16 +176,13 @@ export function ProfileEditor({
 
   return (
     <div className="space-y-6">
-      {editable && (
-        <PersonalForm
-          key={JSON.stringify([profile.occupation, profile.photoUrl])}
-          profile={profile}
-          customerId={customerId}
-        />
-      )}
       {editable && !pending && (
-        <ContactForm
-          key={JSON.stringify(contactFields.map(({ name }) => profile[name]))}
+        <ProfileChangeForm
+          key={JSON.stringify([
+            ...contactFields.map(({ name }) => profile[name]),
+            profile.occupation,
+            profile.photoUrl,
+          ])}
           profile={profile}
           customerId={customerId}
         />

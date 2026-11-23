@@ -10,13 +10,6 @@ import {
 
 const reason = z.string().trim().min(3).max(300);
 
-export const profileUpdate = z
-  .strictObject({
-    occupation: customerOccupation.nullable().optional(),
-    photoUrl: externalPhotoUrl.nullable().optional(),
-  })
-  .refine((input) => Object.keys(input).length > 0);
-
 export const profileChange = z.strictObject({
   changes: z
     .strictObject({
@@ -24,6 +17,8 @@ export const profileChange = z.strictObject({
       email: customerEmail.optional(),
       phone: customerPhone.optional(),
       address: customerAddress.optional(),
+      occupation: customerOccupation.nullable().optional(),
+      photoUrl: externalPhotoUrl.nullable().optional(),
     })
     .refine((input) => Object.keys(input).length > 0),
   reason,

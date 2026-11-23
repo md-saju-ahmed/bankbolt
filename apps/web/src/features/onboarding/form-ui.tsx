@@ -87,9 +87,9 @@ const messages: Record<string, string> = {
     "Restore customer access before changing this profile.",
   PROFILE_UNCHANGED: "Enter at least one changed detail.",
   PROFILE_CHANGE_PENDING: "A profile change is already awaiting review.",
-  PROFILE_CHANGE_DECIDED:
-    "Another administrator already reviewed this request.",
-  PROFILE_SELF_REVIEW: "A different administrator must review this request.",
+  PROFILE_CHANGE_DECIDED: "This request has already been reviewed.",
+  PROFILE_SELF_REVIEW:
+    "A different staff member or administrator must review this request.",
   NOT_FOUND: "The requested record could not be found.",
   CUSTOMER_NOT_ELIGIBLE: "The customer must be verified with active access.",
   INVALID_CUSTOMER_STATUS:

@@ -8,10 +8,7 @@ export type Profile = {
   occupation: string | null;
   photoUrl?: string | null;
 };
-type PersonalChanges = Partial<Pick<Profile, "photoUrl" | "occupation">>;
-export type ContactChanges = Partial<
-  Pick<Profile, "fullName" | "email" | "phone" | "address">
->;
+export type ProfileChanges = Partial<Profile>;
 type Decision = "APPROVED" | "REJECTED";
 
 export type ProfileRequest = {
@@ -20,6 +17,7 @@ export type ProfileRequest = {
   email: string | null;
   phone: string | null;
   address: string | null;
+  personalChanges?: Pick<ProfileChanges, "occupation" | "photoUrl">;
   reason: string;
   status: Decision | "PENDING";
   createdAt: string;
@@ -30,6 +28,7 @@ export type ProfileRequest = {
 type PendingReview = ProfileRequest & {
   customerId: string;
   customerName: string;
+  currentProfile?: Profile;
   canReview: boolean;
 };
 
@@ -38,7 +37,6 @@ const profilePath = (customerId?: string) =>
 
 export const {
   useOwnProfileQuery,
-  useUpdateProfileMutation,
   useRequestProfileChangeMutation,
   useProfileReviewQuery,
   useDecideProfileChangeMutation,
@@ -52,21 +50,9 @@ export const {
       providesTags: ["Profile"],
       keepUnusedDataFor: 0,
     }),
-    updateProfile: build.mutation<
-      void,
-      { customerId?: string; changes: PersonalChanges }
-    >({
-      query: ({ customerId, changes }) => ({
-        url: profilePath(customerId),
-        method: "PATCH",
-        body: changes,
-      }),
-      invalidatesTags: (_result, error, { customerId }) =>
-        error ? [] : customerId ? ["Management"] : ["Profile", "Session"],
-    }),
     requestProfileChange: build.mutation<
       { request: ProfileRequest },
-      { customerId?: string; changes: ContactChanges; reason: string }
+      { customerId?: string; changes: ProfileChanges; reason: string }
     >({
       query: ({ customerId, ...body }) => ({
         url: `${profilePath(customerId)}/requests`,

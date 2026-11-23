@@ -17,10 +17,10 @@ export default async function ProfilePage({
         <CustomerProfile />
       </DashboardShell>
     );
-  if (workspace === "admin")
+  if (workspace === "admin" || workspace === "staff")
     return (
-      <DashboardShell role="ADMIN">
-        <ProfileReview />
+      <DashboardShell role={workspace === "admin" ? "ADMIN" : "STAFF"}>
+        <ProfileReview workspace={workspace} />
       </DashboardShell>
     );
   notFound();

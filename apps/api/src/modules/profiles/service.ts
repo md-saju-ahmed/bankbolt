@@ -9,11 +9,7 @@ import {
   users,
 } from "../../db/schema.ts";
 import { ApiError } from "../../errors.ts";
-import type {
-  profileChange,
-  profileDecision,
-  profileUpdate,
-} from "./validation.ts";
+import type { profileChange, profileDecision } from "./validation.ts";
 
 type Transaction = Parameters<
   Parameters<ReturnType<typeof getDatabase>["transaction"]>[0]
@@ -35,6 +31,7 @@ const requestFields = {
   email: profileChangeRequests.email,
   phone: profileChangeRequests.phone,
   address: profileChangeRequests.address,
+  personalChanges: profileChangeRequests.personalChanges,
   reason: profileChangeRequests.reason,
   status: profileChangeRequests.status,
   createdAt: profileChangeRequests.createdAt,
@@ -95,34 +92,6 @@ export async function ownProfile(userId: string) {
   return { profile, requests: await recentProfileRequests(profile.id) };
 }
 
-export async function updateProfile(
-  target: SQL,
-  actorId: string,
-  input: z.infer<typeof profileUpdate>,
-) {
-  await getDatabase().transaction(async (tx) => {
-    const profile = await lockProfile(tx, target);
-    requireActiveProfile(profile);
-    const changes = {
-      occupation:
-        input.occupation === profile.occupation ? undefined : input.occupation,
-      photoUrl:
-        input.photoUrl === profile.photoUrl ? undefined : input.photoUrl,
-    };
-    if (changes.occupation === undefined && changes.photoUrl === undefined)
-      return;
-    await tx
-      .update(customerProfiles)
-      .set(changes)
-      .where(eq(customerProfiles.id, profile.id));
-    await tx.insert(managementEvents).values({
-      customerId: profile.id,
-      actorId,
-      action: "PROFILE_UPDATED",
-    });
-  });
-}
-
 export async function requestProfileChange(
   target: SQL,
   actorId: string,
@@ -131,14 +100,23 @@ export async function requestProfileChange(
   return getDatabase().transaction(async (tx) => {
     const profile = await lockProfile(tx, target);
     requireActiveProfile(profile);
-    const { fullName, email, phone, address } = input.changes;
+    const { fullName, email, phone, address, occupation, photoUrl } =
+      input.changes;
     const changes = {
       fullName: fullName === profile.fullName ? undefined : fullName,
       email: email === profile.email ? undefined : email,
       phone: phone === profile.phone ? undefined : phone,
       address: address === profile.address ? undefined : address,
     };
-    if (!Object.values(changes).some((value) => value !== undefined))
+    const personalChanges = {
+      occupation: occupation === profile.occupation ? undefined : occupation,
+      photoUrl: photoUrl === profile.photoUrl ? undefined : photoUrl,
+    };
+    if (
+      ![...Object.values(changes), ...Object.values(personalChanges)].some(
+        (value) => value !== undefined,
+      )
+    )
       throw new ApiError(
         400,
         "PROFILE_UNCHANGED",
@@ -150,6 +128,7 @@ export async function requestProfileChange(
         customerId: profile.id,
         submittedBy: actorId,
         reason: input.reason,
+        personalChanges,
         ...changes,
       })
       .onConflictDoNothing()
@@ -176,6 +155,7 @@ export async function pendingProfileChanges(page: number, reviewerId: string) {
       ...requestFields,
       customerId: profileChangeRequests.customerId,
       customerName: users.fullName,
+      currentProfile: profileFields,
       submittedBy: profileChangeRequests.submittedBy,
     })
     .from(profileChangeRequests)
@@ -243,7 +223,7 @@ export async function decideProfileChange(
         throw new ApiError(
           403,
           "PROFILE_SELF_REVIEW",
-          "A different administrator must review this request.",
+          "A different staff member or administrator must review this request.",
         );
       if (input.status === "APPROVED") {
         requireActiveProfile(profile);
@@ -257,12 +237,20 @@ export async function decideProfileChange(
               email: request.email ?? undefined,
             })
             .where(eq(users.id, profile.userId));
-        if (request.phone !== null || request.address !== null)
+        const { occupation, photoUrl } = request.personalChanges;
+        if (
+          request.phone !== null ||
+          request.address !== null ||
+          occupation !== undefined ||
+          photoUrl !== undefined
+        )
           await tx
             .update(customerProfiles)
             .set({
               phone: request.phone ?? undefined,
               address: request.address ?? undefined,
+              occupation,
+              photoUrl,
             })
             .where(eq(customerProfiles.id, request.customerId));
         if (emailChanged)

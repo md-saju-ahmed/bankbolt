@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { customerProfiles } from "../../db/schema.ts";
+import { ApiError } from "../../errors.ts";
 import { requireWebOrigin } from "../auth/auth-config.ts";
 import { currentIdentity, requireAuth, requireRole } from "../auth/guards.ts";
 import { requireAuthenticator } from "../auth/two-factor.ts";
@@ -11,9 +12,16 @@ import {
   ownProfile,
   pendingProfileChanges,
   requestProfileChange,
-  updateProfile,
 } from "./service.ts";
-import { profileChange, profileDecision, profileUpdate } from "./validation.ts";
+import { profileChange, profileDecision } from "./validation.ts";
+
+function reviewRequired() {
+  throw new ApiError(
+    409,
+    "PROFILE_REVIEW_REQUIRED",
+    "Submit the profile change for review.",
+  );
+}
 
 export const profilesRouter = Router();
 profilesRouter.use((_request, response, next) => {
@@ -29,15 +37,7 @@ profilesRouter.patch(
   "/",
   requireRole("CUSTOMER"),
   requireWebOrigin,
-  async (req, res) => {
-    const { id } = currentIdentity(req);
-    await updateProfile(
-      eq(customerProfiles.userId, id),
-      id,
-      profileUpdate.parse(req.body),
-    );
-    res.status(204).end();
-  },
+  reviewRequired,
 );
 profilesRouter.post(
   "/requests",
@@ -59,19 +59,7 @@ profilesRouter.patch(
   "/customers/:customerId",
   requireRole("STAFF", "ADMIN"),
   requireWebOrigin,
-  requireAuthenticator,
-  async (req, res) => {
-    const target = eq(
-      customerProfiles.id,
-      z.uuid().parse(req.params.customerId),
-    );
-    await updateProfile(
-      target,
-      currentIdentity(req).id,
-      profileUpdate.parse(req.body),
-    );
-    res.status(204).end();
-  },
+  reviewRequired,
 );
 profilesRouter.post(
   "/customers/:customerId/requests",
@@ -92,17 +80,21 @@ profilesRouter.post(
   },
 );
 
-profilesRouter.get("/review", requireRole("ADMIN"), async (req, res) => {
-  res.json(
-    await pendingProfileChanges(
-      pages.parse(req.query).page,
-      currentIdentity(req).id,
-    ),
-  );
-});
+profilesRouter.get(
+  "/review",
+  requireRole("STAFF", "ADMIN"),
+  async (req, res) => {
+    res.json(
+      await pendingProfileChanges(
+        pages.parse(req.query).page,
+        currentIdentity(req).id,
+      ),
+    );
+  },
+);
 profilesRouter.patch(
   "/review/:requestId",
-  requireRole("ADMIN"),
+  requireRole("STAFF", "ADMIN"),
   requireWebOrigin,
   requireAuthenticator,
   async (req, res) => {

@@ -134,6 +134,13 @@
       "when": 1795419031384,
       "tag": "0018_profile_change_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795422870138,
+      "tag": "0019_require_profile_change_review",
+      "breakpoints": true
     }
   ]
 }

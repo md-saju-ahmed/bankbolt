@@ -367,46 +367,111 @@ function changeProfile(
     .send(body);
 }
 
-it("scopes profile reads and limits immediate updates to photo and occupation", async () => {
+it("keeps photo and occupation changes pending until Staff or Admin approves them", async () => {
   const ownerId = required(customers, "owner");
   const managed = `/customers/${ownerId}`;
+  const submit = (changes: object) =>
+    changeProfile("owner", "post", "/requests", {
+      changes,
+      reason: "Fictional profile review",
+    });
   await request(app).get(profileUrl).expect(401);
   await get("staff", profileUrl).expect(403);
-  await changeProfile("owner", "patch", "", { email: updatedEmail }).expect(
-    400,
-  );
-  await changeProfile("neighbor", "patch", managed, {
-    occupation: "Wrong owner",
+  await changeProfile("neighbor", "post", managed + "/requests", {
+    changes: { occupation: "Wrong owner" },
+    reason: "Fictional profile review",
   }).expect(403);
-  await changeProfile("owner", "patch", "", { occupation: "Fictional editor" })
+  await submit({ occupation: "Fictional editor" })
     .set("Origin", "https://untrusted.example")
     .expect(403);
+  await submit({ photoUrl: "http://images.example.com/avatar.png" }).expect(
+    400,
+  );
+  await submit({ photoUrl: null }).expect(400);
 
   const photoUrl = "https://images.example.com/portrait.png";
-  await changeProfile("owner", "patch", "", { photoUrl }).expect(204);
-  await changeProfile("owner", "patch", "", { photoUrl }).expect(204);
-  await changeProfile("staff", "patch", managed, {
-    occupation: "Fictional editor",
-  }).expect(204);
-  await changeProfile("admin", "patch", managed, {
-    occupation: "Fictional analyst",
-  }).expect(204);
-  const updated = await get("owner", profileUrl).expect(200);
-  expect(updated.body.profile).toMatchObject({
-    photoUrl,
-    occupation: "Fictional analyst",
+  const changes = { photoUrl, occupation: "Fictional editor" };
+  await changeProfile("owner", "patch", "", changes)
+    .expect(409)
+    .expect(({ body }) =>
+      expect(body.error.code).toBe("PROFILE_REVIEW_REQUIRED"),
+    );
+  await changeProfile("staff", "patch", managed, changes).expect(409);
+  const submitted = await submit(changes).expect(201);
+  const proposal = submitted.body.request;
+  expect(proposal).toMatchObject({
+    status: "PENDING",
+    personalChanges: changes,
   });
-  const other = await get("neighbor", profileUrl).expect(200);
-  expect(other.body.profile).toMatchObject({
+
+  const current = await get("owner", profileUrl).expect(200);
+  expect(current.body.profile).toMatchObject({
     photoUrl: null,
     occupation: null,
   });
-  const detail = await get("admin", prefix + managed).expect(200);
-  expect(
-    detail.body.history.events.filter(
-      ({ action }: { action: string }) => action === "PROFILE_UPDATED",
-    ),
-  ).toHaveLength(3);
+  expect(current.body.requests[0]).toMatchObject({
+    id: proposal.id,
+    status: "PENDING",
+  });
+  const before = await get("owner", "/api/v1/auth/workspaces/customer").expect(
+    200,
+  );
+  expect(before.body.user.photoUrl).toBeNull();
+  const queue = await get("staff", profileUrl + "/review").expect(200);
+  expect(queue.body.requests).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: proposal.id,
+        canReview: true,
+        currentProfile: expect.objectContaining({
+          photoUrl: null,
+          occupation: null,
+        }),
+      }),
+    ]),
+  );
+
+  const approval = {
+    status: "APPROVED",
+    reason: "Reviewed the fictional profile details",
+  };
+  await changeProfile(
+    "staff",
+    "patch",
+    `/review/${proposal.id}`,
+    approval,
+  ).expect(204);
+  const approved = await get("owner", profileUrl).expect(200);
+  expect(approved.body.profile).toMatchObject(changes);
+  const after = await get("owner", "/api/v1/auth/workspaces/customer").expect(
+    200,
+  );
+  expect(after.body.user.photoUrl).toBe(photoUrl);
+
+  const clear = { photoUrl: null, occupation: null };
+  const removal = await submit(clear).expect(201);
+  await changeProfile("admin", "patch", `/review/${removal.body.request.id}`, {
+    status: "REJECTED",
+    reason: "Keep the approved profile details",
+  }).expect(204);
+  const rejected = await get("owner", profileUrl).expect(200);
+  expect(rejected.body.profile).toMatchObject(changes);
+  expect(rejected.body.requests[0]).toMatchObject({
+    status: "REJECTED",
+    personalChanges: clear,
+  });
+
+  const nextRemoval = await submit(clear).expect(201);
+  await changeProfile(
+    "admin",
+    "patch",
+    `/review/${nextRemoval.body.request.id}`,
+    approval,
+  ).expect(204);
+  const cleared = await get("owner", profileUrl).expect(200);
+  expect(cleared.body.profile).toMatchObject(clear);
+  const neighbor = await get("neighbor", profileUrl).expect(200);
+  expect(neighbor.body.profile).toMatchObject(clear);
 });
 
 it("reviews a contact change once, revokes old sessions, and records the review in audit history", async () => {
@@ -424,10 +489,10 @@ it("reviews a contact change once, revokes old sessions, and records the review 
   expect(pending).toMatchObject({ status: "PENDING", ...body.changes });
   const before = await get("owner", profileUrl).expect(200);
   expect(before.body.profile.email).toBe(address("owner"));
-  expect(before.body.requests).toMatchObject([
-    { id: pending.id, status: "PENDING" },
-  ]);
-  await get("staff", profileUrl + "/review").expect(403);
+  expect(before.body.requests[0]).toMatchObject({
+    id: pending.id,
+    status: "PENDING",
+  });
   await get("neighbor", profileUrl + "/review").expect(403);
   const queue = await get("admin", profileUrl + "/review").expect(200);
   expect(queue.body.requests).toEqual(
@@ -444,7 +509,7 @@ it("reviews a contact change once, revokes old sessions, and records the review 
     status: "APPROVED",
     reason: "Verified fictional identity and contact",
   };
-  await changeProfile("staff", "patch", path, decision).expect(403);
+  await changeProfile("neighbor", "patch", path, decision).expect(403);
   const decisions = await Promise.all([
     changeProfile("admin", "patch", path, decision),
     changeProfile("admin", "patch", path, decision),
@@ -463,9 +528,11 @@ it("reviews a contact change once, revokes old sessions, and records the review 
     `${prefix}/customers/${required(customers, "owner")}`,
   ).expect(200);
   expect(detail.body.customer).toMatchObject(body.changes);
-  expect(detail.body.profileRequests).toMatchObject([
-    { status: "APPROVED", reviewReason: decision.reason },
-  ]);
+  expect(detail.body.profileRequests[0]).toMatchObject({
+    id: pending.id,
+    status: "APPROVED",
+    reviewReason: decision.reason,
+  });
   const audit = await get(
     "admin",
     `/api/v1/audit?category=MANAGEMENT&search=${required(customers, "owner")}`,
@@ -492,6 +559,10 @@ it("keeps requests pending on an email conflict and rejects self-review", async 
     reason: "Fictional update requested in branch",
   }).expect(201);
   const path = `/review/${proposed.body.request.id}`;
+  await changeProfile("staff", "patch", path, {
+    status: "APPROVED",
+    reason: "Identity reviewed",
+  }).expect(403);
   await changeProfile("admin", "patch", path, {
     status: "APPROVED",
     reason: "Identity reviewed",
