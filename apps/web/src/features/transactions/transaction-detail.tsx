@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ArrowLeft, Download, Printer } from "lucide-react";
 import Link from "next/link";
 import { TransferReversal } from "./transfer-reversal";
@@ -19,6 +20,8 @@ import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
 import {
   directions,
   historyLink,
+  PostingAmount,
+  TransactionAmount,
   TransactionStatus,
 } from "./transaction-display";
 import {
@@ -34,13 +37,15 @@ function RecordFields({
   transaction: Transaction;
   root: string;
 }) {
-  const fields = [
+  const posted =
+    transaction.status === "COMPLETED" || transaction.status === "REVERSED";
+  const fields: [string, ReactNode][] = [
     ["Reference", transaction.reference],
     ["Date and time", formatDhakaFullTimestamp(transaction.createdAt)],
     ["Type", transactionTypes[transaction.type]],
     ["Sender account", transaction.senderNumber],
     ["Receiver account", transaction.receiverNumber],
-    ["Amount", formatTaka(transaction.amountPoisha)],
+    ["Amount", <TransactionAmount key="amount" transaction={transaction} />],
     ["Transaction fee", formatTaka(transaction.feePoisha)],
   ];
   if (
@@ -53,12 +58,14 @@ function RecordFields({
     ]);
     fields.push([
       "Total credit",
-      formatTaka(
-        (
+      <PostingAmount
+        key="total-credit"
+        direction={posted ? "INCOMING" : null}
+        amountPoisha={(
           BigInt(transaction.amountPoisha) +
           BigInt(transaction.refundedFeePoisha)
-        ).toString(),
-      ),
+        ).toString()}
+      />,
     ]);
   }
   if (transaction.reversalReason)
@@ -68,11 +75,13 @@ function RecordFields({
   if (transaction.senderNumber && transaction.direction !== "INCOMING") {
     fields.push([
       "Total debit",
-      formatTaka(
-        (
+      <PostingAmount
+        key="total-debit"
+        direction={posted ? "OUTGOING" : null}
+        amountPoisha={(
           BigInt(transaction.amountPoisha) + BigInt(transaction.feePoisha)
-        ).toString(),
-      ),
+        ).toString()}
+      />,
     ]);
   }
   return (

@@ -3,18 +3,18 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import Link from "next/link";
 import { useState } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
-import {
-  ErrorMessage,
-  fieldStyle,
-  secondaryStyle,
-} from "@/features/onboarding/form-ui";
+import { ErrorMessage, secondaryStyle } from "@/features/onboarding/form-ui";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
-import { CashRequestBadge, CashRequestHeader } from "./cash-request-ui";
+import {
+  CashRequestAmount,
+  CashRequestBadge,
+  CashRequestHeader,
+} from "./cash-request-ui";
 import {
   cashRequestStatuses,
   cashRequestTypes,
@@ -144,8 +144,7 @@ export function CashRequestHistory() {
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex min-w-36 flex-col gap-1 text-sm font-medium">
               Status
-              <select
-                className={fieldStyle}
+              <Select
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value);
@@ -158,7 +157,7 @@ export function CashRequestHistory() {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <Button
               className={secondaryStyle}
@@ -198,7 +197,7 @@ export function CashRequestHistory() {
                       <li key={request.id} className="space-y-3 p-4 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="break-all font-semibold tabular-nums">
-                            {formatTaka(request.amountPoisha)}
+                            <CashRequestAmount request={request} />
                           </span>
                           <CashRequestBadge status={request.status} />
                         </div>
@@ -255,7 +254,7 @@ export function CashRequestHistory() {
                             )}
                           </td>
                           <td className="break-all p-4 text-right font-semibold tabular-nums">
-                            {formatTaka(request.amountPoisha)}
+                            <CashRequestAmount request={request} />
                           </td>
                           <td className="p-4">
                             <SubmittedAt request={request} />

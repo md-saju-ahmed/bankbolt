@@ -715,16 +715,17 @@ it("lets Admin view one customer's transaction history across their accounts", a
   const neighborId = profiles.get("neighbor")!;
 
   const owner = await historyRequest("admin")
-    .query({ customerId: ownerId })
+    .query({ customerId: ownerId.toUpperCase() })
     .expect(200);
-  expect(
-    owner.body.transactions.map((row: { reference: string }) => row.reference),
-  ).toEqual([internal, cross]);
+  expect(owner.body.transactions).toMatchObject([
+    { reference: internal, direction: "INTERNAL" },
+    { reference: cross, direction: "OUTGOING" },
+  ]);
   const neighbor = await historyRequest("admin")
     .query({ customerId: neighborId })
     .expect(200);
   expect(neighbor.body.transactions).toEqual([
-    expect.objectContaining({ reference: cross }),
+    expect.objectContaining({ reference: cross, direction: "INCOMING" }),
   ]);
   const empty = await historyRequest("admin")
     .query({ customerId: neighborId, reference: internal })

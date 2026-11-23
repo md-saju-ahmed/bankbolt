@@ -29,7 +29,10 @@ import { relatedFlagsRouter } from "../transaction-flags/routes.ts";
 
 const search = pages
   .extend({
-    customerId: z.uuid().optional(),
+    customerId: z
+      .uuid()
+      .transform((value) => value.toLowerCase())
+      .optional(),
     reference: z
       .string()
       .trim()
@@ -72,6 +75,8 @@ function scopedTransactions(identity: Identity, condition?: SQL) {
       receiverNumber: receiver.accountNumber,
       senderUserId: senderOwner.userId,
       receiverUserId: receiverOwner.userId,
+      senderCustomerId: senderOwner.id,
+      receiverCustomerId: receiverOwner.id,
     })
     .from(transactions)
     .leftJoin(original, eq(original.id, transactions.reversesTransactionId))
@@ -85,12 +90,20 @@ function scopedTransactions(identity: Identity, condition?: SQL) {
 
 type TransactionRow = Awaited<ReturnType<typeof scopedTransactions>>[number];
 
-function transactionView(identity: Identity, row: TransactionRow) {
+function transactionView(
+  identity: Identity,
+  row: TransactionRow,
+  customerId?: string,
+) {
   const { transaction, senderNumber, receiverNumber } = row;
-  const ownSender = row.senderUserId === identity.id;
-  const ownReceiver = row.receiverUserId === identity.id;
+  const ownSender = customerId
+    ? row.senderCustomerId === customerId
+    : row.senderUserId === identity.id;
+  const ownReceiver = customerId
+    ? row.receiverCustomerId === customerId
+    : row.receiverUserId === identity.id;
   const direction =
-    identity.role !== "CUSTOMER"
+    identity.role !== "CUSTOMER" && !customerId
       ? null
       : ownSender && ownReceiver
         ? "INTERNAL"
@@ -160,7 +173,7 @@ transactionsRouter.get("/", async (request, response) => {
   response.json({
     transactions: rows
       .slice(0, pageSize)
-      .map((row) => transactionView(identity, row)),
+      .map((row) => transactionView(identity, row, filters.customerId)),
     hasNextPage: rows.length > pageSize,
   });
 });

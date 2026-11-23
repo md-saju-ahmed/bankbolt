@@ -18,7 +18,11 @@ import {
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
 import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
-import { CashRequestBadge, cashLinkStyle } from "./cash-request-ui";
+import {
+  CashRequestAmount,
+  CashRequestBadge,
+  cashLinkStyle,
+} from "./cash-request-ui";
 import {
   cashRequestTypes,
   useCashRequestReviewQuery,
@@ -178,7 +182,7 @@ export function CashReviewDetail({
               fields={[
                 ["Customer", record.customerName],
                 ["Account", record.accountNumber],
-                ["Amount", formatTaka(record.amountPoisha)],
+                ["Amount", <CashRequestAmount key="amount" request={record} />],
                 ["Submitted", formatDhakaFullTimestamp(record.createdAt)],
                 ...(record.reviewedAt
                   ? ([
@@ -286,6 +290,7 @@ export function CashReviewDetail({
                   <label className="flex flex-col gap-2 text-sm font-medium">
                     Reason for rejection
                     <textarea
+                      placeholder="Explain why the request was declined"
                       name="reason"
                       rows={3}
                       required

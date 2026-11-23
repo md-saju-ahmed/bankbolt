@@ -4,6 +4,7 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { ArrowRight, CircleCheck, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldSkeleton } from "@/components/ui/skeleton";
@@ -19,13 +20,12 @@ import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   onboardingError,
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
 import { formatDhakaFullTimestamp } from "@/lib/dhaka-date";
-import { historyLink } from "./transaction-display";
+import { historyLink, PostingAmount } from "./transaction-display";
 import {
   useChangeTransactionPinMutation,
   useRecoverTransferMutation,
@@ -141,6 +141,7 @@ function PinSettings({ configured }: { configured: boolean }) {
       {open ? (
         <form method="post" onSubmit={submit} className="space-y-3">
           <Field
+            placeholder="Enter your sign-in password"
             type="password"
             name="password"
             label="Sign-in password"
@@ -150,23 +151,27 @@ function PinSettings({ configured }: { configured: boolean }) {
           />
           {configured && (
             <Field
+              placeholder="6-digit PIN"
               type="password"
               name="currentPin"
               label="Current PIN"
               inputMode="numeric"
               autoComplete="off"
               pattern="[0-9]{6}"
+              title="Enter a six-digit transaction PIN."
               maxLength={6}
               required
             />
           )}
           <Field
+            placeholder="Choose a 6-digit PIN"
             type="password"
             name="newPin"
             label="New PIN"
             inputMode="numeric"
             autoComplete="off"
             pattern="[0-9]{6}"
+            title="Enter a six-digit transaction PIN."
             maxLength={6}
             required
           />
@@ -264,7 +269,10 @@ function TransferSuccess({
         <div>
           <dt className="text-muted-foreground">Amount</dt>
           <dd className="font-semibold tabular-nums">
-            {formatTaka(transfer.amountPoisha)}
+            <PostingAmount
+              amountPoisha={transfer.amountPoisha}
+              direction="OUTGOING"
+            />
           </dd>
         </div>
         <div>
@@ -540,8 +548,7 @@ function TransferForm({ userId }: { userId: string }) {
                     !accounts.currentData ? (
                       <FieldSkeleton label="Loading your accounts" />
                     ) : (
-                      <select
-                        className={fieldStyle}
+                      <Select
                         required
                         value={sourceId}
                         onChange={(event) => setSourceId(event.target.value)}
@@ -560,7 +567,7 @@ function TransferForm({ userId }: { userId: string }) {
                               : ""}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     )}
                   </label>
                   {accounts.currentData && (
@@ -599,10 +606,12 @@ function TransferForm({ userId }: { userId: string }) {
                   )}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field
+                      placeholder="12-digit account number"
                       name="recipient"
                       label="Recipient account number"
                       inputMode="numeric"
                       pattern="[0-9]{12}"
+                      title="Enter the 12-digit recipient account number."
                       maxLength={12}
                       autoComplete="off"
                       required
@@ -617,18 +626,21 @@ function TransferForm({ userId }: { userId: string }) {
                     />
                   </div>
                   <Field
+                    placeholder="For example, shared expenses"
                     name="description"
                     label="Description"
                     maxLength={300}
                     required
                   />
                   <Field
+                    placeholder="6-digit transaction PIN"
                     name="pin"
                     label="Transaction PIN"
                     type="password"
                     inputMode="numeric"
                     autoComplete="off"
                     pattern="[0-9]{6}"
+                    title="Enter a six-digit transaction PIN."
                     maxLength={6}
                     required
                   />

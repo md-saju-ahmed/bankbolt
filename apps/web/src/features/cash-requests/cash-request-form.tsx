@@ -3,6 +3,7 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldSkeleton } from "@/components/ui/skeleton";
@@ -225,11 +226,10 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
                 !accounts.currentData ? (
                   <FieldSkeleton label="Loading accounts" />
                 ) : (
-                  <select
+                  <Select
                     required
                     value={accountId}
                     onChange={(event) => setAccountId(event.target.value)}
-                    className={fieldStyle}
                   >
                     <option value="">Select an active account</option>
                     {rows.map((account) => (
@@ -244,7 +244,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
                           : ""}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
               </label>
               {accounts.currentData && (
@@ -267,6 +267,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
               )}
               <div className="space-y-1">
                 <Field
+                  placeholder="0.00"
                   ref={amountField}
                   name="amount"
                   label="Amount (BDT)"
@@ -307,6 +308,7 @@ export function CashRequestForm({ type }: { type: CashRequestType }) {
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Description
                 <textarea
+                  placeholder="Explain the purpose of this cash request"
                   name="description"
                   className={`${fieldStyle} py-2`}
                   required

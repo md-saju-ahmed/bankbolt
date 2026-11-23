@@ -2,18 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
-import {
-  ErrorMessage,
-  fieldStyle,
-  secondaryStyle,
-} from "@/features/onboarding/form-ui";
+import { ErrorMessage, secondaryStyle } from "@/features/onboarding/form-ui";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
-import { CashRequestBadge } from "./cash-request-ui";
+import { CashRequestAmount, CashRequestBadge } from "./cash-request-ui";
 import {
   cashRequestStatuses,
   cashRequestTypes,
@@ -95,8 +91,7 @@ export function CashReviewQueue({ root }: { root: string }) {
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex min-w-32 flex-col gap-1 text-sm font-medium">
               Status
-              <select
-                className={fieldStyle}
+              <Select
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value);
@@ -109,12 +104,11 @@ export function CashReviewQueue({ root }: { root: string }) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="flex min-w-32 flex-col gap-1 text-sm font-medium">
               Type
-              <select
-                className={fieldStyle}
+              <Select
                 value={type}
                 onChange={(event) => {
                   setType(event.target.value);
@@ -127,7 +121,7 @@ export function CashReviewQueue({ root }: { root: string }) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <Button
               className={secondaryStyle}
@@ -166,7 +160,7 @@ export function CashReviewQueue({ root }: { root: string }) {
                         <p className="tabular-nums">
                           {cashRequestTypes[record.type]}{" "}
                           <strong className="break-all">
-                            {formatTaka(record.amountPoisha)}
+                            <CashRequestAmount request={record} />
                           </strong>
                         </p>
                         <Submitted record={record} />
@@ -215,7 +209,7 @@ export function CashReviewQueue({ root }: { root: string }) {
                             {cashRequestTypes[record.type]}
                           </td>
                           <td className="break-all p-4 text-right font-semibold tabular-nums">
-                            {formatTaka(record.amountPoisha)}
+                            <CashRequestAmount request={record} />
                           </td>
                           <td className="p-4">
                             <Submitted record={record} />

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DetailSkeleton, FieldSkeleton } from "@/components/ui/skeleton";
@@ -11,7 +12,6 @@ import { DetailFields, Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   onboardingError,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
@@ -53,9 +53,8 @@ function RepaymentFields() {
         {query.isFetching && !query.isError && !query.currentData ? (
           <FieldSkeleton label="Loading accounts" />
         ) : (
-          <select
+          <Select
             name="accountId"
-            className={`${fieldStyle} min-w-0`}
             required
             value={selected?.id ?? ""}
             onChange={(event) => setAccountId(event.target.value)}
@@ -69,7 +68,7 @@ function RepaymentFields() {
                 {account.accountNumber} · {accountTypes[account.type]}
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </label>
       {selected && (
@@ -106,11 +105,13 @@ function RepaymentFields() {
         />
       )}
       <Field
+        placeholder="6-digit transaction PIN"
         label="Transaction PIN"
         name="pin"
         type="password"
         inputMode="numeric"
         pattern="[0-9]{6}"
+        title="Enter a six-digit transaction PIN."
         autoComplete="off"
         minLength={6}
         maxLength={6}

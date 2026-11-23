@@ -73,12 +73,14 @@ function CodeDialog({ prompt }: { prompt: Prompt }) {
             onSubmit={(event) => void submit(event)}
           >
             <Field
+              placeholder="6-digit code"
               ref={input}
               label="Authenticator code"
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9]{6}"
+              title="Enter the six-digit authenticator code."
               maxLength={6}
               required
               disabled={busy}

@@ -292,6 +292,7 @@ export function AccountDetails({ id, admin }: { id: string; admin: boolean }) {
             }}
           >
             <Field
+              placeholder="0.00"
               name="transfer"
               label="Maximum per transfer (BDT)"
               inputMode="decimal"
@@ -299,6 +300,7 @@ export function AccountDetails({ id, admin }: { id: string; admin: boolean }) {
               required
             />
             <Field
+              placeholder="0.00"
               name="daily"
               label="Daily outgoing limit (BDT)"
               inputMode="decimal"
@@ -322,12 +324,14 @@ export function AccountDetails({ id, admin }: { id: string; admin: boolean }) {
               }}
             >
               <Field
+                placeholder="For example, Sample Studio"
                 name="name"
                 label="Business name (optional)"
                 defaultValue={account.businessName ?? ""}
                 maxLength={120}
               />
               <Field
+                placeholder="For example, SIM-BIZ-001"
                 name="registration"
                 label="Simulated business registration (optional)"
                 defaultValue={account.businessRegistrationReference ?? ""}

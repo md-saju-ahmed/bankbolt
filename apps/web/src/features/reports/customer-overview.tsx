@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -26,7 +27,6 @@ import {
 import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
-  fieldStyle,
   onboardingError,
   primaryStyle,
   secondaryStyle,
@@ -338,8 +338,7 @@ export function CustomerOverview() {
             (selected.isFetching && !selected.isError && !account) ? (
               <FieldSkeleton label="Loading account choices" />
             ) : (
-              <select
-                className={fieldStyle}
+              <Select
                 value={selectedId || ""}
                 onChange={(event) => chooseAccount(event.target.value)}
               >
@@ -357,7 +356,7 @@ export function CustomerOverview() {
                     {accountLabel(entry)}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </label>
           <Link

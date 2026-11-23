@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -15,7 +16,6 @@ import {
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   onboardingError,
   primaryStyle,
   secondaryStyle,
@@ -43,14 +43,14 @@ function Filter({
   return (
     <label className="flex flex-col gap-2 text-sm font-medium">
       {label}
-      <select name={name} defaultValue={selected} className={fieldStyle}>
+      <Select name={name} defaultValue={selected}>
         <option value="">All</option>
         {Object.entries(values).map(([value, text]) => (
           <option key={value} value={value}>
             {text}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -186,6 +186,7 @@ export function Directory({
             className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_1fr_1fr_auto]"
           >
             <Field
+              placeholder="Search records"
               name="q"
               label={
                 customerMode

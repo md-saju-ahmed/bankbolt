@@ -3,6 +3,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -14,7 +15,6 @@ import {
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   onboardingError,
   primaryStyle,
   secondaryStyle,
@@ -156,9 +156,8 @@ function AccountCreation({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm font-medium">
           Account type
-          <select
+          <Select
             name="type"
-            className={fieldStyle}
             value={type}
             onChange={(event) => {
               const value = event.target.value;
@@ -175,16 +174,18 @@ function AccountCreation({
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {type === "BUSINESS" && (
           <>
             <Field
+              placeholder="For example, Sample Studio"
               label="Business name (optional)"
               name="businessName"
               maxLength={120}
             />
             <Field
+              placeholder="For example, SIM-BIZ-001"
               label="Simulated business registration (optional)"
               name="businessRegistrationReference"
               maxLength={80}

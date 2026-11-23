@@ -82,6 +82,7 @@ function PersonalForm({
         className="grid min-w-0 gap-4 sm:grid-cols-2"
       >
         <Field
+          placeholder="For example, designer"
           label="Occupation (optional)"
           name="occupation"
           defaultValue={profile.occupation ?? ""}

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { secondaryStyle } from "@/features/onboarding/form-ui";
+import { PostingAmount } from "@/features/transactions/transaction-display";
 import {
   cashRequestStatuses,
+  type CashRequest,
   type CashRequestStatus,
 } from "./cash-requests-api";
 
@@ -81,5 +83,24 @@ export function CashRequestBadge({ status }: { status: CashRequestStatus }) {
     >
       {cashRequestStatuses[status]}
     </span>
+  );
+}
+
+export function CashRequestAmount({
+  request,
+}: {
+  request: Pick<CashRequest, "amountPoisha" | "status" | "type">;
+}) {
+  return (
+    <PostingAmount
+      amountPoisha={request.amountPoisha}
+      direction={
+        request.status === "APPROVED"
+          ? request.type === "DEPOSIT"
+            ? "INCOMING"
+            : "OUTGOING"
+          : null
+      }
+    />
   );
 }

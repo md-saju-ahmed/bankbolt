@@ -71,11 +71,7 @@ export function Pager({
   );
 }
 
-export function DetailFields({
-  fields,
-}: {
-  fields: [string, string | null][];
-}) {
+export function DetailFields({ fields }: { fields: [string, ReactNode][] }) {
   return (
     <dl className="grid gap-4 sm:grid-cols-2">
       {fields.map(([label, value]) => (
@@ -222,6 +218,7 @@ export function ConfirmAction({
           <form method="post" onSubmit={submit} className="mt-5 space-y-4">
             {children}
             <Field
+              placeholder="Briefly explain this change"
               name="reason"
               label="Reason"
               minLength={3}

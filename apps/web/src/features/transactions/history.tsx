@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -10,7 +11,6 @@ import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
@@ -114,6 +114,7 @@ export function TransactionHistory({ root }: { root: string }) {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Field
               label="Reference"
+              title="Use hexadecimal characters and hyphens from the transaction reference."
               placeholder="Reference or prefix"
               pattern="[0-9a-fA-F\-]*"
               maxLength={36}
@@ -144,8 +145,7 @@ export function TransactionHistory({ root }: { root: string }) {
             />
             <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
               Type
-              <select
-                className={fieldStyle}
+              <Select
                 value={draft.type ?? ""}
                 onChange={(event) =>
                   setDraft({ ...draft, type: event.target.value || undefined })
@@ -157,12 +157,11 @@ export function TransactionHistory({ root }: { root: string }) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
               Status
-              <select
-                className={fieldStyle}
+              <Select
                 value={draft.status ?? ""}
                 onChange={(event) =>
                   setDraft({
@@ -177,7 +176,7 @@ export function TransactionHistory({ root }: { root: string }) {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
           <ErrorMessage message={error} />

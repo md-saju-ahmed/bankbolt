@@ -1,8 +1,9 @@
-import type { ComponentProps } from "react";
+import { useId, useState, type ComponentProps } from "react";
 import { errorCode } from "@/features/auth/auth-api";
+import { cn } from "@/lib/utils";
 
 export const fieldStyle =
-  "min-h-11 w-full rounded-md border border-input bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-primary";
+  "min-h-11 w-full min-w-0 rounded-md border border-input bg-card px-3 text-base placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary aria-invalid:border-destructive";
 export const primaryStyle =
   "bg-primary text-primary-foreground hover:bg-primary/90";
 export const secondaryStyle = "border border-border bg-card hover:bg-muted";
@@ -10,13 +11,51 @@ export const secondaryStyle = "border border-border bg-card hover:bg-muted";
 export function Field({
   label,
   className,
+  title,
+  onInvalid,
+  onInput,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
   ...input
 }: ComponentProps<"input"> & { label: string }) {
+  const errorId = useId();
+  const [message, setMessage] = useState("");
   return (
-    <label className="flex flex-col gap-2 text-sm font-medium">
-      {label}
-      <input className={`${fieldStyle} ${className ?? ""}`} {...input} />
-    </label>
+    <div className="min-w-0">
+      <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
+        {label}
+        <input
+          {...input}
+          className={cn(fieldStyle, className)}
+          title={title}
+          aria-invalid={message ? true : invalid}
+          aria-describedby={
+            [describedBy, message && errorId].filter(Boolean).join(" ") ||
+            undefined
+          }
+          onInvalid={(event) => {
+            const { validity, validationMessage } = event.currentTarget;
+            setMessage(
+              validity.valueMissing
+                ? `${label} is required.`
+                : validity.patternMismatch && title
+                  ? title
+                  : validationMessage,
+            );
+            onInvalid?.(event);
+          }}
+          onInput={(event) => {
+            if (message) setMessage("");
+            onInput?.(event);
+          }}
+        />
+      </label>
+      {message && (
+        <p id={errorId} className="mt-1 text-sm text-danger-ink">
+          {message}
+        </p>
+      )}
+    </div>
   );
 }
 

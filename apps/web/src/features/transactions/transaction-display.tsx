@@ -35,17 +35,48 @@ export function TransactionStatus({
 export function TransactionAmount({
   transaction,
 }: {
-  transaction: Pick<Transaction, "amountPoisha" | "direction" | "status">;
+  transaction: Pick<
+    Transaction,
+    "amountPoisha" | "direction" | "status" | "type"
+  >;
 }) {
-  const { amountPoisha, direction, status } = transaction;
-  const signed = status === "COMPLETED";
-  const amount =
-    direction === "OUTGOING" && signed ? `-${amountPoisha}` : amountPoisha;
-  const sign = direction === "INCOMING" && signed ? "+" : "";
+  const { amountPoisha, direction, status, type } = transaction;
+  const posted = status === "COMPLETED" || status === "REVERSED";
+  const oneSidedDirection =
+    type === "DEPOSIT" || type === "LOAN_DISBURSEMENT"
+      ? "INCOMING"
+      : type === "WITHDRAWAL" || type === "LOAN_REPAYMENT"
+        ? "OUTGOING"
+        : null;
   return (
-    <span className="font-semibold tabular-nums">
-      {sign}
-      {formatTaka(amount)}
+    <PostingAmount
+      amountPoisha={amountPoisha}
+      direction={posted ? (direction ?? oneSidedDirection) : null}
+    />
+  );
+}
+
+export function PostingAmount({
+  amountPoisha,
+  direction,
+}: {
+  amountPoisha: string;
+  direction: Transaction["direction"];
+}) {
+  const amount = BigInt(amountPoisha);
+  const positive = amount > BigInt(0);
+  const debit = amount < BigInt(0) || (positive && direction === "OUTGOING");
+  const credit = positive && direction === "INCOMING";
+  return (
+    <span
+      className={cn(
+        "font-semibold tabular-nums",
+        debit && "text-danger-ink",
+        credit && "text-success-ink",
+      )}
+    >
+      {credit ? "+" : ""}
+      {formatTaka((debit && positive ? -amount : amount).toString())}
     </span>
   );
 }

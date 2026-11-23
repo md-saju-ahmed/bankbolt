@@ -85,6 +85,7 @@ export function TransferReversal({
             <label className="grid gap-1 text-sm font-medium">
               Reason
               <textarea
+                placeholder="Explain why this transfer should be reversed"
                 className={fieldStyle}
                 required
                 maxLength={300}

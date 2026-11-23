@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { Pager } from "@/features/management/management-ui";
 import {
   ErrorMessage,
-  fieldStyle,
+  Field,
   primaryStyle,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
@@ -71,6 +72,7 @@ function relatedRecord(event: Event) {
 export function AuditHistory() {
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
+  const [dateError, setDateError] = useState("");
   const query = useAuditQuery(
     { ...filters, page },
     { refetchOnMountOrArgChange: true, refetchOnFocus: true },
@@ -81,55 +83,72 @@ export function AuditHistory() {
     const data = new FormData(event.currentTarget);
     const value = (name: string) =>
       String(data.get(name) ?? "").trim() || undefined;
+    const from = value("from");
+    const to = value("to");
+    if (from && to && from > to) {
+      setDateError("The From date must be on or before the To date.");
+      return;
+    }
+    setDateError("");
     setPage(1);
     setFilters({
       search: value("search"),
       category: value("category"),
-      from: value("from"),
-      to: value("to"),
+      from,
+      to,
     });
   }
 
   return (
     <section className="space-y-5">
       <h1 className="text-2xl font-semibold sm:text-3xl">Audit history</h1>
-      <Card className="p-4 sm:p-5">
+      <Card className="@container space-y-3 p-4 sm:p-5">
         <form
           onSubmit={search}
-          className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[2fr_1.5fr_1fr_1fr_auto]"
+          className="grid items-start gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
         >
-          <label className="grid min-w-0 gap-1 text-sm font-medium">
-            Actor, record ID or action
-            <input
-              className={fieldStyle}
-              type="search"
-              name="search"
-              maxLength={120}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium">
+          <Field
+            label="Actor, record ID or action"
+            type="search"
+            name="search"
+            placeholder="Search audit events"
+            maxLength={120}
+          />
+          <label className="grid min-w-0 gap-2 text-sm font-medium">
             Category
-            <select name="category" className={fieldStyle}>
+            <Select name="category">
               <option value="">All categories</option>
               {Object.entries(categories).map(([code, label]) => (
                 <option key={code} value={code}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium">
-            From (Dhaka)
-            <input name="from" type="date" className={fieldStyle} />
-          </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium">
-            To (Dhaka)
-            <input name="to" type="date" className={fieldStyle} />
-          </label>
-          <Button className={primaryStyle} type="submit">
+          <Field
+            name="from"
+            label="From (Dhaka)"
+            type="date"
+            min="0001-01-01"
+            max="9999-12-31"
+            onChange={() => setDateError("")}
+          />
+          <Field
+            name="to"
+            label="To (Dhaka)"
+            type="date"
+            min="0001-01-01"
+            max="9999-12-31"
+            onChange={() => setDateError("")}
+          />
+          <Button
+            className={`${primaryStyle} self-end @min-[30rem]:col-span-2 @min-[30rem]:justify-self-end @min-[54rem]:col-span-1`}
+            type="submit"
+          >
             Search
           </Button>
         </form>
+        <ErrorMessage message={dateError} />
       </Card>
       <Card className="p-4 sm:p-5">
         {query.isFetching && !query.isError && !query.currentData && (

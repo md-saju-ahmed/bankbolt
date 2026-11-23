@@ -99,6 +99,7 @@ function AdminLoanActions({
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Decision reason
                 <textarea
+                  placeholder="Explain the decision"
                   className={`${fieldStyle} py-2`}
                   name="reason"
                   maxLength={300}
@@ -326,6 +327,7 @@ export function LoanReviewDetail({
                   <label className="flex flex-col gap-2 text-sm font-medium">
                     Add internal note
                     <textarea
+                      placeholder="Record your review findings"
                       className={`${fieldStyle} py-2`}
                       aria-describedby="loan-note-visibility"
                       required

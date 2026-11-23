@@ -138,6 +138,7 @@ export function LoginForm({ demoPassword }: { demoPassword?: string }) {
           id="email"
           name="email"
           type="email"
+          placeholder="you@example.com"
           autoComplete="username"
           maxLength={254}
           required
@@ -154,6 +155,7 @@ export function LoginForm({ demoPassword }: { demoPassword?: string }) {
             id="password"
             name="password"
             type={visible ? "text" : "password"}
+            placeholder="Enter your password"
             autoComplete="current-password"
             maxLength={128}
             required

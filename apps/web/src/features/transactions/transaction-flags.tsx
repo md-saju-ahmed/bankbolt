@@ -4,6 +4,7 @@ import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { Flag as FlagIcon } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
@@ -128,6 +129,7 @@ function FlagDialog({
             <label className="flex flex-col gap-2 text-sm font-medium">
               {flagging ? "Reason for flag" : "Resolution note (optional)"}
               <textarea
+                placeholder="Describe the concern or record the resolution"
                 name="note"
                 rows={3}
                 required={flagging}
@@ -365,8 +367,7 @@ export function TransactionFlagsQueue({
           </h2>
           <label className="flex min-w-36 flex-col gap-1 text-sm font-medium">
             Status
-            <select
-              className={fieldStyle}
+            <Select
               value={status}
               onChange={(event) => {
                 setStatus(event.target.value as FlagStatus | "");
@@ -376,7 +377,7 @@ export function TransactionFlagsQueue({
               <option value="OPEN">Open</option>
               <option value="RESOLVED">Resolved</option>
               <option value="">All statuses</option>
-            </select>
+            </Select>
           </label>
         </div>
         {query.isFetching && !query.isError && !query.currentData && (

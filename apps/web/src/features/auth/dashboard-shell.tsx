@@ -29,6 +29,11 @@ import { ThemeMenu } from "@/components/theme-menu";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  MenuContent,
+  menuItem,
+  menuLabel,
+} from "@/components/ui/dropdown-menu";
 import { DetailSkeleton, Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -232,7 +237,7 @@ function AccountMenu({ user }: { user: SessionUser }) {
   }
 
   return (
-    <Dropdown.Root>
+    <Dropdown.Root modal={false}>
       <Dropdown.Trigger asChild>
         <Button
           aria-label="Account menu"
@@ -249,25 +254,19 @@ function AccountMenu({ user }: { user: SessionUser }) {
           />
         </Button>
       </Dropdown.Trigger>
-      <Dropdown.Portal>
-        <Dropdown.Content
-          align="end"
-          sideOffset={8}
-          className="z-30 w-56 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg"
+      <MenuContent className="w-56">
+        <Dropdown.Label className={menuLabel}>
+          {workspaces[user.role].label} account
+        </Dropdown.Label>
+        <Dropdown.Item
+          disabled={isLoading}
+          onSelect={() => void signOut()}
+          className={cn(menuItem, "flex")}
         >
-          <Dropdown.Label className="px-3 py-2 text-xs font-medium text-muted-foreground">
-            {workspaces[user.role].label} account
-          </Dropdown.Label>
-          <Dropdown.Item
-            disabled={isLoading}
-            onSelect={() => void signOut()}
-            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium outline-none data-highlighted:bg-muted data-highlighted:outline-2 data-highlighted:-outline-offset-2 data-highlighted:outline-primary data-disabled:opacity-60"
-          >
-            <LogOut aria-hidden size={16} />{" "}
-            {isLoading ? "Signing out…" : "Sign out"}
-          </Dropdown.Item>
-        </Dropdown.Content>
-      </Dropdown.Portal>
+          <LogOut aria-hidden size={16} />{" "}
+          {isLoading ? "Signing out…" : "Sign out"}
+        </Dropdown.Item>
+      </MenuContent>
     </Dropdown.Root>
   );
 }

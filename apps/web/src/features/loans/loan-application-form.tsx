@@ -3,6 +3,7 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldSkeleton } from "@/components/ui/skeleton";
@@ -266,8 +267,7 @@ export function LoanApplicationForm() {
                 !catalog.currentData ? (
                   <FieldSkeleton label="Loading loan products" />
                 ) : (
-                  <select
-                    className={fieldStyle}
+                  <Select
                     required
                     value={type}
                     onChange={(event) => {
@@ -281,7 +281,7 @@ export function LoanApplicationForm() {
                         {item.label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
               </label>
               {product && (
@@ -298,6 +298,7 @@ export function LoanApplicationForm() {
               )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
+                  placeholder="0.00"
                   name="amount"
                   label="Requested amount (BDT)"
                   inputMode="decimal"
@@ -305,6 +306,7 @@ export function LoanApplicationForm() {
                   maxLength={20}
                 />
                 <Field
+                  placeholder="For example, 12"
                   name="term"
                   label="Term (months)"
                   type="number"
@@ -314,6 +316,7 @@ export function LoanApplicationForm() {
                   step={1}
                 />
                 <Field
+                  placeholder="0.00"
                   name="income"
                   label="Declared monthly income (BDT)"
                   inputMode="decimal"
@@ -321,6 +324,7 @@ export function LoanApplicationForm() {
                   maxLength={20}
                 />
                 <Field
+                  placeholder="For example, salaried"
                   name="employment"
                   label="Employment status"
                   required
@@ -334,8 +338,7 @@ export function LoanApplicationForm() {
                 !accounts.currentData ? (
                   <FieldSkeleton label="Loading accounts" />
                 ) : (
-                  <select
-                    className={fieldStyle}
+                  <Select
                     required
                     value={accountId}
                     onChange={(event) => setAccountId(event.target.value)}
@@ -353,7 +356,7 @@ export function LoanApplicationForm() {
                           : ""}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
               </label>
               {accounts.currentData && (
@@ -369,6 +372,7 @@ export function LoanApplicationForm() {
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Application description
                 <textarea
+                  placeholder="Describe how you plan to use the loan"
                   className={`${fieldStyle} py-2`}
                   name="description"
                   required

@@ -133,7 +133,7 @@ export function AuthenticatorSettings() {
   return (
     <section className="max-w-2xl space-y-5">
       <h1 className="text-2xl font-semibold sm:text-3xl">Security</h1>
-      <Card className="gap-4 p-5 sm:p-6">
+      <Card className="space-y-4 p-5 sm:p-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Two-factor verification</h2>
           <p className="text-sm text-muted-foreground">
@@ -146,14 +146,44 @@ export function AuthenticatorSettings() {
             <Skeleton className="h-5 w-16" />
           </LoadingRegion>
         )}
-        {status && (
-          <p className="text-sm font-medium">
-            {status.enabled ? "Enabled" : "Off"}
-          </p>
-        )}
-        {status && !status.enabled && !status.available && (
-          <p className="text-sm">Authenticator setup is unavailable.</p>
-        )}
+        {status &&
+          (status.enabled || status.available ? (
+            <span
+              className={
+                status.enabled
+                  ? "inline-flex rounded-full bg-success-surface px-3 py-1 text-sm font-semibold text-success-ink"
+                  : "inline-flex rounded-full bg-muted px-3 py-1 text-sm font-semibold text-muted-foreground"
+              }
+            >
+              {status.enabled ? "Enabled" : "Ready to set up"}
+            </span>
+          ) : (
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/50 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">Coming soon</p>
+                <p
+                  id="authenticator-unavailable"
+                  className="text-sm text-muted-foreground"
+                >
+                  Authenticator setup is unavailable in this deployment.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={false}
+                aria-label="Two-factor verification"
+                aria-describedby="authenticator-unavailable"
+                disabled
+                className="inline-flex h-7 w-12 shrink-0 cursor-not-allowed items-center rounded-full border border-input bg-muted px-1"
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-4 rounded-full border border-border bg-card shadow-sm"
+                />
+              </button>
+            </div>
+          ))}
         {notice && (
           <p role="status" className="text-sm">
             {notice}
@@ -200,18 +230,21 @@ export function AuthenticatorSettings() {
                   <p className="break-all font-mono text-sm">{setup.secret}</p>
                 </div>
                 <Field
+                  placeholder="6-digit code"
                   name="code"
                   label="Authenticator code"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   required
                   pattern="[0-9]{6}"
+                  title="Enter the six-digit authenticator code."
                   maxLength={6}
                   disabled={busy}
                 />
               </>
             ) : (
               <Field
+                placeholder="Enter your current password"
                 name="password"
                 label="Current password"
                 type="password"
@@ -223,6 +256,7 @@ export function AuthenticatorSettings() {
             )}
             {disabling && (
               <Field
+                placeholder="Code from your app or recovery key"
                 name="code"
                 label="Authenticator or recovery code"
                 autoComplete="one-time-code"

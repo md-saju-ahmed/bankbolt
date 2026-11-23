@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
@@ -10,7 +11,6 @@ import { AccountsPanel } from "./accounts-panel";
 import {
   ErrorMessage,
   Field,
-  fieldStyle,
   onboardingError,
   primaryStyle,
   secondaryStyle,
@@ -111,9 +111,16 @@ function CustomerEntry({
         )}
         <div className="grid gap-4 sm:grid-cols-2">
           {mode === "register" && (
-            <Field label="Full name" name="fullName" maxLength={120} required />
+            <Field
+              placeholder="For example, Demo Customer"
+              label="Full name"
+              name="fullName"
+              maxLength={120}
+              required
+            />
           )}
           <Field
+            placeholder="customer@example.com"
             label="Email address"
             name="email"
             type="email"
@@ -123,6 +130,7 @@ function CustomerEntry({
           {mode === "register" && (
             <>
               <Field
+                placeholder="+880 1XXXXXXXXX"
                 label="Phone number"
                 name="phone"
                 type="tel"
@@ -135,14 +143,22 @@ function CustomerEntry({
                 type="date"
                 required
               />
-              <Field label="Address" name="address" maxLength={300} required />
               <Field
+                placeholder="Street, city and postal code"
+                label="Address"
+                name="address"
+                maxLength={300}
+                required
+              />
+              <Field
+                placeholder="For example, SIM-ID-001"
                 label="Simulated identity reference"
                 name="identityReference"
                 maxLength={80}
                 required
               />
               <Field
+                placeholder="For example, designer"
                 label="Occupation (optional)"
                 name="occupation"
                 maxLength={100}
@@ -166,6 +182,7 @@ function CustomerEntry({
                 </p>
               </div>
               <Field
+                placeholder="At least 12 characters"
                 label="Temporary password"
                 name="password"
                 type="password"
@@ -263,8 +280,7 @@ function CustomerReview({
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex w-full max-w-64 flex-col gap-2 text-sm font-medium">
             Verification decision
-            <select
-              className={fieldStyle}
+            <Select
               name="status"
               key={customer.verifiedAt}
               defaultValue={customer.verificationStatus}
@@ -274,7 +290,7 @@ function CustomerReview({
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <Button type="submit" className={primaryStyle} disabled={isLoading}>
             {isLoading ? "Saving…" : "Save verification"}

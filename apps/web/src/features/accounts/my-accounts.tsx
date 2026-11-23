@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useDispatch } from "react-redux";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +15,6 @@ import {
 } from "@/features/management/management-ui";
 import {
   ErrorMessage,
-  fieldStyle,
   onboardingError,
   secondaryStyle,
 } from "@/features/onboarding/form-ui";
@@ -90,8 +90,7 @@ export function MyAccounts() {
           <>
             <label className="flex max-w-md flex-col gap-2 text-sm font-medium">
               Select account
-              <select
-                className={fieldStyle}
+              <Select
                 value={account.id}
                 onChange={(event) =>
                   dispatch(
@@ -105,7 +104,7 @@ export function MyAccounts() {
                     {entry.accountNumber.slice(-4)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <div className="rounded-lg border bg-muted p-4 sm:p-5">
               <p className="text-sm text-muted-foreground">Available balance</p>

@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import { useDispatch } from "react-redux";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { formatTaka } from "@/features/accounts/account-display";
 import { Pager } from "@/features/management/management-ui";
-import {
-  ErrorMessage,
-  fieldStyle,
-  secondaryStyle,
-} from "@/features/onboarding/form-ui";
+import { ErrorMessage, secondaryStyle } from "@/features/onboarding/form-ui";
 import { historyLink } from "@/features/transactions/transaction-display";
 import { formatDhakaTimestamp } from "@/lib/dhaka-date";
 import { useAppSelector } from "@/lib/store/provider";
@@ -57,8 +54,7 @@ export function LoanReviewQueue({
         <div className="flex flex-wrap items-end justify-between gap-3 border-b p-4">
           <label className="flex min-w-44 flex-col gap-1 text-sm font-medium">
             Review queue
-            <select
-              className={fieldStyle}
+            <Select
               value={queue}
               onChange={(event) => select(event.target.value as LoanQueue, 1)}
             >
@@ -73,7 +69,7 @@ export function LoanReviewQueue({
                   <option value="completed">Completed</option>
                 </>
               )}
-            </select>
+            </Select>
           </label>
           <Button
             className={secondaryStyle}
