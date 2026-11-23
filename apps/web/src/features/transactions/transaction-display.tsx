@@ -1,4 +1,5 @@
 import { formatTaka } from "@/features/accounts/account-display";
+import { TakaAmount } from "@/features/accounts/taka-amount";
 import { cn } from "@/lib/utils";
 import { transactionStatuses, type Transaction } from "./transactions-api";
 
@@ -34,7 +35,9 @@ export function TransactionStatus({
 
 export function TransactionAmount({
   transaction,
+  takaIcon,
 }: {
+  takaIcon?: boolean;
   transaction: Pick<
     Transaction,
     "amountPoisha" | "direction" | "status" | "type"
@@ -51,6 +54,7 @@ export function TransactionAmount({
   return (
     <PostingAmount
       amountPoisha={amountPoisha}
+      takaIcon={takaIcon}
       direction={posted ? (direction ?? oneSidedDirection) : null}
     />
   );
@@ -59,14 +63,17 @@ export function TransactionAmount({
 export function PostingAmount({
   amountPoisha,
   direction,
+  takaIcon,
 }: {
   amountPoisha: string;
   direction: Transaction["direction"];
+  takaIcon?: boolean;
 }) {
   const amount = BigInt(amountPoisha);
   const positive = amount > BigInt(0);
   const debit = amount < BigInt(0) || (positive && direction === "OUTGOING");
   const credit = positive && direction === "INCOMING";
+  const signedPoisha = (debit && positive ? -amount : amount).toString();
   return (
     <span
       className={cn(
@@ -75,8 +82,11 @@ export function PostingAmount({
         credit && "text-success-ink",
       )}
     >
-      {credit ? "+" : ""}
-      {formatTaka((debit && positive ? -amount : amount).toString())}
+      {takaIcon ? (
+        <TakaAmount poisha={signedPoisha} credit={credit} />
+      ) : (
+        `${credit ? "+" : ""}${formatTaka(signedPoisha)}`
+      )}
     </span>
   );
 }

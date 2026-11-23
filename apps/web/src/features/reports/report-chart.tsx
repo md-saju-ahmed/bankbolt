@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/card";
-import { formatTaka } from "@/features/accounts/account-display";
+import { TakaAmount } from "@/features/accounts/taka-amount";
 import { formatDhakaDay } from "@/lib/dhaka-date";
 import { cn } from "@/lib/utils";
 import type { ReportDates } from "./reports-api";
@@ -69,7 +69,11 @@ export function category(label: string, count: number, tick = label): Point {
 }
 
 function exactValue(value: string | number) {
-  return typeof value === "string" ? formatTaka(value) : numeric.format(value);
+  return typeof value === "string" ? (
+    <TakaAmount poisha={value} />
+  ) : (
+    numeric.format(value)
+  );
 }
 
 function ChartData({

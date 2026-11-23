@@ -7,7 +7,7 @@ import {
   LoadingRegion,
   Skeleton,
 } from "@/components/ui/skeleton";
-import { formatTaka } from "@/features/accounts/account-display";
+import { TakaAmount } from "@/features/accounts/taka-amount";
 import {
   ErrorMessage,
   Field,
@@ -70,7 +70,7 @@ function CurrentTotals({ summary }: { summary: AdminReport["summary"] }) {
             Total bank balance
           </dt>
           <dd className="mt-1 text-3xl font-semibold tracking-tight break-words tabular-nums sm:text-4xl">
-            {formatTaka(summary.balancePoisha)}
+            <TakaAmount poisha={summary.balancePoisha} />
           </dd>
         </div>
         <div className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-1">
@@ -111,10 +111,13 @@ function CurrentTotals({ summary }: { summary: AdminReport["summary"] }) {
 function CompletedActivity({ report }: { report: AdminReport }) {
   const { period, summary } = report;
   const activity = [
-    { label: "Total deposits", value: formatTaka(summary.depositsPoisha) },
+    {
+      label: "Total deposits",
+      value: <TakaAmount poisha={summary.depositsPoisha} />,
+    },
     {
       label: "Total withdrawals",
-      value: formatTaka(summary.withdrawalsPoisha),
+      value: <TakaAmount poisha={summary.withdrawalsPoisha} />,
     },
     {
       label: "Completed transactions",

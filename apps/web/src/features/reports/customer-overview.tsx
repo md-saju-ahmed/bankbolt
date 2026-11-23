@@ -1,5 +1,6 @@
 "use client";
 
+import { TakaAmount } from "@/features/accounts/taka-amount";
 import { skipToken } from "@reduxjs/toolkit/query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -17,7 +18,6 @@ import {
 import {
   accountStatuses,
   accountTypes,
-  formatTaka,
 } from "@/features/accounts/account-display";
 import {
   useOwnedAccountQuery,
@@ -108,7 +108,7 @@ function BalanceCard({
                 {balanceLabel}
               </dt>
               <dd className="mt-1 text-3xl font-semibold tracking-tight break-words tabular-nums sm:text-4xl">
-                {formatTaka(summary.balancePoisha)}
+                <TakaAmount poisha={summary.balancePoisha} />
               </dd>
             </div>
             <div className="min-w-0">
@@ -116,7 +116,7 @@ function BalanceCard({
                 Total deposits
               </dt>
               <dd className="mt-1 text-xl font-semibold break-words tabular-nums">
-                {formatTaka(summary.depositsPoisha)}
+                <TakaAmount poisha={summary.depositsPoisha} />
               </dd>
             </div>
             <div className="min-w-0">
@@ -124,7 +124,7 @@ function BalanceCard({
                 Total withdrawals
               </dt>
               <dd className="mt-1 text-xl font-semibold break-words tabular-nums">
-                {formatTaka(summary.withdrawalsPoisha)}
+                <TakaAmount poisha={summary.withdrawalsPoisha} />
               </dd>
             </div>
           </dl>
@@ -190,7 +190,7 @@ function ActiveLoans({ report }: { report: CustomerReport }) {
               Outstanding principal
             </dt>
             <dd className="mt-1 text-xl font-semibold break-words tabular-nums">
-              {formatTaka(outstandingPrincipalPoisha)}
+              <TakaAmount poisha={outstandingPrincipalPoisha} />
             </dd>
           </div>
         </dl>
@@ -243,11 +243,11 @@ function RecentTransactions({
                   </p>
                 </div>
                 <div className="min-w-0 text-end text-sm break-words">
-                  <TransactionAmount transaction={transaction} />
+                  <TransactionAmount transaction={transaction} takaIcon />
                   {transaction.direction === "OUTGOING" &&
                     transaction.feePoisha !== "0" && (
                       <p className="mt-1 text-muted-foreground">
-                        Fee {formatTaka(transaction.feePoisha)}
+                        Fee <TakaAmount poisha={transaction.feePoisha} />
                       </p>
                     )}
                 </div>
