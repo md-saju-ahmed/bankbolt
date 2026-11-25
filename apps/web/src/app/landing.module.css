@@ -319,21 +319,6 @@
   object-fit: contain;
 }
 
-.previewPlaceholder {
-  display: grid;
-  block-size: 100%;
-  place-items: center;
-  color: var(--landing-blue);
-}
-
-.previewPlaceholder svg {
-  box-sizing: content-box;
-  padding: 0.875rem;
-  border: 1px solid var(--landing-line);
-  border-radius: var(--landing-radius);
-  background: var(--landing-paper);
-}
-
 .features,
 .workspaces,
 .loans,

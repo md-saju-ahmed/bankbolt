@@ -8,7 +8,6 @@ import {
   BriefcaseBusiness,
   ClipboardCheck,
   FileText,
-  ImageIcon,
   Landmark,
   LockKeyhole,
   ReceiptText,
@@ -241,11 +240,12 @@ export default function HomePage() {
             </div>
             <div className={styles.preview}>
               <div className={styles.previewFrame}>
-                {/* Replace this placeholder with a Next.js Image using fill
-                    and sizes="(min-width: 1088px) 1024px, 100vw". */}
-                <div className={styles.previewPlaceholder} aria-hidden="true">
-                  <ImageIcon size={36} strokeWidth={1.5} />
-                </div>
+                <Image
+                  src="/images/customer-dashboard.webp"
+                  alt="BankBolt customer dashboard showing the account balance, transfer options, and recent transactions"
+                  fill
+                  sizes="(min-width: 1088px) 1024px, 100vw"
+                />
               </div>
             </div>
           </div>
