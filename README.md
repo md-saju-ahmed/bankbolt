@@ -1,4 +1,4 @@
-﻿# BankBolt
+# BankBolt
 
 BankBolt is a simulated digital banking system with separate workspaces for customers, bank staff, and administrators. It uses fictional accounts and balances. No real money moves through the app.
 
@@ -6,13 +6,21 @@ BankBolt is a simulated digital banking system with separate workspaces for cust
 
 ## Demo access
 
-On the sign-in page, choose a role under **Demo accounts** to fill the form, then select **Sign in**. If quick-fill is unavailable, use the shared demo password provided with the submission or configured during local setup.
+Open the [demo sign-in page](https://bankbolt.vercel.app/login), choose **Customer**, **Bank Staff**, or **Admin** under **Demo accounts**, and select **Sign in**. Each button fills the corresponding fictional email and the shared demo password. To sign in manually, use one of the emails below and the public demo password `BankBolt-demo-hH_25mh_kNVIv2b0fHGkrAWE`. For a local installation, use the password you set as `DEMO_PASSWORD` when seeding the accounts.
 
 | Role       | Demo email                  | What to try                                                                                                         |
 | ---------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Customer   | `customer@bankbolt.example` | Switch accounts, transfer funds, request cash, apply for a loan, and export statements.                             |
 | Bank Staff | `staff@bankbolt.example`    | Verify customers, open accounts, review cash requests, flag transactions, and forward loan applications.            |
 | Admin      | `admin@bankbolt.example`    | Manage customer and account access, set transfer limits, decide loans, reverse transfers, and review audit history. |
+
+## Roles and permissions
+
+| Role       | Access enforced by the API                                                                                                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer   | View their own accounts, transactions, and loans. Submit transfers, cash requests, and loan applications. Cash decisions require Staff or Admin.                                                      |
+| Bank Staff | Onboard and verify customers, open accounts, review cash requests, flag transactions, and add notes and forward loan applications. Final loan decisions and bank-wide settings require Admin.         |
+| Admin      | Access bank-wide analytics, customer and account management, transaction review, and audit history. Approve or reject loans, manage restrictions and transfer limits, and reverse eligible transfers. |
 
 ## Features
 
